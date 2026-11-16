@@ -28,11 +28,7 @@ export class ExpoKeyRingRepository implements KeyRingRepository {
         derivationIndex: row.derivationIndex ?? undefined,
       };
     } catch (error) {
-      throw new Error(
-        `Failed to parse secret key for public key ${publicKey}: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
-      );
+      throw new Error('Stored key material is invalid.');
     }
   }
 
@@ -69,11 +65,7 @@ export class ExpoKeyRingRepository implements KeyRingRepository {
           derivationIndex: row.derivationIndex ?? undefined,
         };
       } catch (error) {
-        throw new Error(
-          `Failed to parse secret key for public key ${row.publicKey}: ${
-            error instanceof Error ? error.message : 'unknown error'
-          }`,
-        );
+        throw new Error('Stored key material is invalid.');
       }
     });
   }
@@ -96,11 +88,7 @@ export class ExpoKeyRingRepository implements KeyRingRepository {
         derivationIndex: row.derivationIndex ?? undefined,
       };
     } catch (error) {
-      throw new Error(
-        `Failed to parse latest secret key for public key ${row.publicKey}: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
-      );
+      throw new Error('Stored key material is invalid.');
     }
   }
 

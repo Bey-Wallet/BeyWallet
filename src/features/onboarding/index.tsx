@@ -140,7 +140,7 @@ export function OnboardingScreen() {
       await completeOnboarding();
       useAuthStore.getState().setAuthenticated(true);
     } catch (err) {
-      console.error('[Onboarding] Failed to resume wallet:', err);
+      console.error('[Onboarding] Failed to resume wallet:');
       setSetupError('Could not open this wallet. Retry opening it.');
     } finally {
       resumeRecoveryWork?.();
@@ -161,7 +161,7 @@ export function OnboardingScreen() {
       setStep('welcome');
       toast.showFeedback(interactionCopy.walletDeleted);
     } catch (err) {
-      console.error('[Onboarding] Failed to delete wallet:', err);
+      console.error('[Onboarding] Failed to delete wallet:');
       setSetupError('Wallet deletion did not finish. Restart Bey and review the wallet.');
     } finally {
       setIsFinishing(false);
@@ -290,7 +290,7 @@ export function OnboardingScreen() {
       useAuthStore.getState().setAuthenticated(true);
     } catch (err) {
       releaseRecoveryPause();
-      console.error('[Onboarding] Onboarding completion failed:', err);
+      console.error('[Onboarding] Onboarding completion failed:');
       setSetupError('Setup could not finish. Check your connection and try again.');
     } finally {
       resumeRecoveryWork?.();
@@ -334,7 +334,7 @@ export function OnboardingScreen() {
         }
       } catch (err) {
         setDiscoveryMessage('Backup discovery failed. You can retry.');
-        console.warn('[Onboarding] Failed to fetch Nostr backup mints:', err);
+        console.warn('[Onboarding] Failed to fetch Nostr backup mints:');
       }
 
       if (!keys) {
@@ -359,7 +359,7 @@ export function OnboardingScreen() {
           }
         }
       } catch (err) {
-        console.warn('[Onboarding] Remote NIP-05 lookup failed:', err);
+        console.warn('[Onboarding] Remote NIP-05 lookup failed:');
       }
 
       if (fetchedUsername) {
@@ -381,7 +381,7 @@ export function OnboardingScreen() {
       setIsImporting(false);
       setStep('permissions');
     } catch (err) {
-      console.error('[Onboarding] Import failed:', err);
+      console.error('[Onboarding] Import failed:');
       setImportStatus('Import failed. Please try again.');
       setSetupError(interactionCopy.importFailedPleaseTryAgain.title);
       setIsImporting(false);

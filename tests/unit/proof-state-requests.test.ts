@@ -53,3 +53,18 @@ it('allows a fresh check after a failed network request', async () => {
     error.mockRestore();
   }
 });
+
+it('does not log proof material echoed by a mint failure', async () => {
+  const failure = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const secret = 'synthetic-private-proof';
+  try {
+    mockCheck.mockRejectedValueOnce(
+      Object.assign(new Error(`Mint error: ${secret}`), { proofs: [{ secret }] }),
+    );
+    await expect(proofService.checkProofStates(secret)).resolves.toEqual([]);
+    expect(failure).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(failure.mock.calls)).not.toContain(secret);
+  } finally {
+    failure.mockRestore();
+  }
+});

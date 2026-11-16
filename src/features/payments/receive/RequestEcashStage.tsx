@@ -208,7 +208,7 @@ export function RequestEcashStage({
               target = nprofileEncode({ pubkey: hexPubkey, relays: ['wss://relay.damus.io'] });
             }
           } catch (e) {
-            console.warn('[RequestEcashStage] Failed to decode npub', e);
+            console.warn('[RequestEcashStage] Failed to decode npub');
           }
         }
 
@@ -267,7 +267,7 @@ export function RequestEcashStage({
         setStep('result');
       } catch (err: any) {
         if (savedRequestId) setStep('result');
-        console.error('[RequestEcashStage] PaymentRequest generation failed:', err);
+        console.error('[RequestEcashStage] PaymentRequest generation failed:');
         setGenerateError(err?.message || 'Failed to generate request');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } finally {
@@ -459,7 +459,7 @@ export function RequestEcashStage({
         );
       }
     } catch (e) {
-      console.warn('[RequestEcashStage] check status error:', e);
+      console.warn('[RequestEcashStage] check status error:');
       toast.showFeedback(interactionCopy.unableToCheckPaymentPleaseTryAgain);
     } finally {
       setIsChecking(false);

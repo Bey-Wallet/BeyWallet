@@ -151,7 +151,7 @@ export function ReceiveModalScreen() {
             }
           }
         } catch (e) {
-          console.warn('[ReceiveModal] Failed to parse P2PK secret:', e);
+          console.warn('[ReceiveModal] Failed to parse P2PK secret:');
         }
 
         // Show confirm screen immediately — no waiting for network
@@ -186,10 +186,10 @@ export function ReceiveModalScreen() {
                 );
               }
             })
-            .catch((e: any) => console.warn('[ReceiveModal] Background mint preview failed:', e));
+            .catch((e: any) => console.warn('[ReceiveModal] Background mint preview failed:'));
         }
       } catch (err: any) {
-        console.error('[ReceiveModal] Failed to decode token:', err);
+        console.error('[ReceiveModal] Failed to decode token:');
         setError(err.message || 'Invalid token format');
       } finally {
         decodeLock.current = false;
@@ -307,7 +307,7 @@ export function ReceiveModalScreen() {
           }
         })
         .catch((err) => {
-          console.warn('[ReceiveModal] Failed to auto-paste from clipboard:', err);
+          console.warn('[ReceiveModal] Failed to auto-paste from clipboard:');
         });
     }
   }, [params.scannedToken, params.requestId, params.from, params.mode, params.paste]);
@@ -390,14 +390,14 @@ export function ReceiveModalScreen() {
           console.log('[ReceiveModal] Adding and trusting mint:', mintUrl);
           await addMint(mintUrl, { trusted: true });
         } catch (e: any) {
-          console.warn('[ReceiveModal] Mint add/trust error:', e?.message);
+          console.warn('[ReceiveModal] Mint add/trust error:');
         }
       }
 
       // 2. Fire-and-forget keyset repair — don't block receive on a local DB fix
       mintManager
         .repairMintKeysets(mintUrl, 'sat')
-        .catch((e) => console.warn('[ReceiveModal] Keyset repair warning:', e));
+        .catch((e) => console.warn('[ReceiveModal] Keyset repair warning:'));
 
       // 3. Receive the token
       console.log('[ReceiveModal] Calling walletService.receive...');
@@ -424,7 +424,7 @@ export function ReceiveModalScreen() {
                 targetPrivkey = Buffer.from(decoded.data as Uint8Array).toString('hex');
               }
             } catch (e: any) {
-              console.warn('[ReceiveModal] Failed to decode nsec:', e);
+              console.warn('[ReceiveModal] Failed to decode nsec:');
             }
           }
           await walletService.receiveP2PK(token.trim(), targetPrivkey);
@@ -460,11 +460,7 @@ export function ReceiveModalScreen() {
       const via = params.from === 'nfc' ? 'nfc' : params.scannedToken ? 'qr' : 'paste';
       historyService.tagHistoryVia(tokenInfo.mint, 'receive', via).catch(() => {});
     } catch (err: any) {
-      console.error('[ReceiveModal] ❌ Failed to receive token:', {
-        message: err?.message,
-        name: err?.name,
-        mint: tokenInfo?.mint,
-      });
+      console.error('[ReceiveModal] ❌ Failed to receive token:');
       setError(err.message || 'Failed to receive token');
       setStatus('error');
       setStep('result');

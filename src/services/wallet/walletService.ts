@@ -95,7 +95,7 @@ function extractMintUrlFromToken(cleaned: string): string | null {
       return raw?.mint || raw?.token?.[0]?.mint || null;
     }
   } catch (e: any) {
-    console.warn('[WalletService] extractMintUrlFromToken failed:', e?.message);
+    console.warn('[WalletService] extractMintUrlFromToken failed:');
     return null;
   }
 }
@@ -139,7 +139,6 @@ async function withKeysetRecovery<T>(
       const keysetId = idMatch?.[1];
       console.warn(
         `[WalletService] ⚠️ Keyset verification failed for ${mintUrl}. Purging and re-initializing…`,
-        keysetId ?? '(all keysets)',
       );
 
       // Purge corrupted keyset from DB
@@ -196,10 +195,7 @@ async function handleOfflineReceive(token: string, mintUrl: string | null, error
         await mintManager.addMint(finalMintUrl, { trusted: true });
         console.log('[WalletService] Offline Receive: added/trusted unknown mint:', finalMintUrl);
       } catch (addErr) {
-        console.warn(
-          '[WalletService] Offline Receive: failed to auto-add mint in background:',
-          addErr,
-        );
+        console.warn('[WalletService] Offline Receive: failed to auto-add mint in background:');
       }
     }
 
@@ -245,7 +241,7 @@ async function handleOfflineReceive(token: string, mintUrl: string | null, error
     if (saveErr.message.includes('Could not connect to mint')) {
       throw saveErr;
     }
-    console.error('[WalletService] Failed to save offline token:', saveErr);
+    console.error('[WalletService] Failed to save offline token:');
   }
 }
 
@@ -290,7 +286,7 @@ export const walletService = {
               console.log(`[WalletService] Rolled back failed send: ${preparedId}`);
             }
           } catch (rollbackErr) {
-            console.warn('[WalletService] Rollback failed:', rollbackErr);
+            console.warn('[WalletService] Rollback failed:');
           }
         }
         throw err;
@@ -467,7 +463,7 @@ export const walletService = {
         });
         console.log(`[WalletService] History tracking injected for P2PK send.`);
       } catch (histErr) {
-        console.warn('[WalletService] Failed to inject history entry:', histErr);
+        console.warn('[WalletService] Failed to inject history entry:');
       }
 
       return { encoded, token, id: operationId };
@@ -538,7 +534,7 @@ export const walletService = {
       console.log('[WalletService] ✅ Token received successfully');
     } catch (err: any) {
       const msg: string = err?.message ?? '';
-      console.error('[WalletService] Receive failed:', msg);
+      console.error('[WalletService] Receive failed:');
 
       if (msg.includes('not trusted') || err?.name === 'UnknownMintError') {
         throw new Error('Mint is not trusted. Please add and trust the mint first.');
@@ -624,7 +620,7 @@ export const walletService = {
       } catch (keyErr: any) {
         // Key might already be registered — that's fine
         if (!keyErr?.message?.includes('already')) {
-          console.warn('[WalletService] P2PK: keyring.addKeyPair warning:', keyErr?.message);
+          console.warn('[WalletService] P2PK: keyring.addKeyPair warning:');
         }
       }
 
@@ -637,7 +633,7 @@ export const walletService = {
 
       console.log('[WalletService] ✅ P2PK Token received successfully via coco');
     } catch (err: any) {
-      console.error('[WalletService] P2PK Receive failed:', err?.message || err);
+      console.error('[WalletService] P2PK Receive failed:');
       throw err;
     }
   },
@@ -710,7 +706,7 @@ export const walletService = {
       );
       return secrets.length;
     } catch (err) {
-      console.warn('[WalletService] Failed to restore inflight proofs:', err);
+      console.warn('[WalletService] Failed to restore inflight proofs:');
       return 0;
     }
   },

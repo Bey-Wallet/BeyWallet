@@ -289,7 +289,7 @@ export function OnchainMeltFlow() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       toast.showFeedback(interactionCopy.addressPastedFromClipboard);
     } catch (e) {
-      console.warn('[OnchainMeltFlow] Clipboard read failed:', e);
+      console.warn('[OnchainMeltFlow] Clipboard read failed:');
     } finally {
       setIsPasting(false);
     }
@@ -353,7 +353,7 @@ export function OnchainMeltFlow() {
       setStep('confirm');
     } catch (err: any) {
       if (generation !== quoteGeneration.current) return;
-      console.error('[OnchainMeltFlow] Melt quote failed:', err);
+      console.error('[OnchainMeltFlow] Melt quote failed:');
       setErrorMsg(err.message || 'Failed to estimate transaction fees');
       setStep('input');
     }
@@ -439,7 +439,7 @@ export function OnchainMeltFlow() {
           },
         });
       } catch (histErr) {
-        console.warn('[OnchainMeltFlow] History injection failed (non-fatal):', histErr);
+        console.warn('[OnchainMeltFlow] History injection failed (non-fatal):');
       }
 
       // Reconcile change and input proof states through the existing wallet boundary
@@ -447,7 +447,7 @@ export function OnchainMeltFlow() {
       await refreshOnchainPayment().catch(() => setStep('pending'));
       refreshBalance();
     } catch (err: any) {
-      console.error('[OnchainMeltFlow] Payment execution failed:', err);
+      console.error('[OnchainMeltFlow] Payment execution failed:');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setErrorMsg(err.message || 'Failed to send payment');
       setStep('error');

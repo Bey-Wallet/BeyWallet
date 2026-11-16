@@ -26,7 +26,7 @@ async function checkProofStates(cleaned: string) {
       decoded = decodeToken(cleaned);
       decodeCache.set(cleaned, decoded);
     } catch (e) {
-      console.warn('[ProofService] Failed to decode token for check:', e);
+      console.warn('[ProofService] Failed to decode token for check:');
       return [];
     }
   }
@@ -58,7 +58,7 @@ async function checkProofStates(cleaned: string) {
       secret: decoded.proofs[i].secret, // Attach secret for UI convenience
     }));
   } catch (err: any) {
-    console.error(`[ProofService] Failed to check proof states at ${decoded.mint}:`, err);
+    console.error(`[ProofService] Failed to check proof states at ${decoded.mint}:`);
     return [];
   }
 }

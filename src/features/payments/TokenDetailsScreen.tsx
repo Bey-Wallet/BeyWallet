@@ -100,7 +100,7 @@ export default function TokenDetailsModal() {
         // Try to encode if it's an object
         return encodeToken(entry.metadata.token);
       } catch (e) {
-        console.warn('[TokenDetails] Failed to encode metadata token:', e);
+        console.warn('[TokenDetails] Failed to encode metadata token:');
       }
     }
 
@@ -108,7 +108,7 @@ export default function TokenDetailsModal() {
       try {
         return typeof entry.token === 'string' ? entry.token : encodeToken(entry.token);
       } catch (e) {
-        console.warn('[TokenDetails] Failed to encode token from entry:', e);
+        console.warn('[TokenDetails] Failed to encode token from entry:');
         return '';
       }
     }
@@ -165,7 +165,7 @@ export default function TokenDetailsModal() {
         setQrCodeFragment(currentToken);
       }
     } catch (e) {
-      console.error('Failed to decode token for QR:', e);
+      console.error('Failed to decode token for QR:');
       setShowAnimatedQR(false);
       setQrCodeFragment(currentToken);
     }
@@ -233,7 +233,7 @@ export default function TokenDetailsModal() {
         setTokenVersion('V3');
       }
     } catch (e) {
-      console.error('Failed to toggle token version:', e);
+      console.error('Failed to toggle token version:');
       toast.showFeedback(interactionCopy.failedToSwitchTokenVersion);
     }
   };

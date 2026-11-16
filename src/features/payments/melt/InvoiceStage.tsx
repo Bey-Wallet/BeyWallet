@@ -231,7 +231,7 @@ export function InvoiceStage({
         setInvoice(cleaned);
       }
     } catch (e) {
-      console.warn('[MeltScreen] Clipboard read failed:', e);
+      console.warn('[MeltScreen] Clipboard read failed:');
     } finally {
       setIsPasting(false);
     }

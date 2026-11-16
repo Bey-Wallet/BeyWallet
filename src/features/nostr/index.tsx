@@ -47,7 +47,7 @@ function npubToHex(npub: string): string | null {
         : Buffer.from(decoded.data as unknown as Uint8Array).toString('hex');
     }
   } catch (e) {
-    console.error('[NostrUsername] npub decode error:', e);
+    console.error('[NostrUsername] npub decode error:');
   }
   return null;
 }
@@ -64,7 +64,7 @@ function nsecToHex(nsec: string): string | null {
         : Buffer.from(decoded.data as unknown as Uint8Array).toString('hex');
     }
   } catch (e) {
-    console.error('[NostrUsername] nsec decode error:', e);
+    console.error('[NostrUsername] nsec decode error:');
   }
   return null;
 }
@@ -120,7 +120,7 @@ async function unregisterUsername(
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const errMsg = data?.error || `Server error ${res.status}`;
-      console.error(`[NostrUsername] Deletion failed (${res.status}):`, errMsg);
+      console.error(`[NostrUsername] Deletion failed (${res.status}).`);
       return { ok: false, error: errMsg };
     }
 

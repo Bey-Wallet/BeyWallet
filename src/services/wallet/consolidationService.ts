@@ -116,7 +116,7 @@ export const consolidationService = {
       await walletService.receive(sendResult.token);
     } catch (receiveErr: any) {
       await saveWalletActivity({ ...activity, state: 'review' });
-      console.error(`[Consolidation] ❌ Receive failed after send succeeded:`, receiveErr?.message);
+      console.error(`[Consolidation] ❌ Receive failed after send succeeded:`);
       try {
         const repo = initService.getRepo();
         if (repo?.historyRepository) {
@@ -139,7 +139,7 @@ export const consolidationService = {
           console.log(`[Consolidation] Token saved as "unclaimed" in history. User can retry.`);
         }
       } catch (saveErr) {
-        console.warn(`[Consolidation] Failed to save unclaimed token:`, saveErr);
+        console.warn(`[Consolidation] Failed to save unclaimed token:`);
       }
       throw new Error(
         `Consolidation failed — send succeeded but receive did not. ` +

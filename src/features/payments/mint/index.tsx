@@ -185,7 +185,7 @@ export default function MintScreen() {
       if (requestRecipient) void sendInvoiceRequest(created);
       else setStep('payment');
     } catch (err: any) {
-      console.error('[MintScreen] Failed to create mint quote:', err);
+      console.error('[MintScreen] Failed to create mint quote:');
       setError(err.message || 'Failed to create invoice');
       setStatus('error');
       setStep('result');
@@ -226,7 +226,7 @@ export default function MintScreen() {
           );
         }
       } catch (e) {
-        console.warn('[MintScreen] Failed to mark cancelled mint quote in history:', e);
+        console.warn('[MintScreen] Failed to mark cancelled mint quote in history:');
       }
     }
   };
@@ -239,7 +239,7 @@ export default function MintScreen() {
         refreshBalance();
         setStep('result');
       } catch (err: any) {
-        console.log('[MintScreen] Manual redeem attempt failed:', err.message);
+        console.log('[MintScreen] Manual redeem attempt failed:');
         throw err;
       }
     }

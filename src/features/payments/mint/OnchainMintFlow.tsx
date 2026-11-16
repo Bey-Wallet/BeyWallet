@@ -130,12 +130,12 @@ export function OnchainMintFlow() {
               data.quote,
             );
           } catch (dbErr) {
-            console.warn('[OnchainMintFlow] Failed to save on-chain quote to history:', dbErr);
+            console.warn('[OnchainMintFlow] Failed to save on-chain quote to history:');
           }
         }
       } catch (err: any) {
         if (isMounted) {
-          console.error('[OnchainMintFlow] Failed to create quote:', err);
+          console.error('[OnchainMintFlow] Failed to create quote:');
           setErrorMsg(err.message || 'Failed to request deposit address');
           setStep('error');
         }
@@ -192,7 +192,7 @@ export function OnchainMintFlow() {
               status.amount_paid,
             );
           } catch (dbErr) {
-            console.warn('[OnchainMintFlow] Failed to update history state to paid:', dbErr);
+            console.warn('[OnchainMintFlow] Failed to update history state to paid:');
           }
 
           setEventTime(Date.now());
@@ -204,7 +204,7 @@ export function OnchainMintFlow() {
           }
         }
       } catch (err: any) {
-        console.error('[OnchainMintFlow] Check payment error:', err);
+        console.error('[OnchainMintFlow] Check payment error:');
         if (showToast) {
           toast.showFeedback(interactionCopy.couldNotCheckPaymentStatusPleaseTry);
         }

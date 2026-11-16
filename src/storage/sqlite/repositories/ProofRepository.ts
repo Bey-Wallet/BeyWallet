@@ -15,13 +15,22 @@ interface ProofRow {
 }
 
 function rowToProof(r: ProofRow): CoreProof {
+  let dleq;
+  let witness;
+  try {
+    dleq = r.dleqJson ? JSON.parse(r.dleqJson) : undefined;
+    witness = r.witnessJson ? JSON.parse(r.witnessJson) : undefined;
+  } catch {
+    // JSON parser diagnostics can quote the stored bearer data.
+    throw new Error('Stored proof metadata is invalid.');
+  }
   const base = {
     id: r.id,
     amount: r.amount,
     secret: r.secret,
     C: r.C,
-    ...(r.dleqJson ? { dleq: JSON.parse(r.dleqJson) } : {}),
-    ...(r.witnessJson ? { witness: JSON.parse(r.witnessJson) } : {}),
+    ...(r.dleqJson ? { dleq } : {}),
+    ...(r.witnessJson ? { witness } : {}),
   };
   return {
     ...base,
@@ -48,7 +57,7 @@ export class ExpoProofRepository implements ProofRepository {
       for (const p of proofs) {
         const exists = await tx.get<{ x: number }>(selectSql, [mintUrl, p.secret]);
         if (exists) {
-          throw new Error(`Proof with secret already exists: ${p.secret}`);
+          throw new Error('Proof already exists.');
         }
       }
       const insertSql =
@@ -154,15 +163,13 @@ export class ExpoProofRepository implements ProofRepository {
           usedByOperationId: string | null;
         }>(selectSql, [mintUrl, secret]);
         if (!row) {
-          throw new Error(`Proof with secret not found: ${secret}`);
+          throw new Error('Proof not found.');
         }
         if (row.state !== 'ready') {
-          throw new Error(`Proof is not ready, cannot reserve: ${secret}`);
+          throw new Error('Proof is not ready, cannot reserve.');
         }
         if (row.usedByOperationId) {
-          throw new Error(
-            `Proof already reserved by operation ${row.usedByOperationId}. Check the existing operation in History.`,
-          );
+          throw new Error('Proof is already reserved. Check the existing operation in History.');
         }
       }
       // Apply reservation

@@ -6,6 +6,7 @@
  */
 
 import { initService } from '~/services/wallet/initService';
+import { safeMintErrorCode } from '~/services/wallet/walletLogger';
 import { publishWalletFeedback, quoteFeedbackId } from '~/services/feedback/feedbackCoordinator';
 
 const feedbackStartedAt = Date.now();
@@ -122,8 +123,17 @@ export const quotesService = {
    */
   redeemMintQuote: async (mintUrl: string, quoteId: string): Promise<void> => {
     console.log(`[QuotesService] Redeeming mint quote: ${quoteId}`);
-    await mgr().quotes.redeemMintQuote(mintUrl, quoteId);
-    console.log('[QuotesService] Mint quote redeemed');
+    const startedAt = Date.now();
+    try {
+      await mgr().quotes.redeemMintQuote(mintUrl, quoteId);
+      console.log('[QuotesService] Mint quote redeemed', { elapsedMs: Date.now() - startedAt });
+    } catch (error) {
+      console.warn('[QuotesService] Mint quote redemption failed', {
+        code: safeMintErrorCode(error) ?? 'unavailable',
+        elapsedMs: Date.now() - startedAt,
+      });
+      throw error;
+    }
   },
 
   /**
@@ -254,10 +264,10 @@ export const quotesService = {
       };
 
       ws.onerror = (err) => {
-        console.warn('[QuotesService] NUT-17 WSS error:', err);
+        console.warn('[QuotesService] NUT-17 WSS error.');
       };
     } catch (e) {
-      console.warn('[QuotesService] NUT-17 WSS connection failed:', e);
+      console.warn('[QuotesService] NUT-17 WSS connection failed:');
     }
 
     return () => {
@@ -450,7 +460,7 @@ export const quotesService = {
           details: { amount: delta },
         });
     } catch (e) {
-      console.warn('[QuotesService] Failed to update history status for on-chain mint quote:', e);
+      console.warn('[QuotesService] Failed to update history status for on-chain mint quote:');
     }
 
     return proofs;
