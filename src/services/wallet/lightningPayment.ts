@@ -1,4 +1,6 @@
-import type { Manager, MeltOperation, WalletService } from 'coco-cashu-core';
+import type { MeltOperation } from 'coco-cashu-core';
+import { getChangeServices } from './plugins/ChangePreparationPlugin';
+import { safeWalletErrorDiagnostic } from './walletLogger';
 
 export type LightningPaymentState = 'paid' | 'pending' | 'unresolved';
 
@@ -20,28 +22,86 @@ export class LightningPayment {
   private submitted = false;
   private disposed = false;
   private submission?: Promise<LightningPaymentState>;
+  private disposal?: Promise<void>;
+  private cancelled = false;
+  private preparationStage: 'initializing' | 'preparing' | 'checking_quote' = 'initializing';
+  private preparationError?: ReturnType<typeof safeWalletErrorDiagnostic>;
+  private preparationFailure?:
+    | 'cancelled'
+    | 'quote_conflict'
+    | 'insufficient_balance'
+    | 'connection'
+    | 'keyset'
+    | 'internal_api'
+    | 'unknown';
+
+  /** Fixed categories only: never include SDK messages, invoice or operation IDs. */
+  get preparationDiagnostic() {
+    return {
+      stage: this.preparationStage,
+      failure: this.preparationFailure,
+      error: this.preparationError,
+    };
+  }
+
+  get canRetry(): boolean {
+    return this.disposed && this.cancelled && !this.submitted;
+  }
 
   constructor(
     readonly mintUrl: string,
     readonly invoice: string,
     private manager = getManager,
+    private services: () => Pick<
+      ReturnType<typeof getChangeServices>,
+      'walletService' | 'meltOperationService'
+    > = getChangeServices,
   ) {}
 
   preview() {
+    if (this.disposed) return Promise.reject(new Error('Invoice or mint changed'));
     return (this.previewPromise ??= this.prepare());
   }
 
   private async prepare() {
-    const manager = await this.manager();
-    const operation = await manager.quotes.prepareMeltBolt11(this.mintUrl, this.invoice);
+    try {
+      return await this.preparePreview();
+    } catch (error) {
+      this.preparationError = safeWalletErrorDiagnostic(error);
+      const message = error instanceof Error ? error.message : '';
+      this.preparationFailure = this.disposed
+        ? 'cancelled'
+        : /UNIQUE constraint failed: coco_cashu_melt_operations\./i.test(message)
+          ? 'quote_conflict'
+          : /insufficient|not enough|balance too low/i.test(message)
+            ? 'insufficient_balance'
+            : /network|offline|fetch failed|timeout|timed out/i.test(message)
+              ? 'connection'
+              : /keyset|MintKeys/i.test(message)
+                ? 'keyset'
+                : error instanceof TypeError
+                  ? 'internal_api'
+                  : 'unknown';
+      throw error;
+    }
+  }
+
+  private async preparePreview() {
+    await this.manager();
+    const services = this.services();
+    // Retain the durable ID before preparation. The convenience Quotes API loses
+    // it when preparation throws, even if proof cleanup also failed.
+    this.operation = await services.meltOperationService.init(this.mintUrl, 'bolt11', {
+      invoice: this.invoice,
+    });
+    this.preparationStage = 'preparing';
+    const operation = await services.meltOperationService.prepare(this.operation.id);
     this.operation = operation;
     if (this.disposed) {
-      await manager.quotes.rollbackMelt(operation.id);
       throw new Error('Invoice or mint changed');
     }
-    const wallet = await (
-      manager as unknown as { walletService: WalletService }
-    ).walletService.getWallet(this.mintUrl);
+    this.preparationStage = 'checking_quote';
+    const wallet = await services.walletService.getWallet(this.mintUrl);
     const quote = await wallet.checkMeltQuoteBolt11(operation.quoteId);
     return {
       operationId: operation.id,
@@ -65,6 +125,7 @@ export class LightningPayment {
       throw new Error('Quote expired. Review a fresh quote before paying.');
     }
     const manager = await this.manager();
+    if (this.disposed) throw new Error('Invoice or mint changed');
     this.submitted = true;
     try {
       this.operation = await manager.quotes.executeMelt(preview.operationId);
@@ -76,6 +137,14 @@ export class LightningPayment {
   }
 
   async refresh(): Promise<LightningPaymentState> {
+    if (this.disposed && !this.submitted && !this.cancelled) {
+      // A failed rollback can be retried by Refresh, without submitting funds.
+      try {
+        await this.cancelPreparation();
+      } catch {
+        /* Keep the reservation. */
+      }
+    }
     if (!this.operation) return 'unresolved';
     try {
       const manager = await this.manager();
@@ -93,12 +162,30 @@ export class LightningPayment {
     return 'unresolved';
   }
 
-  async dispose(): Promise<void> {
+  dispose(): Promise<void> {
     this.disposed = true;
-    if (!this.submitted && this.operation?.state === 'prepared') {
-      const manager = await this.manager();
-      await manager.quotes.rollbackMelt(this.operation.id);
-      this.operation = undefined;
+    return (this.disposal ??= this.cancelPreparation());
+  }
+
+  private async cancelPreparation(): Promise<void> {
+    // A late preparation can reserve proofs after backgrounding. Join it before
+    // reporting cancellation complete, and roll back the same operation once.
+    await this.previewPromise?.catch(() => {});
+    if (this.submitted) return;
+    if (!this.operation) {
+      // init never returned: this controller never called prepare or execute.
+      this.cancelled = true;
+      return;
     }
+    const manager = await this.manager();
+    const current = await manager.quotes.getMeltOperation(this.operation.id);
+    if (current?.state === 'prepared') {
+      await manager.quotes.rollbackMelt(current.id);
+      this.cancelled = true;
+    } else if (!current || current.state === 'rolled_back') {
+      // Coco deletes failed init operations only after releasing their proofs.
+      this.cancelled = true;
+    }
+    if (this.cancelled) this.operation = undefined;
   }
 }

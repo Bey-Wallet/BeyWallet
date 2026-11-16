@@ -33,7 +33,93 @@ Same-session Numo token write-back remains. The native-intent adapter accepts th
 old NFC launch URLs, opens Home on cold launch, and preserves the current screen on
 warm launch. Presentation waits for wallet initialization, settings and authentication.
 
+NFC launch URLs now carry a public UUID generated once per Android NFC intent.
+The native adapter preserves that UUID when the same intent is replayed. JavaScript
+serializes delivery and stores the last consumed UUID in SecureStore before queueing
+the reader, so startup/reload cannot reopen a previously handled tap. This stores no
+payment data. If replay protection cannot persist, automatic opening is skipped;
+manual NFC remains available. The config plugin upgrades existing generated activity
+code as well as creating the handler during fresh prebuilds.
+
+Existing dev clients have constant NFC launch URLs without an identifier. Their cold
+initial links now return Home without opening the sheet; warm links and the NFC button
+continue to work. Identified cold NFC launches open once after startup/unlock when a
+new native client includes the updated activity. Verify normal icon launch, Reload
+after a tap, a fresh warm tap, and (after rebuilding) a fresh cold tap on device.
+
 ## Validation
+
+### Lightning-only background interruption
+
+A Numo device trace showed a successful NFC read and Lightning classification,
+followed by Android background/foreground events during quote preparation, before
+submission. The previous background handler hid the sheet and disposed the controller,
+but foregrounding did not restore the interrupted flow.
+
+The flow now reopens only after the app is active, the wallet is ready/unlocked and
+the previous native sheet dismissal has completed. While preparation/cancellation
+is in flight, it shows a locked **Payment paused** status. Cancellation joins late
+preparation and releases the same prepared operation once. A confirmed cancellation
+offers **Retry payment** using the remembered invoice, without another NFC read.
+Retry requires an explicit foreground action and obtains a fresh operation only
+after the old reservation was released. Submitted/ambiguous operations only reconcile
+their original status. Refresh can retry a failed rollback without submitting a payment.
+
+The Lightning controller now uses Coco's plugin-provided melt operation service to
+retain the init ID before preparation, rather than losing it when the convenience
+prepare API throws. Failed preparation enables retry only when the SDK has deleted
+the operation after proof cleanup, the operation is rolled back, or initialization
+never returned and preparation was never called. An init operation still present,
+an unavailable status lookup or an unsuccessful rollback keeps retry disabled.
+Failed previews remain deduplicated, but no longer falsely imply a submitted payment;
+repeated scans offer explicit retry after verified cancellation.
+
+Host unmount clears automatic reopening intent because it can indicate a wallet or
+identity change. Foreground/readiness changes do not submit payments automatically.
+Development diagnostics include fixed events, presentation flags, sanitized failure
+categories and numeric mint codes, with no
+invoice, token, proof, raw exception or private-key logging.
+
+Regression tests cover duplicate background events, late preparation, duplicate
+cancellation, wallet readiness gating, native dismissal ordering, explicit retry
+without rescanning, failed preparation, cleanup recovery through Refresh, repeated
+scans, failed rollback and already-submitted payment reconciliation.
+The updated behavior still requires a Numo/Bey device retest; no new native build is
+required for this JavaScript change.
+
+A follow-up trace showed backgrounding on the first tap and additional preparation
+failures on retries, with no submission event. Lightning processing previously closed
+Android reader mode immediately after the read, allowing normal Android tag dispatch
+to resume while the phones remained together. It now retains reader ownership through
+the visible Lightning flow until dismissal, a new payment or real backgrounding.
+iOS continues to close its system scan prompt before preparation. This targets a
+plausible cause of the background transition; it still needs physical-device confirmation.
+Actual backgrounding still cancels preparation and never automatically replays payment.
+
+Preparation diagnostics report fixed stages and failure categories, including cancellation
+and quote storage conflicts, without SDK messages, invoices or operation IDs. The
+unidentified retry failure must be confirmed with the new trace rather than assumed
+to be a mint or database issue. Safely cancelled flows also offer **Start new payment**
+without the warning reserved for payments that may still complete.
+
+The next device trace confirmed that backgrounding stopped, but preparation still
+failed once before a successful explicit retry. Its cause remains unknown. Development
+logs now include exact allowlisted `[CocoMelt]` checkpoints (quote creation, proof
+selection and preparation completion) and `[NFC]` failure diagnostics with allowlisted
+error types, bounded numeric status/protocol codes and fixed error hints. Raw SDK
+messages, stacks and metadata remain excluded. These changes are diagnostic and do
+not introduce automatic retry or alter payment submission.
+
+A subsequent trace repeatedly stopped after swap amount calculation. Inspection
+identified a reproducible Coco selection defect: `selectProofsToSend` used all
+ready proofs, including another operation's reserved inputs. Reservation then
+correctly rejected the selection. The pinned Coco patch now uses
+`getAvailableProofs` in both ESM and CommonJS builds. This excludes reserved inputs
+without releasing them or changing key derivation, balances or reservation checks.
+Regression tests run the real Coco selector and repository, verify the old behavior
+fails, and preserve the earlier operation's ownership. Confirmation that this explains
+the device failure remains outstanding. Diagnostics additionally identify reservation
+conflicts and the proof-reservation checkpoint without exposing proof data.
 
 Automated regressions cover the entry points, automatic payment once, controller
 reuse, token receiving, delivery retries, complete proof spending, pending closure,

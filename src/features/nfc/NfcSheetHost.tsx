@@ -32,6 +32,7 @@ const stateIcons = {
   sending: Spinner,
   receiving: Spinner,
   paying: Spinner,
+  pausing: Spinner,
   pending: Spinner,
   unconfirmed: AlertTriangle,
   confirmed: Check,
@@ -102,7 +103,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
     return () => {
       subscription.remove();
       nfcFlow.setReady(false);
-      nfcFlow.background();
+      nfcFlow.background('host_unmount');
     };
   }, []);
   const mint = mints.find((item: { mintUrl: string }) => item.mintUrl === state.mintUrl);
@@ -116,6 +117,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
     sending: 'Sending',
     receiving: 'Receiving',
     paying: 'Paying',
+    pausing: 'Payment paused',
     pending: 'Awaiting recipient',
     unconfirmed: 'Receipt unconfirmed',
     confirmed:
@@ -131,8 +133,9 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
   const close = () => {
     if (!nfcFlow.getSnapshot().locked) nfcFlow.dismiss();
   };
-  const primaryAction =
-    state.status === 'confirmed'
+  const primaryAction = state.canRetryLightning
+    ? { label: 'Retry payment', run: nfcFlow.retry }
+    : state.status === 'confirmed'
       ? { label: 'Done', run: close }
       : state.status === 'disabled'
         ? { label: 'Open NFC settings', run: () => nfcService.goToNfcSetting() }
@@ -146,7 +149,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
               : undefined;
   const showHistory =
     ['pending', 'unconfirmed', 'error'].includes(state.status) && state.hasPayment;
-  const showNewPayment = showHistory;
+  const showNewPayment = showHistory || !!state.canRetryLightning;
   const showRefresh = retryDelivery && state.hasPayment;
   const showCheckNfc = state.status === 'disabled';
   return (
@@ -159,7 +162,10 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
       onNavigate={close}
       containerComponent={Platform.OS === 'ios' ? NfcWindowOverlay : undefined}
       canDismiss={!state.visible || !state.locked}
-      onClose={close}
+      onClose={() => {
+        if (!nfcFlow.getSnapshot().visible) nfcFlow.sheetClosed();
+        else close();
+      }}
     >
       <YStack gap="$4">
         <YStack gap="$3" items="center">
@@ -256,9 +262,11 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
                 >
                   Start new payment
                 </AppButton>
-                <Text {...appTypography.body3} color="$gray10" textAlign="center">
-                  The previous payment may still complete. Check History before paying it again.
-                </Text>
+                {state.hasPayment && (
+                  <Text {...appTypography.body3} color="$gray10" textAlign="center">
+                    The previous payment may still complete. Check History before paying it again.
+                  </Text>
+                )}
               </YStack>
             )}
             {(showHistory || showRefresh || showCheckNfc) && (

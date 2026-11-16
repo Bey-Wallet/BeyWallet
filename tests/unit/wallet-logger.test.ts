@@ -1,4 +1,8 @@
-import { safeMintErrorCode, walletLogger } from '~/services/wallet/walletLogger';
+import {
+  safeMintErrorCode,
+  safeWalletErrorDiagnostic,
+  walletLogger,
+} from '~/services/wallet/walletLogger';
 
 let warning: jest.SpyInstance;
 let failure: jest.SpyInstance;
@@ -70,4 +74,72 @@ it('ignores arbitrary codes and never evaluates code getters', () => {
       },
     }),
   ).toBeUndefined();
+});
+
+it('reports only fixed melt checkpoints and ignores SDK metadata and arbitrary messages', () => {
+  const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+  const metadata = { secret: 'synthetic-private-proof' };
+  walletLogger.debug('Melt quote created', metadata);
+  walletLogger.info('Direct melt prepared', metadata);
+  walletLogger.debug('synthetic-private-proof', metadata);
+  walletLogger.debug('constructor', metadata);
+  expect(log.mock.calls).toEqual([
+    ['[CocoMelt]', { step: 'quote_created' }],
+    ['[CocoMelt]', { step: 'direct_prepared' }],
+  ]);
+});
+
+it('classifies storage and HTTP errors without exposing messages, stacks or arbitrary names', () => {
+  const error = Object.assign(new Error('database is locked: synthetic-private-proof'), {
+    name: 'synthetic-private-proof',
+    status: 503,
+    code: 20001,
+  });
+  expect(safeWalletErrorDiagnostic(error)).toEqual({
+    type: 'Error',
+    status: 503,
+    code: 20001,
+    hint: 'database_locked',
+  });
+  expect(JSON.stringify(safeWalletErrorDiagnostic(error))).not.toContain('synthetic-private');
+  expect(
+    safeWalletErrorDiagnostic(
+      Object.assign(new Error('fixture'), {
+        name: 'HttpResponseError',
+        status: 502,
+      }),
+    ),
+  ).toMatchObject({ type: 'HttpResponseError', status: 502 });
+});
+
+it('does not evaluate diagnostic getters or serialization hooks', () => {
+  const read = jest.fn(() => {
+    throw new Error('must not evaluate');
+  });
+  const error = Object.defineProperties(
+    {},
+    {
+      message: { get: read },
+      name: { get: read },
+      status: { get: read },
+      code: { get: read },
+      stack: { get: read },
+      toJSON: { value: read },
+    },
+  );
+  expect(safeWalletErrorDiagnostic(error)).toEqual({
+    type: 'Error',
+    status: undefined,
+    code: undefined,
+    hint: 'unknown',
+  });
+  expect(read).not.toHaveBeenCalled();
+});
+
+it('identifies reservation conflicts without exposing proof identifiers', () => {
+  expect(
+    safeWalletErrorDiagnostic(
+      new Error('Proof already reserved by operation synthetic-operation: synthetic-private-proof'),
+    ).hint,
+  ).toBe('proof_reserved');
 });

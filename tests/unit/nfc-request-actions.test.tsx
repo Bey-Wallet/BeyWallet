@@ -96,6 +96,7 @@ jest.mock('~/features/nfc/nfcFlow', () => ({
     background: jest.fn(),
     foreground: jest.fn(),
     dismiss: jest.fn(() => true),
+    sheetClosed: jest.fn(),
     retry: jest.fn(),
     refresh: jest.fn(),
     newPayment: jest.fn(),
@@ -153,6 +154,38 @@ it('shows startup progress before asking users to hold phones together', async (
       .findAllByType('Text' as any)
       .some((text) => text.props.children === 'Hold phones together'),
   ).toBe(true);
+  await act(async () => sheet.unmount());
+});
+
+it('offers Retry payment only for a safely cancelled Lightning preparation', async () => {
+  mockState = {
+    ...mockState,
+    status: 'error',
+    hasPayment: false,
+    canRetryDelivery: false,
+    canRetryLightning: true,
+  };
+  let sheet!: ReactTestRenderer;
+  await act(async () => {
+    sheet = create(<NfcSheetHost walletReady />);
+  });
+  const retry = sheet.root
+    .findAllByType('Button' as any)
+    .find((button) => button.props.accessibilityLabel === 'Retry payment');
+  expect(retry).toBeDefined();
+  expect(
+    sheet.root
+      .findAllByType('Button' as any)
+      .some((button) => button.props.accessibilityLabel === 'Start new payment'),
+  ).toBe(true);
+  expect(JSON.stringify(sheet.toJSON())).not.toContain('The previous payment may still complete.');
+  await act(async () => retry!.props.onPress());
+  expect(nfcFlow.retry).toHaveBeenCalledTimes(1);
+  mockState = { ...mockState, visible: false };
+  await act(async () => sheet.update(<NfcSheetHost walletReady />));
+  await act(async () => sheet.root.findByType('Sheet' as any).props.onClose());
+  expect(nfcFlow.sheetClosed).toHaveBeenCalledTimes(1);
+  expect(nfcFlow.dismiss).not.toHaveBeenCalled();
   await act(async () => sheet.unmount());
 });
 

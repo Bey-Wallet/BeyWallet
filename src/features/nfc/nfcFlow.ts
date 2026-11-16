@@ -16,6 +16,7 @@ import {
   areAllPaymentProofsSpent,
 } from '~/services/wallet/paymentRequestPayment';
 import { LightningPayment } from '~/services/wallet/lightningPayment';
+import { safeMintErrorCode } from '~/services/wallet/walletLogger';
 import { walletService, decodeToken, historyService } from '~/services/wallet';
 import { proofService } from '~/services/wallet/proofService';
 import { useWalletStore } from '~/state/walletStore';
@@ -29,6 +30,7 @@ export type NfcStatus =
   | 'sending'
   | 'receiving'
   | 'paying'
+  | 'pausing'
   | 'pending'
   | 'unconfirmed'
   | 'confirmed'
@@ -48,6 +50,7 @@ export interface NfcPresentation {
   locked: boolean;
   hasPayment: boolean;
   canRetryDelivery: boolean;
+  canRetryLightning?: boolean;
   checkingStatus?: boolean;
   error?: string;
   requestStatus?: 'starting' | 'ready' | 'disabled' | 'unsupported' | 'paused' | 'error';
@@ -73,6 +76,10 @@ function nfcErrorMessage(error: unknown, status: NfcStatus): string {
     'Reconnect to the same payment request. The existing token was not delivered.',
   ];
   if (known.includes(message)) return message;
+  if (/proof.*already reserved/i.test(message))
+    return 'Some coins are reserved by another operation. Check History or choose another mint.';
+  if (/insufficient|not enough|balance too low/i.test(message))
+    return 'This mint does not have enough balance, including fees.';
   if (/TagLost|tag lost|contact lost|not connected|No NFC tag found/i.test(message))
     return 'NFC contact was lost. Keep the phones together and try again.';
   if (/timeout|timed out/i.test(message))
@@ -87,6 +94,46 @@ function nfcErrorMessage(error: unknown, status: NfcStatus): string {
 
 /** Secrets and operation controllers live only here, never in navigation or persisted UI state. */
 export class NfcFlow {
+  /** Development diagnostics deliberately omit every payment payload and native error. */
+  private trace(
+    event:
+      | 'state'
+      | 'wallet_ready'
+      | 'wallet_not_ready'
+      | 'read_complete'
+      | 'lightning_detected'
+      | 'lightning_preview'
+      | 'lightning_prepare_failed'
+      | 'lightning_submit'
+      | 'dismiss_requested'
+      | 'dismiss_blocked'
+      | 'app_background'
+      | 'host_unmount'
+      | 'foreground'
+      | 'failed'
+      | 'sheet_closed',
+    error?: unknown,
+  ) {
+    if (!__DEV__) return;
+    console.log('[NFC]', {
+      event,
+      status: this.state.status,
+      direction: this.state.direction,
+      visible: this.state.visible,
+      locked: this.state.locked,
+      hasPayment: this.state.hasPayment,
+      ...(error === undefined
+        ? {}
+        : {
+            reason: nfcErrorMessage(
+              error,
+              event === 'lightning_prepare_failed' ? 'paying' : this.state.status,
+            ),
+            mintCode: safeMintErrorCode(error),
+            preparation: this.lightning?.preparationDiagnostic,
+          }),
+    });
+  }
   private state: NfcPresentation = {
     visible: false,
     status: 'ready',
@@ -103,6 +150,7 @@ export class NfcFlow {
   private send?: NfcSend;
   private payment?: PaymentRequestPayment;
   private lightning?: LightningPayment;
+  private interruptedLightning?: { payment: LightningPayment; finished: boolean; closed: boolean };
   private requests = new Map<string, PaymentRequestPayment>();
   private invoices = new Map<string, LightningPayment>();
   private reader?: NfcPaymentSession;
@@ -126,12 +174,15 @@ export class NfcFlow {
   };
   getSnapshot = () => this.state;
   private update(change: Partial<NfcPresentation>) {
+    const previous = this.state;
     if ('requestStatus' in change && change.requestStatus !== 'paused')
       change.requestPauseReason = undefined;
     if (change.status === 'ready') change.eventTime = undefined;
     if (change.status === 'confirmed' && this.state.status !== 'confirmed')
       change.eventTime = Date.now();
     this.state = { ...this.state, ...change };
+    if (previous.status !== this.state.status || previous.visible !== this.state.visible)
+      this.trace('state');
     if (this.state.visible && this.state.locked)
       this.releaseNavigation ??= feedbackNavigationGuard.acquire();
     else {
@@ -150,6 +201,13 @@ export class NfcFlow {
   setReady(ready: boolean) {
     const changed = this.ready !== ready;
     this.ready = ready;
+    if (changed) this.trace(ready ? 'wallet_ready' : 'wallet_not_ready');
+    if (!ready && this.interruptedLightning && this.state.visible) {
+      this.interruptedLightning.closed = false;
+      this.hide();
+      this.update({ locked: false });
+    }
+    if (ready) this.resumeInterruptedLightning();
     if (ready && this.queued) {
       const queued = this.queued;
       this.queued = undefined;
@@ -281,6 +339,10 @@ export class NfcFlow {
       (this.send && ['pending', 'unconfirmed', 'confirmed'].includes(this.state.status)) ||
       (this.send && input !== 'reader' && input.token === this.send.token)
     ) {
+      if (this.lightning?.canRetry) {
+        this.update({ visible: true, status: 'error', hasPayment: false, canRetryLightning: true });
+        return;
+      }
       this.update({ visible: true });
       if (
         this.send &&
@@ -309,6 +371,7 @@ export class NfcFlow {
       message: 'Starting NFC…',
       hasPayment: !!this.send,
       canRetryDelivery: false,
+      canRetryLightning: false,
       error: undefined,
       checkingStatus: false,
     });
@@ -336,7 +399,12 @@ export class NfcFlow {
     await this.cleanup;
   }
   dismiss = () => {
-    if (this.state.locked) return false;
+    this.trace('dismiss_requested');
+    if (this.state.locked) {
+      this.trace('dismiss_blocked');
+      return false;
+    }
+    this.interruptedLightning = undefined;
     this.hide();
     if (this.state.status === 'confirmed') {
       this.payment = undefined;
@@ -377,7 +445,9 @@ export class NfcFlow {
         eventTime: undefined,
         hasPayment: false,
         canRetryDelivery: false,
+        canRetryLightning: false,
       });
+      this.interruptedLightning = undefined;
     } catch {
       if (this.alive(generation))
         this.update({ error: 'Could not close the NFC session. Close the sheet and try again.' });
@@ -396,7 +466,32 @@ export class NfcFlow {
     this.update({ visible: false, checkingStatus: false });
     void this.stopSession();
   }
-  background = () => {
+  background = (reason: 'app_background' | 'host_unmount' = 'app_background') => {
+    this.trace(reason);
+    if (
+      reason === 'app_background' &&
+      this.lightning &&
+      this.state.visible &&
+      this.state.status === 'paying'
+    ) {
+      const interrupted = (this.interruptedLightning ??= {
+        payment: this.lightning,
+        finished: false,
+        closed: false,
+      });
+      void interrupted.payment
+        .dispose()
+        .catch(() => {})
+        .then(() => {
+          interrupted.finished = true;
+          this.resumeInterruptedLightning();
+        });
+    }
+    // A removed host can indicate a wallet/identity change. Do not reopen its UI
+    // automatically in the next wallet; durable operations remain in History.
+    if (reason === 'host_unmount') this.interruptedLightning = undefined;
+    else if (this.state.visible && this.interruptedLightning)
+      this.interruptedLightning.closed = false;
     this.appActive = false;
     this.queued = undefined;
     this.hide();
@@ -415,9 +510,60 @@ export class NfcFlow {
     return this.cleanup;
   };
   foreground = () => {
+    this.trace('foreground');
     this.appActive = true;
+    this.resumeInterruptedLightning();
     this.resumeRequest();
   };
+
+  /** Finish the background dismissal before presenting its interrupted Lightning payment. */
+  sheetClosed = () => {
+    this.trace('sheet_closed');
+    if (this.state.visible) {
+      this.dismiss();
+      return;
+    }
+    if (this.interruptedLightning) this.interruptedLightning.closed = true;
+    this.resumeInterruptedLightning();
+  };
+
+  private resumeInterruptedLightning() {
+    const interrupted = this.interruptedLightning;
+    if (
+      !interrupted ||
+      !interrupted.closed ||
+      !this.ready ||
+      !this.appActive ||
+      this.lightning !== interrupted.payment
+    )
+      return;
+    if (!interrupted.finished || this.busy) {
+      this.update({
+        visible: true,
+        status: 'pausing',
+        locked: true,
+        canRetryLightning: false,
+        message: 'Finishing the interrupted payment safely…',
+      });
+      return;
+    }
+    this.interruptedLightning = undefined;
+    const canRetry = interrupted.payment.canRetry;
+    this.update({
+      visible: true,
+      status: canRetry ? 'error' : 'unconfirmed',
+      locked: false,
+      checkingStatus: false,
+      hasPayment: !canRetry,
+      canRetryDelivery: false,
+      canRetryLightning: canRetry,
+      error: undefined,
+      message: canRetry
+        ? 'Payment paused before sending. Retry when ready.'
+        : 'Payment interrupted. Check the original payment status before trying again.',
+    });
+    if (!canRetry) void this.refresh();
+  }
   private async start() {
     if (this.busy) return;
     this.busy = true;
@@ -548,6 +694,7 @@ export class NfcFlow {
           });
       });
       if (!this.alive(generation)) return;
+      this.trace('read_complete');
       const input = parsePaymentInput(decodePaymentNdef(tag));
       if (!input.matched || !input.ok)
         throw new Error(input.matched ? input.reason : 'Unsupported NFC payment');
@@ -642,59 +789,10 @@ export class NfcFlow {
           this.startPolling();
         }
       } else if (payment.type === 'lightning_invoice') {
-        await this.stopSession();
-        if (!this.alive(generation)) return;
-        const mint = useWalletStore.getState().activeMintUrl;
-        if (!mint) throw new Error('Select a funded mint before paying');
-        this.update({
-          direction: 'pay',
-          status: 'paying',
-          locked: true,
-          mintUrl: mint,
-          message: 'Preparing the Lightning payment…',
-        });
-        const existing = this.invoices.get(payment.value);
-        this.lightning = existing || new LightningPayment(mint, payment.value);
-        this.invoices.set(payment.value, this.lightning);
-        if (existing) {
-          const preview = await existing.preview().catch(() => undefined);
-          this.update({ feedbackId: preview?.quote });
-          const result = await existing.refresh();
-          if (this.alive(generation))
-            this.update({
-              status: result === 'paid' ? 'confirmed' : 'unconfirmed',
-              hasPayment: true,
-              amount: preview?.amount,
-              fees: preview?.fee_reserve,
-              mintUrl: existing.mintUrl,
-              message:
-                result === 'paid'
-                  ? 'Lightning payment confirmed.'
-                  : 'This invoice already has an operation in History. Refresh status to check settlement.',
-            });
-          return;
-        }
-        const preview = await this.lightning.preview();
-        if (!this.alive(generation)) return;
-        this.update({
-          feedbackId: preview.quote,
-          amount: preview.amount,
-          fees: preview.fee_reserve,
-          hasPayment: true,
-        });
-        const result = await this.lightning.pay();
-        if (this.alive(generation)) {
-          this.update({
-            status: result === 'paid' ? 'confirmed' : 'pending',
-            message:
-              result === 'paid'
-                ? 'Lightning payment confirmed.'
-                : 'Payment remains pending in History. Refresh status to check settlement.',
-          });
-          if (result !== 'paid') this.startPolling();
-        }
+        await this.payLightning(payment.value, generation);
       } else throw new Error('This NFC payment method is not supported');
     } catch (error) {
+      this.trace('failed');
       await this.stopSession();
       if (this.alive(generation))
         this.update({
@@ -710,7 +808,6 @@ export class NfcFlow {
         this.payment = undefined;
       }
     } finally {
-      this.busy = false;
       this.update({ locked: false });
       // Keep unresolved controllers even if a background event hid the sheet.
       if (!this.state.visible) {
@@ -722,9 +819,98 @@ export class NfcFlow {
             canRetryDelivery: !!this.payment?.encoded,
             message: 'The payment remains in History. Refresh status to check settlement.',
           });
-        this.resumeRequest();
       }
+      this.busy = false;
+      if (!this.state.visible) this.resumeRequest();
       void useWalletStore.getState().refreshBalance();
+      this.resumeInterruptedLightning();
+    }
+  }
+  private async payLightning(invoice: string, generation: number, mintUrl?: string) {
+    this.trace('lightning_detected');
+    // Disabling Android reader mode while the other phone is still in range
+    // hands its NDEF tag back to Android dispatch, which can background Bey.
+    // Keep ownership until dismissal/new payment/background, just as write-back
+    // requests do. iOS must release its system scanning prompt before payment.
+    if (Platform.OS !== 'android') await this.stopSession();
+    if (!this.alive(generation)) return;
+    const mint = mintUrl ?? useWalletStore.getState().activeMintUrl;
+    if (!mint) throw new Error('Select a funded mint before paying');
+    this.update({
+      direction: 'pay',
+      status: 'paying',
+      canRetryLightning: false,
+      locked: true,
+      mintUrl: mint,
+      message: 'Preparing the Lightning payment…',
+    });
+    const existing = this.invoices.get(invoice);
+    this.lightning = existing || new LightningPayment(mint, invoice);
+    this.invoices.set(invoice, this.lightning);
+    if (existing) {
+      const preview = await existing.preview().catch(() => undefined);
+      this.update({ feedbackId: preview?.quote });
+      const result = await existing.refresh();
+      if (this.alive(generation))
+        this.update({
+          status: existing.canRetry ? 'error' : result === 'paid' ? 'confirmed' : 'unconfirmed',
+          hasPayment: !existing.canRetry,
+          canRetryLightning: !!existing.canRetry,
+          amount: preview?.amount,
+          fees: preview?.fee_reserve,
+          mintUrl: existing.mintUrl,
+          message:
+            result === 'paid'
+              ? 'Lightning payment confirmed.'
+              : existing.canRetry
+                ? 'Payment was not sent. Retry when ready.'
+                : 'Payment status is unavailable. Refresh to check again.',
+        });
+      return;
+    }
+    this.trace('lightning_preview');
+    let preview;
+    try {
+      preview = await this.lightning.preview();
+    } catch (error) {
+      await this.lightning.dispose().catch(() => {});
+      this.trace('lightning_prepare_failed', error);
+      if (this.alive(generation)) {
+        const reason = nfcErrorMessage(error, 'paying');
+        this.update({
+          status: 'error',
+          hasPayment: !this.lightning.canRetry,
+          canRetryLightning: !!this.lightning.canRetry,
+          message: this.lightning.canRetry
+            ? 'Payment was not sent. Retry when ready.'
+            : 'Could not release the payment preparation. Refresh to check again.',
+          error:
+            this.lightning.canRetry &&
+            reason === 'Could not complete the payment. Check History before retrying.'
+              ? 'Could not prepare this payment.'
+              : reason,
+        });
+      }
+      return;
+    }
+    if (!this.alive(generation)) return;
+    this.update({
+      feedbackId: preview.quote,
+      amount: preview.amount,
+      fees: preview.fee_reserve,
+      hasPayment: true,
+    });
+    this.trace('lightning_submit');
+    const result = await this.lightning.pay();
+    if (this.alive(generation)) {
+      this.update({
+        status: result === 'paid' ? 'confirmed' : 'pending',
+        message:
+          result === 'paid'
+            ? 'Lightning payment confirmed.'
+            : 'Payment remains pending in History. Refresh status to check settlement.',
+      });
+      if (result !== 'paid') this.startPolling();
     }
   }
   private writeExisting = async (token: string) => {
@@ -753,7 +939,31 @@ export class NfcFlow {
   };
   retry = async () => {
     if (this.busy || !this.state.visible) return;
-    if (this.payment) {
+    if (this.lightning?.canRetry && this.state.canRetryLightning && this.appActive && this.ready) {
+      const cancelled = this.lightning;
+      if (this.invoices.get(cancelled.invoice) === cancelled)
+        this.invoices.delete(cancelled.invoice);
+      this.lightning = undefined;
+      this.busy = true;
+      const generation = ++this.generation;
+      this.update({ locked: true, canRetryLightning: false, hasPayment: false, error: undefined });
+      try {
+        await this.payLightning(cancelled.invoice, generation, cancelled.mintUrl);
+      } catch (error) {
+        if (this.alive(generation))
+          this.update({
+            status: 'error',
+            hasPayment: !!this.lightning,
+            message: 'Could not complete the payment. Check History before retrying.',
+            error: nfcErrorMessage(error, 'paying'),
+          });
+      } finally {
+        this.busy = false;
+        this.update({ locked: false });
+        this.resumeInterruptedLightning();
+        void useWalletStore.getState().refreshBalance();
+      }
+    } else if (this.payment) {
       if (!this.payment.encoded) {
         await this.refresh();
         return;
@@ -823,8 +1033,22 @@ export class NfcFlow {
     try {
       let confirmed = false;
       if (payment) confirmed = await payment.refresh();
-      else if (lightning) confirmed = (await lightning.refresh()) === 'paid';
-      else if (send) {
+      else if (lightning) {
+        const result = await lightning.refresh();
+        confirmed = result === 'paid';
+        if (!confirmed && this.alive(generation)) {
+          this.update({
+            status: lightning.canRetry ? 'error' : result === 'pending' ? 'pending' : 'unconfirmed',
+            hasPayment: !lightning.canRetry,
+            canRetryLightning: !!lightning.canRetry,
+            message: lightning.canRetry
+              ? 'Payment was not sent. Retry when ready.'
+              : result === 'pending'
+                ? 'Payment is still pending. Refresh to check again.'
+                : 'Payment status is unavailable. Refresh to check again.',
+          });
+        }
+      } else if (send) {
         const token = decodeToken(send.token);
         confirmed = areAllPaymentProofsSpent(
           await proofService.checkProofStates(send.token),
