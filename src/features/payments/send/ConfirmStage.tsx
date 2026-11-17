@@ -1,6 +1,7 @@
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import React from 'react';
+import { hapticService } from '~/services/platform/hapticService';
 import { Text, XStack, YStack } from 'tamagui';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -204,7 +205,10 @@ export function ConfirmStage(props: ConfirmStageProps) {
                   accessibilityLabel="P2PK lock"
                   checked={props.useP2PK}
                   disabled={isLoading}
-                  onCheckedChange={props.setUseP2PK}
+                  onCheckedChange={(next) => {
+                    if (next !== props.useP2PK) hapticService.selection();
+                    props.setUseP2PK(next);
+                  }}
                 />
               }
             />

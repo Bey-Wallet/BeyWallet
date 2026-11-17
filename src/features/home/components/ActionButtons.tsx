@@ -3,7 +3,6 @@ import React, { useRef, useCallback } from 'react';
 import { XStack } from 'tamagui';
 import { ArrowDown, ArrowRightLeft, ArrowUp, Scan } from '@tamagui/lucide-icons';
 import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import ActionSelectorSheet, { ActionSelectorSheetRef } from '~/shared/ui/ActionSelectorSheet';
 import { appSpacing } from '~/shared/theme/appearance';
 
@@ -40,7 +39,6 @@ export default React.memo(function ActionButtons() {
   const actionSheetRef = useRef<ActionSelectorSheetRef>(null);
 
   const handleScan = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({
       pathname: '/(modals)/scanner',
       params: { returnTo: '/receive' },
@@ -48,16 +46,13 @@ export default React.memo(function ActionButtons() {
   }, [router]);
 
   const handleReceive = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     actionSheetRef.current?.present('receive');
   }, []);
 
   const handleSend = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     actionSheetRef.current?.present('send');
   }, []);
   const handleTransfer = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/(modals)/swap');
   }, [router]);
 

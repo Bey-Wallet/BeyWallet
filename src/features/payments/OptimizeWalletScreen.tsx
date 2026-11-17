@@ -29,7 +29,6 @@ import {
 } from '@tamagui/lucide-icons';
 import { useRouter } from 'expo-router';
 import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
-import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useWalletStore } from '~/state/walletStore';
@@ -121,7 +120,6 @@ export default function OptimizeWalletScreen() {
 
   const handleOptimize = async () => {
     if (!selectedMintUrl) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (!canOptimize) {
       toast.showFeedback(interactionCopy.walletAlreadyOptimized);
@@ -131,7 +129,6 @@ export default function OptimizeWalletScreen() {
     // Biometric auth gates self-swap operations
     const authed = await biometricService.authenticateAsync('Authorize wallet optimization');
     if (!authed) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
@@ -145,11 +142,9 @@ export default function OptimizeWalletScreen() {
       queryClient.invalidateQueries({ queryKey: ['readyProofs'] });
       queryClient.invalidateQueries({ queryKey: ['fragmentationAnalysis'] });
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast.showFeedback(interactionCopy.optimized);
     } catch (err: any) {
       setOptimizationError('Optimization needs review. Check History before trying again.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsOptimizing(false);
     }
@@ -200,7 +195,6 @@ export default function OptimizeWalletScreen() {
               borderWidth={0}
               disabled={isLoadingMint}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
                 refreshMintList();
                 sheetRef.current?.present();
               }}

@@ -1,3 +1,4 @@
+import { hapticService } from '~/services/platform/hapticService';
 import React, { forwardRef } from 'react';
 import { XStack, YStack, View } from 'tamagui';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
@@ -78,7 +79,12 @@ export const MintTrustSheet = forwardRef<
             accessibilityLabel="Do not show again"
             accessibilityState={{ checked: remember, disabled: busy }}
             disabled={busy}
-            onPress={() => onRememberChange(!remember)}
+            onPress={() => {
+              if (!busy) {
+                hapticService.selection();
+                onRememberChange(!remember);
+              }
+            }}
           >
             <View scale={0.75} opacity={0.8}>
               <BUICheckboxVisual checked={remember} disabled={busy} />

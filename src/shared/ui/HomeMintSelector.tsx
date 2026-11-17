@@ -1,3 +1,4 @@
+import { hapticService } from '~/services/platform/hapticService';
 import { BUIHeader } from './BUI/BUIHeader';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
@@ -9,7 +10,6 @@ import { Text, YStack, XStack, View, Square } from 'tamagui';
 import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import * as Haptics from 'expo-haptics';
 import React, {
   useRef,
   useMemo,
@@ -313,10 +313,11 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           return;
         }
         selectionLock.current = true;
+        const changed = mintUrlKey(activeMintUrl || '') !== mintUrlKey(mintUrl);
         setSwitchingUrl(mintUrl);
         setCompletedUrl(null);
         setSelectionError(null);
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
         try {
           await afterPaint();
           if (!mounted.current) return;
@@ -333,6 +334,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           if (!mounted.current) return;
           setSwitchingUrl(null);
           setCompletedUrl(mintUrl);
+          if (changed) hapticService.selection();
         } catch (error) {
           selectionLock.current = false;
           if (mounted.current) {
@@ -344,7 +346,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           }
         }
       },
-      [setActiveMint, onSelect, changeGlobalActiveMint],
+      [setActiveMint, onSelect, changeGlobalActiveMint, activeMintUrl],
     );
 
     const handleClose = useCallback(() => {
@@ -511,7 +513,6 @@ export default function HomeHeaderMintSelector() {
         accessibilityHint="Choose the active mint"
         disabled={isLoading}
         onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
           sheetRef.current?.present();
         }}
         maxW={200}

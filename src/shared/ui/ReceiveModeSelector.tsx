@@ -1,9 +1,9 @@
+import { hapticService } from '~/services/platform/hapticService';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useState } from 'react';
 import { Text, YStack, XStack, View, Square } from 'tamagui';
 import { ChevronDown, ArrowDownToLine, QrCode, Check } from '@tamagui/lucide-icons';
 
-import * as Haptics from 'expo-haptics';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { Spinner } from '~/shared/ui/Spinner';
 
@@ -54,7 +54,7 @@ export default function ReceiveModeSelector({
   const [expanded, setExpanded] = useState(false);
 
   const handleSelect = (selectedMode: ReceiveMode) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (selectedMode !== mode) hapticService.selection();
     onSelect(selectedMode);
     sheetRef.current?.dismiss();
   };
@@ -71,7 +71,6 @@ export default function ReceiveModeSelector({
         borderWidth={1}
         disabled={isLoading}
         onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
           sheetRef.current?.present();
         }}
         rounded="$5"

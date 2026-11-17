@@ -1,3 +1,4 @@
+import { hapticService } from '~/services/platform/hapticService';
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -18,7 +19,6 @@ import {
 } from '~/services/wallet/currencyService';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
-import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
@@ -186,7 +186,8 @@ export function P2PKAmountStage({
   };
 
   const toggleMode = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    hapticService.selection();
+
     if (inputMode === 'SATS') {
       if (btcData?.price) {
         const sats = Number(amount) || 0;
@@ -201,7 +202,6 @@ export function P2PKAmountStage({
   };
 
   const handleMax = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const maxSats = balance.toString();
     setAmount(maxSats);
     if (inputMode === 'SATS') {
@@ -213,7 +213,6 @@ export function P2PKAmountStage({
   };
 
   const handleOpenScanner = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
       pathname: '/(modals)/scanner',
       params: { returnTo: '/(modals)/send' },
@@ -223,7 +222,7 @@ export function P2PKAmountStage({
   const [pasteError, setPasteError] = useState<string | null>(null);
   const handlePaste = async () => {
     setPasteError(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     try {
       const text = await Clipboard.getStringAsync();
       if (text) {

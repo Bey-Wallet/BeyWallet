@@ -27,7 +27,7 @@ import {
   ChevronDown,
   Repeat,
 } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import QRCode from 'react-native-qrcode-svg';
 
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -182,14 +182,14 @@ export default function TokenDetailsModal() {
   }, [showAnimatedQR, intervalMs, fragmentLength]);
 
   const changeSpeed = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    hapticService.selection();
     if (intervalMs === 250) setIntervalMs(500);
     else if (intervalMs === 500) setIntervalMs(140);
     else setIntervalMs(250);
   };
 
   const changeSize = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    hapticService.selection();
     if (fragmentLength === 100) setFragmentLength(50);
     else if (fragmentLength === 50) setFragmentLength(150);
     else setFragmentLength(100);
@@ -201,7 +201,7 @@ export default function TokenDetailsModal() {
   const handleCopy = async () => {
     if (currentToken) {
       if (!(await copyWithFeedback(currentToken, toast))) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      hapticService.acknowledge();
       setCopied(true);
       toast.showFeedback(interactionCopy.ecashCopied);
       setTimeout(() => setCopied(false), 2000);
@@ -212,14 +212,13 @@ export default function TokenDetailsModal() {
     if (currentToken) {
       const peanut = encodePeanut(cleanToken(currentToken));
       if (!(await copyWithFeedback(peanut, toast))) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      hapticService.acknowledge();
       toast.showFeedback(interactionCopy.ecashCopied);
     }
   };
 
   const handleToggleVersion = () => {
     if (!currentToken) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
       const decoded = decodeToken(currentToken);
@@ -240,7 +239,6 @@ export default function TokenDetailsModal() {
 
   const handleShare = async () => {
     if (!currentToken) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const shareText = `cashu:${currentToken}`;
 

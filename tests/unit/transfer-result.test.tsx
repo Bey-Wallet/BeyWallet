@@ -2,8 +2,6 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ResultStage } from '~/features/payments/swap/ResultStage';
 
-jest.mock('~/shared/hooks/useResultHaptic', () => ({ useResultHaptic: jest.fn() }));
-
 jest.mock('tamagui', () => ({ Text: 'Text' }));
 jest.mock('~/shared/ui/PaymentReceipt', () => ({ PaymentReceipt: 'Receipt' }));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTableRow: 'Row' }));

@@ -1,19 +1,6 @@
 import { createContext, useContext, useEffect, useRef } from 'react';
 import { NavigationContext } from '@react-navigation/native';
 import { feedbackCoordinator, type FeedbackEvent } from '~/services/feedback/feedbackCoordinator';
-import * as Haptics from 'expo-haptics';
-import { feedbackCatalog } from '~/services/feedback/feedbackCatalog';
-
-function ownerHaptic(event: FeedbackEvent) {
-  const severity = feedbackCatalog[event.kind].severity;
-  void Promise.resolve(
-    Haptics.notificationAsync(
-      severity === 'success'
-        ? Haptics.NotificationFeedbackType.Success
-        : Haptics.NotificationFeedbackType.Warning,
-    ),
-  ).catch(() => {});
-}
 
 /** Release on blur/unmount. IDs are operation/quote/request IDs, never payment inputs. */
 const standaloneContext = createContext<undefined>(undefined);
@@ -32,7 +19,7 @@ export function useFeedbackOwner(
     const focus = () => {
       release?.();
       const owners = ids.map((entityId) =>
-        feedbackCoordinator.claim(entityId, (event) => (callback.current ?? ownerHaptic)(event)),
+        feedbackCoordinator.claim(entityId, (event) => callback.current?.(event)),
       );
       release = () => owners.forEach((owner) => owner());
     };
@@ -54,6 +41,6 @@ export function useFeedbackOwner(
 /** Global sheets are outside a screen navigator; their visible lifetime is explicit. */
 export function useSheetFeedbackOwner(id: string | null, visible: boolean) {
   useEffect(() => {
-    if (id && visible) return feedbackCoordinator.claim(id, ownerHaptic);
+    if (id && visible) return feedbackCoordinator.claim(id);
   }, [id, visible]);
 }

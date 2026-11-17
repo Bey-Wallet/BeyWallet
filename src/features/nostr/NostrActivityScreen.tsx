@@ -38,7 +38,7 @@ import { usePeopleStore } from '~/state/peopleStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { historyService } from '~/services/wallet';
 import { nip19 } from 'nostr-tools';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { useSettingsStore } from '~/state/settingsStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
@@ -199,13 +199,13 @@ export default function NostrActivityModal() {
       });
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     DeviceEventEmitter.emit('nostr:openClaim', item);
   };
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     try {
       await refreshPendingStates();
       await refetchHistory();
@@ -264,7 +264,7 @@ export default function NostrActivityModal() {
     if (!detailItem?.tokenString) return;
     if (await toast.copy(detailItem.tokenString)) {
       setCopied(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      hapticService.acknowledge();
       setTimeout(() => setCopied(false), 1000);
     }
   }, [detailItem, toast]);

@@ -14,7 +14,6 @@ import WalletIcon from '~/shared/icons/Wallet';
 import BeyIcon from '~/shared/icons/BeyIcon';
 import LockIcon from '~/shared/icons/Lock';
 import NFCFillIcon from '~/shared/icons/NFC-fill';
-import * as Haptics from 'expo-haptics';
 import HomeIcon from '~/shared/icons/Home';
 import Blockies from '~/shared/ui/Blockies';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -36,7 +35,6 @@ const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => 
       width={appDimensions.touchTarget}
       pressStyle={{ opacity: 0.7, scale: 0.95 }}
       onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         router.push('/(modals)/nostr-profile');
       }}
       items="center"
@@ -87,9 +85,6 @@ export default function TabLayout() {
     >
       <Tabs.Screen
         name="index"
-        listeners={{
-          tabPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-        }}
         options={{
           title: 'Home',
           headerTitleAlign: 'center',
@@ -108,7 +103,6 @@ export default function TabLayout() {
                 accessibilityLabel="Open NFC"
                 icon={<Nfc />}
                 onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   nfcFlow.openReader();
                 }}
               />
@@ -119,9 +113,6 @@ export default function TabLayout() {
 
       <Tabs.Screen
         name="history"
-        listeners={{
-          tabPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-        }}
         options={{
           title: 'History',
           tabBarIcon: ({ color, size }) => (
@@ -132,9 +123,6 @@ export default function TabLayout() {
 
       <Tabs.Screen
         name="people"
-        listeners={{
-          tabPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-        }}
         options={{
           title: 'People',
           headerShown: false,
@@ -146,9 +134,6 @@ export default function TabLayout() {
 
       <Tabs.Screen
         name="settings"
-        listeners={{
-          tabPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-        }}
         options={{
           title: 'Settings',
           headerShown: false,

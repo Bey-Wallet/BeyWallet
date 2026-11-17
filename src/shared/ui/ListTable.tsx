@@ -5,7 +5,7 @@ import React, { createContext, useContext } from 'react';
 import { XStack, YStack, Text } from 'tamagui';
 import { Copy, ChevronRight } from '@tamagui/lucide-icons';
 
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { appBorders, appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 
@@ -108,7 +108,7 @@ export function ListTableRow({
     const textToCopy = copyValue || (typeof value === 'string' ? value : '');
     if (textToCopy) {
       if (!(await copyWithFeedback(textToCopy, toast))) return;
-      Haptics.selectionAsync();
+      hapticService.acknowledge();
       toast.showFeedback(interactionCopy.copiedToClipboard);
     }
   };

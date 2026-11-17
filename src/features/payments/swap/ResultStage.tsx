@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useResultHaptic } from '~/shared/hooks/useResultHaptic';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 import { ListTableRow } from '~/shared/ui/ListTable';
 import { Text } from 'tamagui';
@@ -35,7 +34,6 @@ export function ResultStage({
   headerRight?: () => React.ReactNode;
 }) {
   const [time] = useState(Date.now);
-  useResultHaptic(status === 'error' ? 'error' : undefined);
   const mints = useWalletStore((state) => state.mints);
   const mintName = (url: string) => {
     const mint = mints.find((item) => item.mintUrl.replace(/\/+$/, '') === url.replace(/\/+$/, ''));

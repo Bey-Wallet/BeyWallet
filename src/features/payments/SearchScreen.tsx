@@ -16,7 +16,6 @@ import { usePeopleStore } from '~/state/peopleStore';
 import { useWalletStore } from '~/state/walletStore';
 import { useMintDiscovery } from '~/features/mints/hooks/useMintDiscovery';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
-import * as Haptics from 'expo-haptics';
 import type { MintRecommendation } from '~/services/api/mintRecommendationService';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
 
@@ -93,7 +92,6 @@ export default function UniversalSearchScreen() {
   };
 
   const handleScan = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
       pathname: '/(modals)/scanner',
       params: { returnTo: '/search' },
@@ -260,8 +258,6 @@ export default function UniversalSearchScreen() {
   }, [search, doSearch]);
 
   const onSelectItem = (item: SearchResultItem) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
     // Add to recents
     if (item.type !== 'header') {
       const updatedRecents = [item, ...recentSearches.filter((r) => r.id !== item.id)].slice(0, 5);

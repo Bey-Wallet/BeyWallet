@@ -21,7 +21,7 @@ import {
   Trash2,
 } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
@@ -86,7 +86,7 @@ function MintDetailsContent() {
     try {
       await removeMint(mintUrl || '');
       removeMintSheetRef.current?.dismiss();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      hapticService.completion();
       safeGoBack();
       toast.showFeedback(interactionCopy.mintRemoved);
     } catch (e: any) {
@@ -100,7 +100,7 @@ function MintDetailsContent() {
 
   const handleRestoreProofs = () => {
     if (!mintUrl) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     router.push({ pathname: '/recover-funds', params: { mintUrl } });
   };
 
@@ -254,7 +254,6 @@ function MintDetailsContent() {
   const connection = isCheckingConnection ? 'checking' : connectionError ? 'offline' : 'online';
 
   const handleShare = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await RNShare.share({ message: mintUrl });
     } catch (error) {
@@ -272,7 +271,6 @@ function MintDetailsContent() {
               accessibilityLabel="Go back"
               icon={<ArrowLeft color="$color" />}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 safeGoBack();
               }}
             />
@@ -313,7 +311,6 @@ function MintDetailsContent() {
                 onAction={(id) => {
                   if (id === 'share') void handleShare();
                   if (id === 'remove') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     removeMintSheetRef.current?.present();
                   }
                 }}

@@ -3,7 +3,6 @@ import { Link, Stack } from 'expo-router';
 import React from 'react';
 import { YStack, Text, useTheme } from 'tamagui';
 import { AlertCircle } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 
 export default function NotFoundScreen() {
   const theme = useTheme();
@@ -23,9 +22,7 @@ export default function NotFoundScreen() {
             variant="default"
             emphasis="primary"
             size="large"
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
+            onPress={() => {}}
             mt="$4"
             maxWidth={300}
           >

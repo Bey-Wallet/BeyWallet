@@ -6,7 +6,6 @@ import { ArrowDownLeft, Landmark, ShieldCheck, User, XCircle } from '@tamagui/lu
 import { Separator, Text, View, XStack, YStack } from 'tamagui';
 
 import { useQuery } from '@tanstack/react-query';
-import * as Haptics from 'expo-haptics';
 import { nip19 } from 'nostr-tools';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
@@ -141,7 +140,7 @@ export function NostrClaimSheet() {
       return;
     }
     setClaimStatus('claiming');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
     const result =
       activeItem.failure?.code === 'receipt_unverified'
         ? await nostrClaimService.reconcileReceipt(activeItem.id, true)
@@ -150,7 +149,6 @@ export function NostrClaimSheet() {
       setClaimStatus('success');
     } else {
       setClaimStatus('error');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   }, [activeItem, mintTrusted, claimStatus, contactAccepted, contactBlocked, offline]);
 

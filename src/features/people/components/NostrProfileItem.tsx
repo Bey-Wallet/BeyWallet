@@ -4,7 +4,6 @@ import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Send } from '@tamagui/lucide-icons';
 import { Separator, Text, View, XStack, YStack } from 'tamagui';
-import * as Haptics from 'expo-haptics';
 import Blockies from '~/shared/ui/Blockies';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import type { NostrProfile } from '~/services/api/nostrProfileService';
@@ -42,7 +41,6 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
         <XStack py="$2.5" items="center" gap="$2">
           <TouchableOpacity
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               onPress(profile);
             }}
             onLongPress={() => onLongPress?.(profile)}
@@ -112,7 +110,6 @@ export const NostrProfileItem = React.memo<NostrProfileItemProps>(
               accessibilityLabel={`Send eCash to ${label}`}
               icon={<Send size={17} color="$color" />}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 onSend(profile);
               }}
             />

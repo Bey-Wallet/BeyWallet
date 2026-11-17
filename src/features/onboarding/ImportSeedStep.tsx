@@ -9,7 +9,6 @@ import {
   AlertCircle,
   Trash2,
 } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import * as bip39 from 'bip39';
 import { BackHandler, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
@@ -95,7 +94,7 @@ export function ImportSeedStep({
         setWords(newWords);
         setCurrentInput('');
         validateMnemonic(newWords);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
         return;
       } else if (parts.length === 1 && text.endsWith(' ')) {
         const cleanWord = parts[0].toLowerCase().replace(/[^a-z]/g, '');
@@ -104,7 +103,6 @@ export function ImportSeedStep({
           setWords(newWords);
           setCurrentInput('');
           validateMnemonic(newWords);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
         return;
       }
@@ -122,7 +120,6 @@ export function ImportSeedStep({
       setWords(newWords);
       setCurrentInput('');
       validateMnemonic(newWords);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
@@ -133,12 +130,10 @@ export function ImportSeedStep({
       setWords(newWords);
       setCurrentInput(lastWord);
       validateMnemonic(newWords);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
   const handlePillPress = (idx: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newWords = [...words];
     const clickedWord = newWords.splice(idx, 1)[0];
     setWords(newWords);
@@ -163,10 +158,8 @@ export function ImportSeedStep({
         setWords(newWords);
         setCurrentInput('');
         validateMnemonic(newWords);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
         setError(`Found ${pastedWords.length} words, need 12.`);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } catch (e) {
       setError('Could not read the clipboard. Type your recovery phrase instead.');
@@ -178,7 +171,6 @@ export function ImportSeedStep({
     setCurrentInput('');
     setIsValid(false);
     setError(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   const handleImport = () => {
@@ -189,7 +181,6 @@ export function ImportSeedStep({
     }
     const mnemonic = words.map((w) => w.trim().toLowerCase()).join(' ');
     if (bip39.validateMnemonic(mnemonic)) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       onImport(mnemonic);
     }
   };

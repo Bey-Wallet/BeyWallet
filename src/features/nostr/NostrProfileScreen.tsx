@@ -17,7 +17,7 @@ import {
 import { Stack, useFocusEffect, useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -103,7 +103,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
   const copy = async (value: string) => {
     if (!(await copyWithFeedback(value, toast))) return;
     toast.showFeedback(interactionCopy.copiedToClipboard);
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    hapticService.acknowledge();
     setCopied(value);
     if (copyTimer.current) clearTimeout(copyTimer.current);
     copyTimer.current = setTimeout(() => setCopied(null), 2000);

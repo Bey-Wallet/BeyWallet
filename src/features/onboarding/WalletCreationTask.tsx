@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import * as Haptics from 'expo-haptics';
 
 /** Completes creation as soon as generation and the completion callback finish. */
 export function WalletCreationTask({
@@ -27,7 +26,6 @@ export function WalletCreationTask({
       const mnemonic = callbacks.current.generateMnemonic();
       if (mnemonic) {
         await callbacks.current.onComplete(mnemonic);
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }
     })().catch((error: unknown) => callbacks.current.onError(error));
   }, [open]);

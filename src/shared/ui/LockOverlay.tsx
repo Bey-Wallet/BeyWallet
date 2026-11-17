@@ -3,7 +3,6 @@ import React, { useEffect, useCallback, useRef } from 'react';
 import { YStack } from 'tamagui';
 import { Fingerprint } from '@tamagui/lucide-icons';
 import { biometricService } from '~/services/platform/biometricService';
-import * as Haptics from 'expo-haptics';
 import { AppState, AppStateStatus, StyleSheet } from 'react-native';
 import BeyIcon from '~/shared/icons/BeyIcon';
 
@@ -20,7 +19,6 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
 
       console.log(`Starting biometric auth (force: ${force})`);
       isAuthenticatingRef.current = true;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       try {
         if (force) {
@@ -30,10 +28,7 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
         const success = await biometricService.authenticateAsync('Unlock Bey Wallet to continue');
         console.log('Biometric auth result success:', success);
         if (success) {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           onUnlock();
-        } else {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         }
       } catch (e) {
         console.error('Error during biometric auth:', e);

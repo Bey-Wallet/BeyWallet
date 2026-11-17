@@ -1,3 +1,4 @@
+import { hapticService } from '~/services/platform/hapticService';
 import React from 'react';
 import { CheckCircle2, AlertCircle } from '@tamagui/lucide-icons';
 import { XStack, YStack } from 'tamagui';
@@ -66,7 +67,12 @@ export function RecoveryMintRow({
       accessibilityHint={disabled ? undefined : 'Select this mint for recovery'}
       accessibilityState={{ checked: selected, disabled }}
       disabled={disabled}
-      onPress={onToggle}
+      onPress={() => {
+        if (!disabled) {
+          hapticService.selection();
+          onToggle();
+        }
+      }}
       minHeight={appDimensions.touchTarget}
       px={appSpacing.page}
       py={appSpacing.gap}

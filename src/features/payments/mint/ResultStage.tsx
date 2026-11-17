@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { useResultHaptic } from '~/shared/hooks/useResultHaptic';
-import * as Haptics from 'expo-haptics';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 import { useLightningReceipt } from '../useLightningReceipt';
 
@@ -35,7 +33,6 @@ export function ResultStage({
     state: status === 'success' ? 'issued' : status,
     amount: Number(amount),
   });
-  useResultHaptic(status === 'error' ? 'error' : undefined);
 
   return (
     <PaymentReceipt
@@ -57,7 +54,6 @@ export function ResultStage({
       error={error}
       inset={false}
       onClose={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onClose();
       }}
     >

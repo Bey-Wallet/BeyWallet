@@ -54,6 +54,99 @@ function setup(storage: FeedbackStorage = durableStorage()) {
 }
 afterEach(() => jest.useRealTimers());
 
+it('still delivers the screen and toast if the haptic presenter throws', async () => {
+  const coordinator = new FeedbackCoordinator();
+  coordinator.bind('wallet-a', durableStorage());
+  const toast = jest.fn();
+  const outcome = jest.fn();
+  coordinator.connect({
+    hapticEpoch: () => 1,
+    haptic: () => {
+      throw new Error('Native unavailable');
+    },
+    foreground: () => true,
+    unlocked: () => true,
+    toast,
+    notification: jest.fn(),
+  });
+  const release = coordinator.claim(receipt.entity.id, outcome);
+  await expect(coordinator.publish(receipt)).resolves.toBeUndefined();
+  expect(outcome).toHaveBeenCalledTimes(1);
+  release();
+  await coordinator.publish({ ...receipt, entity: { type: 'receipt', id: 'other' } });
+  await coordinator.flush();
+  expect(toast).toHaveBeenCalledTimes(1);
+});
+
+it.each(['background', 'disabled', 'locked'])(
+  'discards queued haptics across a %s transition without replay',
+  async () => {
+    const coordinator = new FeedbackCoordinator();
+    coordinator.bind('wallet-a', durableStorage());
+    let epoch: number | undefined = 1;
+    const haptic = jest.fn();
+    coordinator.connect({
+      hapticEpoch: () => epoch,
+      haptic,
+      foreground: () => true,
+      unlocked: () => true,
+      toast: jest.fn(),
+      notification: jest.fn(),
+    });
+    await coordinator.publish(receipt);
+    epoch = undefined;
+    epoch = 2;
+    await coordinator.flush();
+    expect(haptic).not.toHaveBeenCalled();
+    await coordinator.publish(receipt);
+    await coordinator.flush();
+    expect(haptic).not.toHaveBeenCalled();
+  },
+);
+
+it('does not replay an event received while feedback was disabled after it is enabled', async () => {
+  const coordinator = new FeedbackCoordinator();
+  coordinator.bind('wallet-a', durableStorage());
+  let epoch: number | undefined;
+  const haptic = jest.fn();
+  coordinator.connect({
+    hapticEpoch: () => epoch,
+    haptic,
+    foreground: () => true,
+    unlocked: () => true,
+    toast: jest.fn(),
+    notification: jest.fn(),
+  });
+  await coordinator.publish(receipt);
+  epoch = 1;
+  await coordinator.flush();
+  expect(haptic).not.toHaveBeenCalled();
+});
+
+it('aggregates a live burst into one haptic and excludes catch-up outcomes', async () => {
+  const coordinator = new FeedbackCoordinator();
+  coordinator.bind('wallet-a', durableStorage());
+  const haptic = jest.fn();
+  coordinator.connect({
+    hapticEpoch: () => 1,
+    haptic,
+    foreground: () => true,
+    unlocked: () => true,
+    toast: jest.fn(),
+    notification: jest.fn(),
+  });
+  await coordinator.publish(receipt);
+  await coordinator.publish({ ...receipt, entity: { type: 'receipt', id: 'second' } });
+  await coordinator.publish({
+    ...receipt,
+    entity: { type: 'receipt', id: 'old' },
+    origin: 'catch-up',
+  });
+  await coordinator.flush();
+  expect(haptic).toHaveBeenCalledTimes(1);
+  expect(haptic.mock.calls[0][0]).toHaveLength(2);
+});
+
 it('reserves concurrent SDK/Nostr/screen reports once and survives restart', async () => {
   const { coordinator, presenter, storage } = setup();
   await Promise.all(Array.from({ length: 6 }, () => coordinator.publish(receipt)));

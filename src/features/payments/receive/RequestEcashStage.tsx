@@ -21,7 +21,7 @@ import React, { useState, useCallback, useRef, useSyncExternalStore, useMemo } f
 import { YStack, Text } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
 import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 
 import { DeviceEventEmitter } from 'react-native';
@@ -189,7 +189,7 @@ export function RequestEcashStage({
       )
         return;
       generationLock.current = true;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
       setIsGenerating(true);
       setGenerateError(null);
       failedDraft.current = changes;
@@ -269,7 +269,6 @@ export function RequestEcashStage({
         if (savedRequestId) setStep('result');
         console.error('[RequestEcashStage] PaymentRequest generation failed:');
         setGenerateError(err?.message || 'Failed to generate request');
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } finally {
         generationLock.current = false;
         setIsGenerating(false);
@@ -294,7 +293,7 @@ export function RequestEcashStage({
   const handleCopy = useCallback(async () => {
     if (!creqString) return;
     if (!(await copyWithFeedback(creqString, toast))) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    hapticService.acknowledge();
     toast.showFeedback(interactionCopy.paymentRequestCopiedToClipboard);
   }, [creqString]);
 
@@ -422,7 +421,6 @@ export function RequestEcashStage({
 
   const handleCheckStatus = useCallback(async () => {
     setIsChecking(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
       // Force nostrService to reconnect and fetch recent events

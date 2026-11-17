@@ -4,7 +4,6 @@ import React from 'react';
 import { XStack, YStack, Text, View } from 'tamagui';
 import { Clipboard as ClipboardIcon, ScanLine, X as XIcon } from '@tamagui/lucide-icons';
 import Blockies from '~/shared/ui/Blockies';
-import * as Haptics from 'expo-haptics';
 
 interface DestinationInputRowProps {
   value: string;
@@ -50,7 +49,6 @@ export function DestinationInputRow({
   const showBlockies = isNpubOrNostr && value.trim().length > 0;
 
   const handleClear = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onChangeText('');
   };
 
@@ -173,7 +171,6 @@ export function DestinationInputRow({
               accessibilityLabel="Paste"
               icon={<ClipboardIcon size="$1.5" color={accentColor} strokeWidth={2.5} />}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
                 onPaste();
               }}
               disabled={isPasting}
@@ -187,7 +184,6 @@ export function DestinationInputRow({
               accessibilityLabel="Scan QR code"
               icon={<ScanLine size="$1.5" color={accentColor} strokeWidth={2.5} />}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
                 onScan();
               }}
             />

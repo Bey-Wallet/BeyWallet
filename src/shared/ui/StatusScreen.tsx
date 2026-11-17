@@ -11,7 +11,6 @@ import Animated, {
   withRepeat,
   Easing,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { Modal, StatusBar, Platform } from 'react-native';
 
 type StatusType = 'success' | 'error' | 'pending';
@@ -46,15 +45,6 @@ export default function StatusScreen({
 
   useEffect(() => {
     if (!visible) return;
-
-    // Trigger haptic feedback based on status
-    if (type === 'success') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else if (type === 'error') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
 
     // Animate entrance
     scale.value = withSpring(1, {
@@ -202,7 +192,6 @@ export default function StatusScreen({
               size="large"
               iconAfter={<ArrowRight size={20} />}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 onAction();
               }}
             >
@@ -216,7 +205,6 @@ export default function StatusScreen({
               emphasis="primary"
               size="large"
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 onClose();
               }}
             >

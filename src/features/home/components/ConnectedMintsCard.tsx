@@ -9,7 +9,6 @@ import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import * as Haptics from 'expo-haptics';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { mintInfoQueryOptions, useMintInfo } from '~/shared/hooks/useMintInfo';
@@ -324,7 +323,6 @@ export const ConnectedMintsCard = () => {
 
   const handleMintPress = useCallback(
     (mintUrl: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       router.push({
         pathname: '/(modals)/mint-details',
         params: { mintUrl },
@@ -334,18 +332,15 @@ export const ConnectedMintsCard = () => {
   );
 
   const handleAddMint = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/(modals)/add-mint');
   }, [router]);
 
   const handleManageMints = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/(modals)/mints');
   }, [router]);
 
   const handleAddRecommendedMint = useCallback(
     (mintUrl: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const mint = getMintPlaceholders([]).find((mint) => mint.mintUrl === mintUrl);
       void requestConnection({ url: mintUrl, name: mint?.name });
     },

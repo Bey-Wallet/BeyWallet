@@ -4,7 +4,6 @@ import { YStack, Text, H1, View, XStack } from 'tamagui';
 import { Image } from 'expo-image';
 import { StyleSheet } from 'react-native';
 import { Wallet, KeyRound, FolderOpen } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Alert } from 'react-native';
 import GlowCard from '~/shared/ui/GlowCard';
@@ -34,12 +33,10 @@ export function WelcomeStep({
   const insets = useSafeAreaInsets();
 
   const handleCreate = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onCreateWallet();
   };
 
   const handleImport = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onImportWallet();
   };
 

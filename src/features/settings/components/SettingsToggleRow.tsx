@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Text, XStack, YStack } from 'tamagui';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
 import type { AppButtonIcon } from '~/shared/ui/AppButton';
 import { appTypography } from '~/shared/theme/appearance';
@@ -42,7 +42,7 @@ export function SettingsToggleRow({
         queued.current = undefined;
         await save(value);
       }
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (!requiresApproval) hapticService.selection();
     } catch {
       queued.current = undefined;
       setError(true);

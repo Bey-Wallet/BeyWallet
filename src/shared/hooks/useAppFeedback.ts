@@ -5,7 +5,8 @@ import {
 } from '~/services/feedback/interactionPresentation';
 import { useEffect, useRef } from 'react';
 import { AppState, DeviceEventEmitter } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { hapticService, hapticForWalletFeedback } from '~/services/platform/hapticService';
+import { useReducedMotion, getReducedMotion } from './useReducedMotion';
 import * as Notifications from 'expo-notifications';
 import { useToastController } from '@tamagui/toast';
 import { usePathname, useRouter } from 'expo-router';
@@ -28,6 +29,21 @@ import { useNostrInboxStore } from '~/state/nostrInboxStore';
 import { usePeopleStore } from '~/state/peopleStore';
 
 export function useAppFeedback() {
+  useReducedMotion();
+  useEffect(
+    () =>
+      hapticService.connect(() => {
+        const settings = useSettingsStore.getState();
+        return {
+          ready: settings.initialized && !!feedbackCoordinator.wallet,
+          enabled: settings.hapticsEnabled,
+          foreground: AppState.currentState === 'active',
+          unlocked: !settings.biometricEnabled || useAuthStore.getState().isAuthenticated,
+          reducedMotion: getReducedMotion(),
+        };
+      }),
+    [],
+  );
   const toast = useToastController();
   const router = useRouter();
   const pathname = usePathname();
@@ -90,6 +106,8 @@ export function useAppFeedback() {
       );
     };
     const disconnect = feedbackCoordinator.connect({
+      hapticEpoch: hapticService.epoch,
+      haptic: hapticForWalletFeedback,
       foreground: () => AppState.currentState === 'active',
       unlocked,
       toast: async (events) => {
@@ -114,11 +132,6 @@ export function useAppFeedback() {
               : undefined,
           },
         });
-        await Haptics.notificationAsync(
-          copy.severity === 'success'
-            ? Haptics.NotificationFeedbackType.Success
-            : Haptics.NotificationFeedbackType.Warning,
-        ).catch(() => {});
       },
       notification: (events) => notificationService.deliver(events),
     });
@@ -168,11 +181,20 @@ export function useAppFeedback() {
           navigating = false;
         });
     }, 500);
+    const eligibility = () => {
+      const settings = useSettingsStore.getState();
+      return `${settings.initialized}:${settings.hapticsEnabled}:${unlocked()}`;
+    };
+    let previousEligibility = eligibility();
     const hideSensitive = () => {
+      const nextEligibility = eligibility();
+      if (nextEligibility !== previousEligibility) hapticService.invalidate();
+      previousEligibility = nextEligibility;
       if (!unlocked() || useSettingsStore.getState().hideBalance) toast.hide();
     };
     const auth = useAuthStore.subscribe(hideSensitive);
     const preferences = useSettingsStore.subscribe(hideSensitive);
+    const appState = AppState.addEventListener('change', () => hapticService.invalidate());
     return () => {
       mounted = false;
       clearInterval(timer);
@@ -180,6 +202,7 @@ export function useAppFeedback() {
       disconnect();
       auth();
       preferences();
+      appState.remove();
     };
   }, [router, toast]);
 }

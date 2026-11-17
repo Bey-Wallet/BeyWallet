@@ -22,7 +22,6 @@ import {
 } from '@gorhom/bottom-sheet';
 import { Theme, YStack, useTheme, type ThemeName } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 import { appBorders, appMotion, appRadii, appSpacing } from '~/shared/theme/appearance';
 import { BUIHeader } from './BUI/BUIHeader';
 
@@ -129,8 +128,6 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
         if (index === -1) {
           Keyboard.dismiss();
           onClose?.();
-        } else {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       },
       [onClose, onOpenChange],

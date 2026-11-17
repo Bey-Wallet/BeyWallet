@@ -6,7 +6,6 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import React from 'react';
 import { useWalletStore } from '~/state/walletStore';
-import * as Haptics from 'expo-haptics';
 
 interface ConfirmStageProps {
   onMintChange?: (url: string) => void;
@@ -64,7 +63,6 @@ export function ConfirmStage({
             fullWidth
             disabled={isLoading}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               onConfirm();
             }}
           >

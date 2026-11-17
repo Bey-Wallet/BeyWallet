@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   Search,
 } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 import * as ClipboardAPI from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useAppToast } from '~/shared/hooks/useAppToast';
@@ -127,7 +126,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         if (result.type === 'unknown' || result.error) {
           setValidationError(result.error || 'Unrecognized format');
           setDetectedType(null);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
           return false;
         }
 
@@ -174,7 +173,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
     const handlePaste = async () => {
       if (processing.current || navigating.current) return;
       const ticket = startProcessing(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
       try {
         const text = await ClipboardAPI.getStringAsync();
         if (ticket !== generation.current) return;

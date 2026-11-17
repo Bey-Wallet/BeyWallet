@@ -12,7 +12,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useRef } from 'react';
 import { YStack, useThemeName } from 'tamagui';
 import { Copy, Share2, Check, Nfc, Send, RefreshCw, Undo2, Info } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { EcashTokenQRCode } from '~/shared/ui/EcashTokenQRCode';
 
 import { Share as RNShare } from 'react-native';
@@ -164,7 +164,7 @@ export function PendingTokenLayout({
   const handleCopy = async () => {
     if (currentToken) {
       if (!(await copyWithFeedback(currentToken, toast))) return;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      hapticService.acknowledge();
       setCopied(true);
       toast.showFeedback(interactionCopy.ecashCopied);
       setTimeout(() => setCopied(false), 2000);
@@ -173,7 +173,7 @@ export function PendingTokenLayout({
 
   const handleShare = async () => {
     if (!currentToken) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     try {
       setLockDisabled(true);
 

@@ -11,7 +11,6 @@ import {
   User,
   Landmark,
 } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { biometricService } from '~/services/platform/biometricService';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -68,17 +67,15 @@ export function PermissionsStep({
     }
 
     setIsRequestingBio(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     try {
       const success = await biometricService.authenticateAsync(
         'Enable biometric security for Bey Wallet',
       );
       if (success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setBiometricEnabled(true);
         await useSettingsStore.getState().setBiometricEnabled(true);
       } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setBiometricEnabled(false);
       }
     } catch {
@@ -90,7 +87,6 @@ export function PermissionsStep({
 
   const handleFinish = () => {
     if (isFinishing || isRequestingBio) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (!biometricEnabled) {
       sheetRef.current?.present();
@@ -107,12 +103,10 @@ export function PermissionsStep({
         'Enable biometric security for Bey Wallet',
       );
       if (success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setBiometricEnabled(true);
         await useSettingsStore.getState().setBiometricEnabled(true);
         onComplete(initialUsername, true, skipUsername, mintUrls());
       } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setBiometricEnabled(false);
       }
     } catch {

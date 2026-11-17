@@ -31,6 +31,7 @@ import {
   Wrench,
   Github,
   BookOpen,
+  Vibrate,
 } from '@tamagui/lucide-icons';
 import { isDevelopmentClient } from '~/shared/utils/developmentClient';
 import type { AppButtonIcon } from '~/shared/ui/AppButton';
@@ -51,6 +52,7 @@ export const settingsCategories = {
         { path: 'currency', title: 'Display currency', icon: Banknote },
         { path: 'bitcoin-symbol', title: 'Bitcoin symbol', icon: Bitcoin },
         { path: 'balance-area', title: 'Expanded Home', icon: Expand },
+        { path: 'haptics', title: 'Haptic feedback', icon: Vibrate },
       ],
     ],
   },

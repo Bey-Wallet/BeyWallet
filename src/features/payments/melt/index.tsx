@@ -26,7 +26,6 @@ import {
 } from '~/services/api/lnurlService';
 import { biometricService } from '~/services/platform/biometricService';
 import { networkService } from '~/services/platform/networkService';
-import * as Haptics from 'expo-haptics';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import { Text, YStack } from 'tamagui';
@@ -398,7 +397,7 @@ export default function MeltScreen() {
         }
 
         // Go to confirm step
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
         setStep('confirm');
       } catch (err: any) {
         if (generation !== quoteGeneration.current) return;
@@ -458,7 +457,6 @@ export default function MeltScreen() {
       refreshBalance();
       setStep('result');
     } catch (err: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(err.message || 'Lightning payment failed');
       setStatus('error');
       setStep('result');
@@ -482,7 +480,6 @@ export default function MeltScreen() {
     if (authLock.current || payLock.current) return;
     authLock.current = true;
     setIsAuthenticating(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
       const success = await confirmation.current.confirm({
@@ -495,7 +492,6 @@ export default function MeltScreen() {
       });
 
       if (!success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } catch (err: any) {
       console.error('[MeltScreen] Auth error:');

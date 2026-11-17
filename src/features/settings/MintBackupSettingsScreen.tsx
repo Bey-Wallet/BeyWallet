@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { hapticService } from '~/services/platform/hapticService';
 import { Text, XStack, YStack } from 'tamagui';
 import { CloudUpload } from '@tamagui/lucide-icons';
 import { useMintBackupStore } from '~/state/mintBackupStore';
@@ -45,7 +46,10 @@ export function MintBackupSettingsScreen() {
           <AppSwitch
             variant="branded"
             checked={backup.automatic}
-            onCheckedChange={backup.setAutomatic}
+            onCheckedChange={(next) => {
+              if (next !== backup.automatic) hapticService.selection();
+              backup.setAutomatic(next);
+            }}
             accessibilityLabel="Automatic mint backup"
           />
         </XStack>

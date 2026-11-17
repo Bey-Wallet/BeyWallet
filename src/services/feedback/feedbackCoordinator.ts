@@ -29,6 +29,8 @@ export interface FeedbackStorage {
   reserve(event: FeedbackEvent, key: string): Promise<boolean>;
 }
 export interface FeedbackPresenter {
+  hapticEpoch?(): number | undefined;
+  haptic?(events: FeedbackEvent[]): void;
   unlocked(): boolean;
   foreground(): boolean;
   toast(events: FeedbackEvent[]): void | Promise<void>;
@@ -43,7 +45,7 @@ export class FeedbackCoordinator {
   private muted = new Set<symbol>();
   private generation = 0;
   private owners = new Map<symbol, { id: string; outcome?: (event: FeedbackEvent) => void }>();
-  private queued: FeedbackEvent[] = [];
+  private queued: { event: FeedbackEvent; hapticEpoch?: number }[] = [];
   private timer?: ReturnType<typeof setTimeout>;
 
   get wallet() {
@@ -96,9 +98,26 @@ export class FeedbackCoordinator {
     this.timer = undefined;
   }
 
+  private hapticEpoch(presenter = this.presenter) {
+    try {
+      return presenter?.hapticEpoch?.();
+    } catch {
+      return undefined;
+    }
+  }
+
+  private deliverHaptic(events: FeedbackEvent[], presenter = this.presenter) {
+    try {
+      presenter?.haptic?.(events);
+    } catch {
+      // A device effect cannot suppress screen/toast delivery or reject a payment.
+    }
+  }
+
   async publish(event: FeedbackEvent): Promise<void> {
     if (!this.storage || event.walletId !== this.walletId || !event.entity.id) return;
     const generation = this.generation;
+    const hapticEpoch = this.hapticEpoch();
     const key = JSON.stringify([event.walletId, event.entity.type, event.entity.id, event.state]);
     try {
       // Atomic durable reservation precedes every surface, including the active screen.
@@ -108,10 +127,12 @@ export class FeedbackCoordinator {
         .reverse()
         .find(({ id }) => id === event.parentOperationId || id === event.entity.id);
       if (owner && this.presenter?.foreground() && this.presenter.unlocked()) {
+        if (hapticEpoch !== undefined && hapticEpoch === this.hapticEpoch())
+          this.deliverHaptic([event]);
         owner.outcome?.(event);
         return;
       }
-      this.queued.push(event);
+      this.queued.push({ event, hapticEpoch });
       if (!this.timer) this.timer = setTimeout(() => void this.flush(), 500);
     } catch {
       // Delivery failure must never change or reject a financial outcome.
@@ -121,11 +142,20 @@ export class FeedbackCoordinator {
   async flush() {
     if (this.timer) clearTimeout(this.timer);
     this.timer = undefined;
-    let events = this.queued;
+    const queued = this.queued;
+    let events = queued.map(({ event }) => event);
     this.queued = [];
     const presenter = this.presenter;
     if (!events.length || !presenter) return;
     try {
+      const eligible = queued
+        .filter(
+          (item) =>
+            item.hapticEpoch !== undefined && item.hapticEpoch === this.hapticEpoch(presenter),
+        )
+        .map(({ event }) => event);
+      if (eligible.length && presenter.foreground() && presenter.unlocked())
+        this.deliverHaptic(eligible, presenter);
       // Focus can change during the burst window (for example, opening an incoming review).
       if (presenter.foreground() && presenter.unlocked())
         events = events.filter((event) => {

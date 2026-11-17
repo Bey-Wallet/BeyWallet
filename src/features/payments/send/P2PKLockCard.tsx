@@ -1,4 +1,5 @@
 import React, { useCallback, useId, useRef, useState } from 'react';
+import { hapticService } from '~/services/platform/hapticService';
 import { Keyboard } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
@@ -81,6 +82,7 @@ export function P2PKLockCard({
               disabled={disabled || (offline && !enabled)}
               onCheckedChange={(value) => {
                 if (disabled || (offline && !enabled)) return;
+                if (value !== enabled) hapticService.selection();
                 onEnabledChange(value);
                 if (value && !publicKey) open();
               }}

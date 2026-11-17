@@ -2,7 +2,6 @@ import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { RefreshControl, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack, ScrollView, XStack, Text, View, useTheme } from 'tamagui';
-import * as Haptics from 'expo-haptics';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { ExpandableWallet } from './components/ExpandableWallet';
 import { useHomePageScroll } from './hooks/useHomePageScroll';
@@ -101,7 +100,7 @@ export function HomeTabScreen() {
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     try {
       await Promise.all([
         refreshBalance(),

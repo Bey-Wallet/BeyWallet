@@ -7,7 +7,7 @@ import { H2, Text, View, XStack, YStack, Stack } from 'tamagui';
 import { Image } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useSettingsStore } from '~/state/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
@@ -27,7 +27,6 @@ export default function BitcoinPriceCard() {
   });
 
   const handleRefresh = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     refetch();
   };
 
@@ -86,7 +85,7 @@ export default function BitcoinPriceCard() {
       overflow="hidden"
       pressStyle={{ opacity: 0.9, scale: 0.99 }}
       onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        hapticService.selection();
         setShowSats((prev) => !prev);
       }}
     >
@@ -126,7 +125,7 @@ export default function BitcoinPriceCard() {
             <XStack
               onPress={(e) => {
                 e.stopPropagation();
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
                 setIsExpanded(false);
               }}
               pressStyle={{ opacity: 0.7, scale: 0.95 }}
@@ -159,7 +158,7 @@ export default function BitcoinPriceCard() {
             <XStack
               onPress={(e) => {
                 e.stopPropagation();
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
                 setIsExpanded(true);
               }}
               pressStyle={{ opacity: 0.7, scale: 0.95 }}

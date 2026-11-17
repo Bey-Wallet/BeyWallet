@@ -18,7 +18,6 @@ import {
   type FilledActionIconProps,
 } from '~/shared/icons/FilledActionIcons';
 import { Nfc } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
@@ -98,7 +97,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
           setType(sheetType);
           setStage('main');
           inputRef.current?.clear();
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
           sheetRef.current?.present();
         },
         dismiss,
@@ -225,7 +224,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
 
     const handleOption = (option: OptionConfig) => {
       if (actionPending.current || processing) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
       if (option.stage) {
         setStage(option.stage);
         return;
@@ -384,7 +383,6 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
           if (processing || actionPending.current) return;
           if (stage === 'main') dismiss();
           else {
-            Haptics.selectionAsync();
             setStage('main');
           }
         }}

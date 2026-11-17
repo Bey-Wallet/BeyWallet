@@ -1,3 +1,4 @@
+import { hapticService } from '~/services/platform/hapticService';
 import React, { useEffect, useRef, useState } from 'react';
 import { RefreshControl } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
@@ -167,6 +168,7 @@ export default function MintsScreen() {
     router.push({ pathname: '/(modals)/mint-details', params: { mintUrl } });
   const toggle = (url: string) => {
     if (busy || !removable.includes(url)) return;
+    hapticService.selection();
     setSelected((current) =>
       current.includes(url) ? current.filter((item) => item !== url) : [...current, url],
     );
@@ -183,6 +185,8 @@ export default function MintsScreen() {
       await queryClient.invalidateQueries({ queryKey: ['mint-removal'] });
       void useWalletStore.getState().syncMintsToNostr();
       const kept = Object.keys(result.blocked).length;
+      if (kept) hapticService.review();
+      else if (result.removed.length) hapticService.completion();
       setMessage(
         kept
           ? `${result.removed.length} removed. ${kept} kept because wallet state changed.`
@@ -257,9 +261,11 @@ export default function MintsScreen() {
                 emphasis="text"
                 size="small"
                 disabled={busy || !removable.length}
-                onPress={() =>
-                  setSelected(selectedUrls.length === removable.length ? [] : removable)
-                }
+                onPress={() => {
+                  if (busy || !removable.length) return;
+                  hapticService.selection();
+                  setSelected(selectedUrls.length === removable.length ? [] : removable);
+                }}
               >
                 {removable.length > 0 && selectedUrls.length === removable.length
                   ? 'Clear selection'

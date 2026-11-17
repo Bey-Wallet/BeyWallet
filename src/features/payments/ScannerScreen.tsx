@@ -1,3 +1,4 @@
+import { hapticService } from '~/services/platform/hapticService';
 import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
 import { pickQrImage } from '~/services/platform/qrImageService';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
@@ -14,7 +15,6 @@ import { URDecoder } from '@gandlaf21/bc-ur';
 import { YStack, XStack, Text, ZStack, Theme } from 'tamagui';
 import { X, Zap, ZapOff, Image } from '@tamagui/lucide-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { appColors, appTypography } from '~/shared/theme/appearance';
 import { useAuthStore } from '~/state/authStore';
@@ -214,14 +214,7 @@ export default function ScannerScreen() {
     if (data.toLowerCase().startsWith('ur:')) {
       setIsUR(true);
       try {
-        const prevCount = decoderRef.current.receivedPartIndexes?.length || 0;
         decoderRef.current.receivePart(data);
-        const newCount = decoderRef.current.receivedPartIndexes?.length || 0;
-
-        // Subtle haptic tick when a new unique fragment is captured
-        if (newCount > prevCount) {
-          Haptics.selectionAsync();
-        }
 
         const p = decoderRef.current.estimatedPercentComplete();
         setProgress(p);
@@ -289,7 +282,7 @@ export default function ScannerScreen() {
       // A public-key scan belongs only to its key editor, not another open payment screen.
       if (typeof params.p2pkScanId === 'string') {
         useP2PKScanStore.getState().setResult({ id: params.p2pkScanId, value: trimmed });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
         router.back();
         return;
       }
@@ -305,6 +298,7 @@ export default function ScannerScreen() {
           const redirected = handleUniversalRedirect(result, {
             router,
             replace: true,
+            onBeforeRedirect: () => hapticService.acknowledge(),
           });
 
           if (redirected) {
@@ -312,7 +306,7 @@ export default function ScannerScreen() {
           }
 
           // Preserve the existing receive fallback for inputs the universal resolver does not own.
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
           const normalized = trimmed.toLowerCase().startsWith('cashu:')
             ? trimmed.substring(6)
             : trimmed;
@@ -323,7 +317,6 @@ export default function ScannerScreen() {
           return;
         }
 
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         console.log('[Scanner] Returning result to store for:', params.returnTo);
         useWalletStore.getState().setScannerResult(trimmed);
         router.back();
@@ -337,12 +330,13 @@ export default function ScannerScreen() {
       const redirected = handleUniversalRedirect(result, {
         router,
         replace: true,
+        onBeforeRedirect: () => hapticService.acknowledge(),
       });
 
       if (!redirected) {
         // Fallback: Set result in store and go back
         console.log('[Scanner] Fallback: returning data to previous screen...');
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
         useWalletStore.getState().setScannerResult(trimmed);
         router.back();
       }

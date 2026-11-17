@@ -21,7 +21,6 @@ import Blockies from '~/shared/ui/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
 import { useNostrRequestStore, findRequestPayment } from '~/state/nostrRequestStore';
 import { nip19 } from 'nostr-tools';
-import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -195,7 +194,7 @@ export default function NostrActivity() {
       });
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     if (item.type === 'request') {
       setSelectedRequest(item);
       sheetRef.current?.present();
@@ -215,7 +214,7 @@ export default function NostrActivity() {
 
   const handleDeclineRequest = () => {
     if (!selectedRequest) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     useNostrInboxStore.getState().dismiss(selectedRequest.id);
     sheetRef.current?.dismiss();
   };

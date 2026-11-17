@@ -19,7 +19,6 @@ import {
   ChevronDown,
   Landmark,
 } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 import { RefreshControl, TouchableOpacity, Keyboard } from 'react-native';
 import Animated, {
   type SharedValue,
@@ -298,7 +297,7 @@ const DiscoveredMintRow = React.memo(
                 icon={<Plus size={16} strokeWidth={2.5} />}
                 onPress={(e) => {
                   e.stopPropagation();
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
                   onAdd(mint.url);
                 }}
               />
@@ -352,7 +351,7 @@ export default function AddMintScreen() {
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     try {
       await refetchDiscover();
     } finally {
@@ -395,7 +394,6 @@ export default function AddMintScreen() {
       const scanned = scannerResult.trim();
       setScannerResult(null);
       setSearchQuery(scanned);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       let url = scanned;
       if (url.toLowerCase().startsWith('cashu:')) {
@@ -441,7 +439,6 @@ export default function AddMintScreen() {
 
   const handleLoadMore = useCallback(() => {
     if (hasMore && !isDiscoverLoading) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setVisibleCount((prev) => prev + PAGE_SIZE);
     }
   }, [hasMore, isDiscoverLoading]);
@@ -467,7 +464,6 @@ export default function AddMintScreen() {
   // ─── Navigation Handlers ───────────────────────────────────────────────────
   const handleDiscoveredMintPress = useCallback(
     (url: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       router.push({
         pathname: '/(modals)/mint-profile',
         params: { url },
@@ -506,7 +502,6 @@ export default function AddMintScreen() {
               disabled={!!connectingUrl}
               icon={<ArrowLeft color="$color" />}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 safeGoBack();
               }}
             />
@@ -517,7 +512,6 @@ export default function AddMintScreen() {
               disabled={!!connectingUrl}
               icon={<Scan color="$color" />}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push({
                   pathname: '/(modals)/scanner',
                   params: { returnTo: '/(modals)/add-mint' },
@@ -587,7 +581,6 @@ export default function AddMintScreen() {
             {!!searchQuery && (
               <TouchableOpacity
                 onPress={() => {
-                  Haptics.selectionAsync();
                   setSearchQuery('');
                 }}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -675,7 +668,6 @@ export default function AddMintScreen() {
 
             <TouchableOpacity
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 refetchDiscover();
               }}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

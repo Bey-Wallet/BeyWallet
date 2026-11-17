@@ -1,3 +1,4 @@
+import { hapticService } from '~/services/platform/hapticService';
 import React, { useEffect, useRef } from 'react';
 import { Animated } from 'react-native';
 import { Check, Info } from '@tamagui/lucide-icons';
@@ -133,7 +134,10 @@ function SelectionControl({
       justify="center"
       pressStyle={{ opacity: 1 }}
       onPress={() => {
-        if (!disabled) onCheckedChange?.(kind === 'radio' ? true : !checked);
+        if (!disabled && onCheckedChange) {
+          if (kind !== 'radio' || !checked) hapticService.selection();
+          onCheckedChange(kind === 'radio' ? true : !checked);
+        }
       }}
     >
       <Visual checked={checked} disabled={disabled} />
@@ -182,7 +186,10 @@ export function BUISelectionRow({
         accessibilityState={{ checked, disabled: disabled || !onCheckedChange }}
         disabled={disabled || !onCheckedChange}
         onPress={() => {
-          if (!disabled) onCheckedChange?.(kind === 'radio' ? true : !checked);
+          if (!disabled && onCheckedChange) {
+            if (kind !== 'radio' || !checked) hapticService.selection();
+            onCheckedChange(kind === 'radio' ? true : !checked);
+          }
         }}
       >
         {kind !== 'switch' && visual}

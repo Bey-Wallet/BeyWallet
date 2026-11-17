@@ -5,6 +5,18 @@ import MintsScreen from '~/features/mints/MintsScreen';
 import { useWalletStore } from '~/state/walletStore';
 import { ConnectedMintsCard } from '~/features/home/components/ConnectedMintsCard';
 import { RECOMMENDED_MINTS } from '~/features/home/components/mintPlaceholders';
+import { connectMint } from '~/features/mints/connectMint';
+import { hapticService } from '~/services/platform/hapticService';
+
+jest.mock('~/services/platform/hapticService', () => ({
+  hapticService: {
+    selection: jest.fn(),
+    acknowledge: jest.fn(),
+    completion: jest.fn(),
+    review: jest.fn(),
+    reject: jest.fn(),
+  },
+}));
 
 const mockPush = jest.fn();
 let mockDiscoveredMints: { url: string; name: string }[] = [];
@@ -655,6 +667,13 @@ it('shows Home quick-add progress and prevents duplicates when consent is rememb
   expect(tree.root.findAllByType('TrustSheet' as any)).toHaveLength(0);
 });
 
+it('rejects an invalid mint URL once without starting a wallet operation', async () => {
+  await expect(connectMint('file:///invalid-mint')).rejects.toThrow();
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+  expect(hapticService.reject).toHaveBeenCalledTimes(1);
+  expect(hapticService.completion).not.toHaveBeenCalled();
+});
+
 it('makes all discovered mints reachable through Load More', async () => {
   mockDiscoveredMints = Array.from({ length: 36 }, (_, index) => ({
     url: `https://mint${index}.example`,
@@ -678,59 +697,67 @@ it('makes all discovered mints reachable through Load More', async () => {
   expect(loadMore()).toBeUndefined();
 });
 
-it('selects eligible connected rows without opening mint details, keeping funded rows protected', async () => {
-  const empty = 'https://empty.example';
-  const funded = 'https://funded.example';
-  useWalletStore.setState({
-    mints: [
-      { mintUrl: empty, name: 'Empty mint', trusted: true },
-      { mintUrl: funded, name: 'Funded mint', trusted: true },
-    ],
-    balances: { [empty]: 0, [funded]: 10 },
-  });
-  mockRemovalEligibility = { [empty]: null, [funded]: 'funds' };
-  await act(async () => {
-    tree = create(<MintsScreen />);
-  });
-  let header!: ReactTestRenderer;
-  await act(async () => {
-    header = create(tree.root.findByType('Screen' as any).props.options.headerRight());
-  });
-  expect(header.root.findByType('AppIconButton' as any).props.accessibilityLabel).toBe(
-    'Select mints',
-  );
-  await act(async () => header.root.findByType('AppIconButton' as any).props.onPress());
-  const row = (name: string) =>
-    tree.root
-      .findAllByType('AppPressable' as any)
-      .find((node) => node.props.accessibilityLabel?.startsWith(name))!;
-  await act(async () => row('Empty mint').props.onPress());
-  expect(row('Empty mint').props.accessibilityState.checked).toBe(true);
-  await act(async () => row('Funded mint').props.onPress());
-  expect(row('Funded mint').props.accessibilityState.checked).toBe(false);
-  expect(mockPush).not.toHaveBeenCalled();
-  const clear = tree.root
-    .findAllByType('AppButton' as any)
-    .find((node) => node.props.children === 'Clear selection')!;
-  await act(async () => clear.props.onPress());
-  expect(row('Empty mint').props.accessibilityState.checked).toBe(false);
-  const selectAll = tree.root
-    .findAllByType('AppButton' as any)
-    .find((node) => node.props.children === 'Select all')!;
-  await act(async () => selectAll.props.onPress());
-  const review = tree.root
-    .findAllByType('AppButton' as any)
-    .find((node) => node.props.children === 'Remove selected (1)')!;
-  await act(async () => review.props.onPress());
-  expect(mockRemoveConnected).not.toHaveBeenCalled();
-  mockRemoveConnected.mockResolvedValue({ removed: [empty], blocked: {} });
-  await act(async () =>
-    tree.root
+it.each([false, true])(
+  'selects eligible connected rows and gives aggregate removal feedback (partial: %s)',
+  async (partial) => {
+    const empty = 'https://empty.example';
+    const funded = 'https://funded.example';
+    useWalletStore.setState({
+      mints: [
+        { mintUrl: empty, name: 'Empty mint', trusted: true },
+        { mintUrl: funded, name: 'Funded mint', trusted: true },
+      ],
+      balances: { [empty]: 0, [funded]: 10 },
+    });
+    mockRemovalEligibility = { [empty]: null, [funded]: 'funds' };
+    await act(async () => {
+      tree = create(<MintsScreen />);
+    });
+    let header!: ReactTestRenderer;
+    await act(async () => {
+      header = create(tree.root.findByType('Screen' as any).props.options.headerRight());
+    });
+    expect(header.root.findByType('AppIconButton' as any).props.accessibilityLabel).toBe(
+      'Select mints',
+    );
+    await act(async () => header.root.findByType('AppIconButton' as any).props.onPress());
+    const row = (name: string) =>
+      tree.root
+        .findAllByType('AppPressable' as any)
+        .find((node) => node.props.accessibilityLabel?.startsWith(name))!;
+    await act(async () => row('Empty mint').props.onPress());
+    expect(row('Empty mint').props.accessibilityState.checked).toBe(true);
+    await act(async () => row('Funded mint').props.onPress());
+    expect(row('Funded mint').props.accessibilityState.checked).toBe(false);
+    expect(mockPush).not.toHaveBeenCalled();
+    const clear = tree.root
       .findAllByType('AppButton' as any)
-      .find((node) => node.props.children === 'Confirm removal')!
-      .props.onPress(),
-  );
-  expect(mockRemoveConnected).toHaveBeenCalledWith([empty]);
-  expect(mockPush).not.toHaveBeenCalled();
-  await act(async () => header.unmount());
-});
+      .find((node) => node.props.children === 'Clear selection')!;
+    await act(async () => clear.props.onPress());
+    expect(row('Empty mint').props.accessibilityState.checked).toBe(false);
+    const selectAll = tree.root
+      .findAllByType('AppButton' as any)
+      .find((node) => node.props.children === 'Select all')!;
+    await act(async () => selectAll.props.onPress());
+    const review = tree.root
+      .findAllByType('AppButton' as any)
+      .find((node) => node.props.children === 'Remove selected (1)')!;
+    await act(async () => review.props.onPress());
+    expect(mockRemoveConnected).not.toHaveBeenCalled();
+    mockRemoveConnected.mockResolvedValue(
+      partial ? { removed: [], blocked: { [empty]: 'funds' } } : { removed: [empty], blocked: {} },
+    );
+    await act(async () =>
+      tree.root
+        .findAllByType('AppButton' as any)
+        .find((node) => node.props.children === 'Confirm removal')!
+        .props.onPress(),
+    );
+    expect(mockRemoveConnected).toHaveBeenCalledWith([empty]);
+    expect(hapticService.selection).toHaveBeenCalledTimes(3);
+    expect(hapticService.completion).toHaveBeenCalledTimes(partial ? 0 : 1);
+    expect(hapticService.review).toHaveBeenCalledTimes(partial ? 1 : 0);
+    expect(mockPush).not.toHaveBeenCalled();
+    await act(async () => header.unmount());
+  },
+);

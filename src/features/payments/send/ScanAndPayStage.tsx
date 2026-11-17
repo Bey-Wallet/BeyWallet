@@ -8,7 +8,6 @@ import { YStack, XStack, Text, View, ScrollView } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Scan, Nfc, AlertCircle, ClipboardPaste } from '@tamagui/lucide-icons';
 
-import * as Haptics from 'expo-haptics';
 import * as ClipboardAPI from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
@@ -50,7 +49,6 @@ export function ScanAndPayStage({
       const text = await ClipboardAPI.getStringAsync();
       if (text) {
         setInput(text);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
     } catch {
       setPasteError(interactionCopy.clipboardReadFailed.title);
@@ -60,7 +58,6 @@ export function ScanAndPayStage({
   const isLikelyValid = input.trim().length > 5;
 
   const handleScanPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
       pathname: '/(modals)/scanner',
       params: { returnTo: '/send' },

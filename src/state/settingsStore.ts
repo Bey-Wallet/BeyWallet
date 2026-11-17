@@ -16,6 +16,8 @@ interface SettingsState {
   secondaryCurrency: string;
   primaryCurrency: 'SATS' | 'FIAT';
   initialized: boolean;
+  hapticsEnabled: boolean;
+  setHapticsEnabled: (enabled: boolean) => Promise<void>;
   npub: string | null;
   nsec: string | null;
   nip05: string | null; // e.g. "zaheer@nostrcheck.me"
@@ -57,6 +59,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   notificationPreferences: { ...notificationDefaults },
   biometricEnabled: false,
   initialized: false,
+  hapticsEnabled: true,
   npub: null,
   nsec: null,
   nip05: null,
@@ -113,6 +116,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         storedShowBitcoinSymbol,
         storedBackupDirectoryUri,
         storedHideMintConnectionDisclaimer,
+        storedHaptics,
       ] = await Promise.all([
         repo.settingsRepository.getSetting('theme'),
         repo.settingsRepository.getSetting('secondaryCurrency'),
@@ -129,9 +133,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         repo.settingsRepository.getSetting('showBitcoinSymbol'),
         repo.settingsRepository.getSetting('backupDirectoryUri'),
         repo.settingsRepository.getSetting('hideMintConnectionDisclaimer'),
+        repo.settingsRepository.getSetting('hapticsEnabled'),
       ]);
 
       if (storedTheme) set({ theme: storedTheme as ThemePreference });
+      set({ hapticsEnabled: storedHaptics == null || storedHaptics === 'true' });
       set({ homeExpanded: storedHomeExpanded === 'true' });
       set({ hideMintConnectionDisclaimer: storedHideMintConnectionDisclaimer === 'true' });
       if (storedCurrency) set({ secondaryCurrency: storedCurrency });
@@ -193,6 +199,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       // initService retries after local repositories are ready. Never mark
       // defaults as hydrated, or a slow startup permanently loses the keys.
       console.warn('[SettingsStore] Settings unavailable; initialization can be retried.');
+    }
+  },
+
+  setHapticsEnabled: async (enabled) => {
+    // Disabling takes effect immediately, even if storage is temporarily unavailable.
+    if (!enabled) set({ hapticsEnabled: false });
+    try {
+      await initService.getRepo().settingsRepository.setSetting('hapticsEnabled', String(enabled));
+      set({ hapticsEnabled: enabled });
+    } catch {
+      throw new Error('Could not save haptic feedback preference. Try again.');
     }
   },
 

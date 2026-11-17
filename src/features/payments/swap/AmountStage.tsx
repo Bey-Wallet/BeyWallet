@@ -1,3 +1,4 @@
+import { hapticService } from '~/services/platform/hapticService';
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useMemo, useState, useEffect } from 'react';
@@ -12,7 +13,6 @@ import {
   SUPPORTED_CURRENCIES,
 } from '~/services/wallet/currencyService';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import * as Haptics from 'expo-haptics';
 import { ArrowUpDown } from '@tamagui/lucide-icons';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
@@ -92,7 +92,8 @@ export function AmountStage({
   const isOverBalance = Number(amount) > sourceBalance;
 
   const handleFlipMints = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (sourceMintUrl !== targetMintUrl) hapticService.selection();
+
     const temp = sourceMintUrl;
     setSourceMintUrl(targetMintUrl);
     setTargetMintUrl(temp);
@@ -155,7 +156,8 @@ export function AmountStage({
   };
 
   const toggleMode = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    hapticService.selection();
+
     if (inputMode === 'SATS') {
       if (btcData?.price) {
         const sats = Number(amount) || 0;

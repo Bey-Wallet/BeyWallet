@@ -9,7 +9,6 @@ function Probe({ enabled }: { enabled: boolean }) {
 }
 let tree: ReactTestRenderer;
 const props = () => tree.root.findByType('Paging' as any).props;
-const event = (y: number) => ({ nativeEvent: { contentOffset: { y } } });
 beforeEach(() => jest.clearAllMocks());
 afterEach(async () => {
   await act(async () => tree?.unmount());
@@ -34,24 +33,18 @@ it('keeps normal Home scrolling free and only enables snapping after expansion',
   expect(Haptics.selectionAsync).not.toHaveBeenCalled();
 });
 
-it('gives one haptic per settled page change despite duplicate scroll events', async () => {
+it('keeps page snapping free from scroll-triggered feedback', async () => {
   await render(true);
-  props().scrollProps.onScrollEndDrag(event(200));
+  expect(props().scrollProps.onScrollEndDrag).toBeUndefined();
+  expect(props().scrollProps.onMomentumScrollEnd).toBeUndefined();
   expect(Haptics.selectionAsync).not.toHaveBeenCalled();
-  props().scrollProps.onMomentumScrollEnd(event(584));
-  props().scrollProps.onScrollEndDrag(event(584));
-  expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
-  props().scrollProps.onMomentumScrollEnd(event(0));
-  expect(Haptics.selectionAsync).toHaveBeenCalledTimes(2);
 });
 
 it('does not vibrate while scrolling a long mint list and disables paging on collapse', async () => {
   await render(true);
-  props().scrollProps.onMomentumScrollEnd(event(900));
   expect(Haptics.selectionAsync).not.toHaveBeenCalled();
   await act(async () => tree.update(<Probe enabled={false} />));
   expect(props().scrollProps.snapToOffsets).toBeUndefined();
-  props().scrollProps.onMomentumScrollEnd(event(584));
   expect(Haptics.selectionAsync).not.toHaveBeenCalled();
 });
 
