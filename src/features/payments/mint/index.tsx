@@ -54,6 +54,7 @@ export default function MintScreen() {
   const [amount, setAmount] = useState('0');
   const [status, setStatus] = useState<MintResultStatus>('success');
   const [quoteData, setQuoteData] = useState<MintQuoteData | null>(null);
+  const completedQuote = useRef<string | null>(null);
   useFeedbackOwner(quoteData?.quoteId);
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
   const createLock = useRef(false);
@@ -133,16 +134,23 @@ export default function MintScreen() {
     }
   };
 
-  // Listen for mint quote redeemed event
+  const finishReceipt = useCallback(() => {
+    if (!quoteData || !activeMintUrl || !mounted.current) return;
+    const key = JSON.stringify([activeMintUrl, quoteData.quoteId]);
+    if (completedQuote.current === key) return;
+    completedQuote.current = key;
+    setStatus('success');
+    setStep('result');
+    void refreshBalance();
+  }, [quoteData, activeMintUrl, refreshBalance]);
+
+  // The patched SDK emits only after local proofs and quote state are saved.
   useEffect(() => {
     if (!quoteData) return;
 
     const handleRedeemed = (payload: any) => {
-      console.log('[MintScreen] Mint quote redeemed');
-      if (payload.quoteId === quoteData.quoteId) {
-        setStatus('success');
-        setStep('result');
-        refreshBalance();
+      if (payload.quoteId === quoteData.quoteId && payload.mintUrl === activeMintUrl) {
+        finishReceipt();
       }
     };
 
@@ -150,7 +158,7 @@ export default function MintScreen() {
     return () => {
       unsub();
     };
-  }, [quoteData, refreshBalance]);
+  }, [quoteData, activeMintUrl, finishReceipt]);
 
   const handleCreateQuote = useCallback(async () => {
     if (createLock.current) return;
@@ -233,15 +241,8 @@ export default function MintScreen() {
 
   const handlePaid = async () => {
     if (quoteData && activeMintUrl) {
-      try {
-        await quotesService.redeemMintQuote(activeMintUrl, quoteData.quoteId);
-        setStatus('success');
-        refreshBalance();
-        setStep('result');
-      } catch (err: any) {
-        console.log('[MintScreen] Manual redeem attempt failed:');
-        throw err;
-      }
+      await quotesService.redeemMintQuote(activeMintUrl, quoteData.quoteId);
+      finishReceipt();
     }
   };
 

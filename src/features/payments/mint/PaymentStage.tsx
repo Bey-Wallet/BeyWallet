@@ -67,6 +67,7 @@ export function PaymentStage({
   const toast = useAppToast();
   const receiptAction = useRef<ReceiptImageShareAction>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [paymentObserved, setPaymentObserved] = useState(false);
   const checkLock = useRef(false);
   const offline = useOfflineStatus();
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
@@ -75,7 +76,7 @@ export function PaymentStage({
   const mintDisplayName =
     mint?.nickname || mint?.name || mintUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
   const timeLeft = expiry == null ? null : Math.max(0, expiry - now);
-  const isExpired = timeLeft === 0;
+  const isExpired = timeLeft === 0 && !paymentObserved;
   const displayedAt = useRef(Date.now());
   const publicReceipt = buildShareableReceipt(
     {
@@ -112,18 +113,26 @@ export function PaymentStage({
     if (checkLock.current || isExpired || offline || !listening) return;
     checkLock.current = true;
     if (!silent) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsChecking(true);
+    if (!silent) setIsChecking(true);
+    let detected = paymentObserved;
     try {
       const quote = await quotesService.checkMintQuote(mintUrl, quoteId);
-      if (quote.state !== 'PAID') {
-        if (!silent && quote.state !== 'ISSUED') throw new Error('Payment pending');
+      if (quote.state !== 'PAID' && quote.state !== 'ISSUED') {
+        if (!silent) throw new Error('Payment pending');
         return;
       }
+      detected = true;
+      setPaymentObserved(true);
+      setIsChecking(true);
       await onPaid();
     } catch {
       if (!silent) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        toast.showFeedback(interactionCopy.paymentNotReceivedYetTryAgainShortly);
+        toast.showFeedback(
+          detected
+            ? interactionCopy.paymentReceivedIssuanceUnconfirmed
+            : interactionCopy.paymentNotReceivedYetTryAgainShortly,
+        );
       }
     } finally {
       setIsChecking(false);
@@ -282,7 +291,7 @@ export function PaymentStage({
         <ListTable compact variant="filled">
           <PaymentStatusRow
             status={isExpired ? 'cancelled' : 'pending'}
-            value={isExpired ? 'Expired' : 'Awaiting payment'}
+            value={isExpired ? 'Expired' : paymentObserved ? 'Issuing ecash…' : 'Awaiting payment'}
             checking={isChecking}
             disabled={isExpired || offline}
           />

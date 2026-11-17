@@ -4,6 +4,35 @@ Automated tests cover currency formatting, local mint selection, confirmation no
 optional authentication, SDK-prepared creation fees, P2PK refund conditions, and reclaim races.
 Native acceptance below has not been performed in this workspace.
 
+## Mint quote redemption coordination
+
+The pinned Coco patch coordinates foreground and background redemption by mint and quote.
+Concurrent callers share issuance; retries in the same wallet runtime retain their original
+outputs. Returned proofs are retained across a failed local save, and a failed quote-state
+write does not cause the already saved proofs to be inserted again. Completion is emitted only
+after proofs and the issued state are saved. Both the ESM and CommonJS builds carry the patch.
+
+These retry records live in memory, not in a new recovery journal. Process termination still
+requires the existing deterministic mint recovery where supported; this change does not add
+crash-proof issuance recovery or alter seed derivation. A remote ISSUED state or error 20006
+alone is never accepted as proof that this wallet recovered the funds.
+
+Device checks for this change:
+
+- Pay a Lightning top-up while the QR screen is open. Check for one receipt transition and
+  an updated, spendable balance; background processing and screen refresh must not compete.
+- Refresh repeatedly during issuance. Confirm no duplicate issuance or repeated counter
+  allocation for the same in-memory attempt, and no repeated busy-state flicker while unpaid.
+- After PAID is observed, delayed issuance must show **Issuing ecash…**. A failed issuance
+  must not say the Lightning payment was never received or show successful fund receipt.
+- Test both testnut and another compatible mint. Testnut's previously observed 20006 response
+  needs live verification; client coordination cannot guarantee the mint's processing speed.
+- Interrupt network access and restart the app during issuance, then reconcile/recover through
+  the existing recovery flow before retrying a payment. Never pay the invoice twice to repair
+  a missing local receipt.
+
+## General device checks
+
 - Send/Receive, mint selection, and NFC use `AppBottomSheet`, with centered headers
   and left close/back controls. Send/Receive use the app background and size for their
   content, with scrolling choices and safe-area bottom padding. Check both themes, large text,

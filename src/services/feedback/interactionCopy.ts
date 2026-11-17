@@ -98,6 +98,10 @@ export const interactionCopy = {
   couldNotCheckPaymentStatusPleaseTry: { title: 'Could not check payment', severity: 'error' },
   couldNotCopyInvoicePleaseTryAgain: { title: 'Could not copy invoice', severity: 'error' },
   paymentNotReceivedYetTryAgainShortly: { title: 'Payment not received', severity: 'info' },
+  paymentReceivedIssuanceUnconfirmed: {
+    title: 'Payment detected. Ecash issuance is unconfirmed.',
+    severity: 'info',
+  },
   walletAlreadyOptimized: { title: 'Wallet already optimized', severity: 'info', duration: 1000 },
   paymentRequestCopiedToClipboard: { title: 'Request copied', severity: 'success', duration: 1000 },
   requestSent: { title: 'Request sent', severity: 'success', duration: 1000 },
