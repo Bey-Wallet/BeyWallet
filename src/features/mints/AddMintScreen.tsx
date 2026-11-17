@@ -1,6 +1,7 @@
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
+import { Spinner } from '~/shared/ui/Spinner';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Text, YStack, XStack, Paragraph, View, useTheme, ScrollView, Separator } from 'tamagui';
@@ -270,14 +271,19 @@ const DiscoveredMintRow = React.memo(
             </Text>
           </YStack>
 
-          {/* Right: Add button or Added status */}
+          {/* Right: Add button or connected checkmark */}
           <View>
             {isAdded ? (
-              <XStack rounded="$10" items="center" gap="$1" px="$2">
-                <Check size={12} color="$color" strokeWidth={3} />
-                <Text {...appTypography.body3} fontWeight="600" color="$gray10">
-                  Added
-                </Text>
+              <XStack
+                width={48}
+                height={48}
+                items="center"
+                justify="center"
+                accessible
+                accessibilityRole="image"
+                accessibilityLabel={`${displayName} added`}
+              >
+                <Check size={24} color="$color" strokeWidth={2.5} />
               </XStack>
             ) : (
               <AppIconButton
@@ -338,6 +344,7 @@ export default function AddMintScreen() {
   const {
     data: allDiscoveredMints = [],
     isLoading: isDiscoverLoading,
+    isFetching: isDiscoverFetching,
     isError: isDiscoverError,
     refetch: refetchDiscover,
   } = useMintDiscovery();
@@ -661,6 +668,9 @@ export default function AddMintScreen() {
                   {filteredDiscoveredMints.length}
                 </Text>
               </View>
+              {isDiscoverFetching && (
+                <Spinner size="small" color="$gray10" accessibilityLabel="Discovering more mints" />
+              )}
             </XStack>
 
             <TouchableOpacity
@@ -674,9 +684,9 @@ export default function AddMintScreen() {
             </TouchableOpacity>
           </XStack>
 
-          {isDiscoverLoading ? (
+          {isDiscoverFetching && filteredDiscoveredMints.length === 0 ? (
             <MintSkeletonList count={6} />
-          ) : isDiscoverError ? (
+          ) : isDiscoverError && filteredDiscoveredMints.length === 0 ? (
             <YStack py="$5" items="center" justify="center" gap="$2" bg="$gray2" rounded="$6">
               <Text color="$red10" {...appTypography.body2} fontWeight="600">
                 Failed to discover mints

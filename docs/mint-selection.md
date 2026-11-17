@@ -5,8 +5,40 @@ Home and Settings open `/(modals)/mints`; each row opens that mint's details. Th
 manager shows balances and connection status for every connected mint, including
 untrusted mints that still hold funds, and respects hidden-balance preferences.
 Its single Add mint action opens the discovery, URL-entry and scan flow. Adding
-uses the shared trust sheet and stays in the add flow with an Added marker. A scan
+uses the shared trust sheet and stays in the add flow with a large checkmark. A scan
 opens trust review directly. Tapping a directory row still permits inspection.
+
+Discovery displays saved and featured results immediately. MintRadar and NIP-87
+results then arrive independently; relay events are batched briefly and appended
+without moving rows already displayed. Existing rows remain usable during discovery
+and refresh. A small spinner beside the count indicates background discovery, with
+full-list placeholders reserved for an empty result while searching. Provider
+failure retains available results. Leaving discovery cancels its relay subscriptions
+when there are no remaining query observers; late updates cannot overwrite a newer run.
+
+Connected-mint bulk management stays on the existing Mints screen. The header selection
+icon enters selection mode; its checkmark exits. Eligible rows toggle checkboxes, and Select
+all selects only removable connections. Selection never navigates to mint details. Funded,
+unverified or unresolved mints show a brief reason and cannot be selected; exit selection
+to open their existing details and Transfer funds action.
+
+Remove selected opens the existing bottom-sheet confirmation pattern. Persisted proofs,
+active quotes, operation journals, unclaimed history, requests, transfers and recovery activity
+are checked again inside each removal transaction. Unknown state fails closed. Recovery and
+background maintenance are coordinated during removal; navigation and repeated actions stay
+locked until the result is known. A mint that becomes protected after selection is kept and
+reported alongside any successful removals.
+
+Bulk removal deletes only the connection record. It retains transaction history, counters,
+keysets, proof records and quotes for reconnection/recovery, including late payments to expired
+invoices. It does not transfer funds or change seed derivation. The existing active-mint
+selection rule runs after refreshing the connected list. Single-mint removal in mint details
+retains its existing separate confirmation behavior.
+
+Focused repository tests run the production schema and removal SQL using Node's built-in
+SQLite (verified with Node 24), including funds arriving after preview and failed inspection.
+Native SQLCipher, sheet dismissal, Android Back and live incoming-payment races still require
+device checks with small test amounts.
 
 The old Settings mints route uses the same manager implementation, and the old
 discover route uses the same Add mint implementation; neither has a separate UI.

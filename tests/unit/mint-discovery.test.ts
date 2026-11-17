@@ -3,8 +3,13 @@ import { mintHealthService, type RadarDiscoveryMint } from '~/services/api/mintH
 
 const mockQuery = jest.fn();
 const mockClose = jest.fn();
+const mockSubscribe = jest.fn();
 jest.mock('nostr-tools', () => ({
-  SimplePool: jest.fn(() => ({ querySync: mockQuery, close: mockClose })),
+  SimplePool: jest.fn(() => ({
+    querySync: mockQuery,
+    subscribeEose: mockSubscribe,
+    close: mockClose,
+  })),
 }));
 jest.mock('~/state/nostrRelayStore', () => ({ getNostrQueryRelays: (relays: string[]) => relays }));
 jest.mock('~/services/api/mintHealthService', () => ({
@@ -111,4 +116,109 @@ it('allows callers such as Home recommendations to request a short list explicit
     .mocked(mintHealthService.radarList)
     .mockResolvedValue(Array.from({ length: 50 }, (_, i) => radarMint(i)));
   expect(await mintRecommendationService.discoverMints(20)).toHaveLength(20);
+});
+
+function streamingHarness() {
+  const streams = new Map<number, { onevent: (event: any) => void; onclose: () => void }>();
+  const close = jest.fn();
+  mockSubscribe.mockImplementation((_relays, filter, callbacks) => {
+    streams.set(filter.kinds[0], callbacks);
+    return { close };
+  });
+  const finish = () => streams.forEach((stream) => stream.onclose());
+  return { streams, finish, close };
+}
+
+it('publishes saved mints before either network source finishes', async () => {
+  const h = streamingHarness();
+  let resolveRadar!: (mints: RadarDiscoveryMint[]) => void;
+  jest.mocked(mintHealthService.radarList).mockReturnValue(
+    new Promise((resolve) => {
+      resolveRadar = resolve;
+    }),
+  );
+  jest
+    .mocked(mintHealthService.cachedRadarList)
+    .mockReturnValue({ data: [radarMint(0)], savedAt: 1 });
+  const onUpdate = jest.fn();
+  const discovery = mintRecommendationService.discoverMints(Infinity, { onUpdate });
+  expect(onUpdate.mock.calls[0][0]).toEqual(
+    expect.arrayContaining([expect.objectContaining({ url: radarMint(0).url })]),
+  );
+  resolveRadar([radarMint(1)]);
+  await Promise.resolve();
+  expect(onUpdate.mock.calls.at(-1)![0]).toEqual(
+    expect.arrayContaining([expect.objectContaining({ url: radarMint(1).url })]),
+  );
+  h.finish();
+  await discovery;
+  expect(mockClose).toHaveBeenCalledTimes(1);
+});
+
+it('streams relay discoveries before EOSE and appends later results without moving rows', async () => {
+  jest.useFakeTimers();
+  try {
+    const h = streamingHarness();
+    let resolveRadar!: (mints: RadarDiscoveryMint[]) => void;
+    jest.mocked(mintHealthService.radarList).mockReturnValue(
+      new Promise((resolve) => {
+        resolveRadar = resolve;
+      }),
+    );
+    const onUpdate = jest.fn();
+    let completed = false;
+    const discovery = mintRecommendationService
+      .discoverMints(Infinity, { onUpdate })
+      .then((mints) => {
+        completed = true;
+        return mints;
+      });
+    const event = {
+      tags: [['u', 'https://early.example']],
+      content: '{"name":"First arrival"}',
+    };
+    h.streams.get(38172)!.onevent(event);
+    jest.advanceTimersByTime(100);
+    const early = onUpdate.mock.calls.at(-1)![0];
+    expect(early.at(-1).url).toBe('https://early.example');
+    expect(completed).toBe(false);
+    h.streams.get(38172)!.onevent({ ...event, content: '{"name":"Updated arrival"}' });
+    resolveRadar([radarMint(2)]);
+    await Promise.resolve();
+    expect(early.at(-1).name).toBe('First arrival');
+    h.finish();
+    const result = await discovery;
+    expect(result.slice(0, early.length).map((mint) => mint.url)).toEqual(
+      early.map((mint: { url: string }) => mint.url),
+    );
+    expect(result.at(-1)?.url).toBe(radarMint(2).url);
+    expect(result.find((mint) => mint.url === 'https://early.example')?.name).toBe(
+      'Updated arrival',
+    );
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+it('closes subscriptions on cancellation and ignores late relay events', async () => {
+  const h = streamingHarness();
+  const controller = new AbortController();
+  jest
+    .mocked(mintHealthService.radarList)
+    .mockImplementation(
+      (signal) =>
+        new Promise((_resolve, reject) => signal!.addEventListener('abort', () => reject())),
+    );
+  const onUpdate = jest.fn();
+  const discovery = mintRecommendationService.discoverMints(Infinity, {
+    onUpdate,
+    signal: controller.signal,
+  });
+  const rejected = expect(discovery).rejects.toMatchObject({ name: 'AbortError' });
+  controller.abort();
+  h.streams.get(38172)!.onevent({ tags: [['u', 'https://late.example']], content: '{}' });
+  await rejected;
+  expect(h.close).toHaveBeenCalledTimes(2);
+  expect(onUpdate).toHaveBeenCalledTimes(1);
+  expect(mockClose).toHaveBeenCalledTimes(1);
 });
