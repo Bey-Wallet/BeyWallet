@@ -43,6 +43,7 @@ accessible text scaling and amount animations. Approved letter spacing is:
 | Area                                                 | Letter spacing                           |
 | ---------------------------------------------------- | ---------------------------------------- |
 | 40-point main balances and prominent payment amounts | -0.25                                    |
+| Home main balance (44 points)                        | -0.1                                     |
 | Amount entry                                         | -0.25 scaled proportionally to font size |
 | Bitcoin price                                        | -0.1                                     |
 | Nostr detail amounts                                 | -0.15                                    |
