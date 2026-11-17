@@ -16,6 +16,13 @@ let mockSkipDisclaimer = false;
 const mockRecheckMint = jest.fn();
 const mockInvalidateQueries = jest.fn();
 let mockCheckingMints: string[] = [];
+let mockRemovalEligibility: Record<string, string | null> = {};
+const mockRemoveConnected = jest.fn();
+jest.mock('~/services/wallet/connectedMintRemoval', () => ({
+  inspectConnectedMints: jest.fn(),
+  removeConnectedMints: (...args: unknown[]) => mockRemoveConnected(...args),
+  mintRemovalMessages: { funds: 'Transfer funds before removing', pending: 'Pending payments' },
+}));
 const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: 'Screen' } }));
 jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
@@ -43,7 +50,9 @@ jest.mock('@tanstack/react-query', () => ({
         ? mockDiscoveredMints
         : queryKey[0] === 'mint-metadata'
           ? mockMintMetadata[queryKey[1]]
-          : undefined,
+          : queryKey[0] === 'mint-removal'
+            ? mockRemovalEligibility
+            : undefined,
     isLoading: false,
     error: queryKey[0] === 'mint-metadata' ? mockMintErrors[queryKey[1]] : undefined,
   }),
@@ -115,6 +124,8 @@ beforeEach(() => {
   mockHideBalance = false;
   mockSkipDisclaimer = false;
   mockCheckingMints = [];
+  mockRemovalEligibility = {};
+  mockRemoveConnected.mockResolvedValue({ removed: [], blocked: {} });
   useWalletStore.setState({
     mints: [],
     balances: {},
@@ -128,6 +139,7 @@ beforeEach(() => {
     error: null,
     refreshMintList: jest.fn(),
     refreshBalance: jest.fn(),
+    syncMintsToNostr: jest.fn(),
     isRefreshing: false,
   });
 });
@@ -395,9 +407,7 @@ it('shows button loading and prevents duplicate Add operations for a discovered 
   await act(async () => {
     finish();
   });
-  expect(
-    tree.root.findAllByType('Text' as any).some((node) => node.props.children === 'Added'),
-  ).toBe(true);
+  expect(tree.root.findByProps({ accessibilityLabel: 'Example mint added' })).toBeDefined();
 });
 
 it('keeps validation failures visible and allows retry from the mint list', async () => {
@@ -511,14 +521,15 @@ it('keeps malformed display metadata from hiding a registered mint', async () =>
   ).toBeDefined();
 });
 
-it('keeps Add mint focused on discovery and marks connected directory entries Added', async () => {
+it('marks connected directory entries with an accessible checkmark and no Added text', async () => {
   const url = 'https://already.example';
   mockDiscoveredMints = [{ url, name: 'Already added' }];
   useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true }] });
   await render();
   expect(tree.root.findByType('Screen' as any).props.options.title).toBe('Add mint');
   const labels = tree.root.findAllByType('Text' as any).map((node) => node.props.children);
-  expect(labels).toContain('Added');
+  expect(labels).not.toContain('Added');
+  expect(tree.root.findByProps({ accessibilityLabel: 'Already added added' })).toBeDefined();
   expect(labels).not.toContain('Connected Mints');
   expect(tree.root.findAllByType('MintIcon' as any)).toHaveLength(1);
 });
@@ -665,4 +676,61 @@ it('makes all discovered mints reachable through Load More', async () => {
   await act(async () => loadMore()!.props.onPress());
   expect(visibleMints()).toHaveLength(36);
   expect(loadMore()).toBeUndefined();
+});
+
+it('selects eligible connected rows without opening mint details, keeping funded rows protected', async () => {
+  const empty = 'https://empty.example';
+  const funded = 'https://funded.example';
+  useWalletStore.setState({
+    mints: [
+      { mintUrl: empty, name: 'Empty mint', trusted: true },
+      { mintUrl: funded, name: 'Funded mint', trusted: true },
+    ],
+    balances: { [empty]: 0, [funded]: 10 },
+  });
+  mockRemovalEligibility = { [empty]: null, [funded]: 'funds' };
+  await act(async () => {
+    tree = create(<MintsScreen />);
+  });
+  let header!: ReactTestRenderer;
+  await act(async () => {
+    header = create(tree.root.findByType('Screen' as any).props.options.headerRight());
+  });
+  expect(header.root.findByType('AppIconButton' as any).props.accessibilityLabel).toBe(
+    'Select mints',
+  );
+  await act(async () => header.root.findByType('AppIconButton' as any).props.onPress());
+  const row = (name: string) =>
+    tree.root
+      .findAllByType('AppPressable' as any)
+      .find((node) => node.props.accessibilityLabel?.startsWith(name))!;
+  await act(async () => row('Empty mint').props.onPress());
+  expect(row('Empty mint').props.accessibilityState.checked).toBe(true);
+  await act(async () => row('Funded mint').props.onPress());
+  expect(row('Funded mint').props.accessibilityState.checked).toBe(false);
+  expect(mockPush).not.toHaveBeenCalled();
+  const clear = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Clear selection')!;
+  await act(async () => clear.props.onPress());
+  expect(row('Empty mint').props.accessibilityState.checked).toBe(false);
+  const selectAll = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Select all')!;
+  await act(async () => selectAll.props.onPress());
+  const review = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Remove selected (1)')!;
+  await act(async () => review.props.onPress());
+  expect(mockRemoveConnected).not.toHaveBeenCalled();
+  mockRemoveConnected.mockResolvedValue({ removed: [empty], blocked: {} });
+  await act(async () =>
+    tree.root
+      .findAllByType('AppButton' as any)
+      .find((node) => node.props.children === 'Confirm removal')!
+      .props.onPress(),
+  );
+  expect(mockRemoveConnected).toHaveBeenCalledWith([empty]);
+  expect(mockPush).not.toHaveBeenCalled();
+  await act(async () => header.unmount());
 });

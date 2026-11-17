@@ -1,4 +1,4 @@
-import { SimplePool, Filter } from 'nostr-tools';
+import { SimplePool, type Event, type Filter } from 'nostr-tools';
 import { getNostrQueryRelays } from '~/state/nostrRelayStore';
 import { mintHealthService, mintHealthUrl } from './mintHealthService';
 
@@ -13,6 +13,12 @@ export type MintRecommendation = {
   isTestnet?: boolean;
   status?: string | null;
   reliabilityScore?: number | null;
+};
+
+type DiscoveryOptions = {
+  onUpdate?: (mints: MintRecommendation[]) => void;
+  signal?: AbortSignal;
+  initialMints?: MintRecommendation[];
 };
 
 function canonicalUrl(raw: unknown): string | null {
@@ -47,17 +53,55 @@ export const mintRecommendationService = {
   /**
    * Merge MintRadar's complete wallet list with NIP-87 relay discovery.
    */
-  discoverMints: async (limit = Infinity): Promise<MintRecommendation[]> => {
-    // Start independently: a failed relay must not discard MintRadar's list.
-    const radarPromise = mintHealthService
-      .radarList()
-      .catch(() => mintHealthService.cachedRadarList()?.data ?? []);
+  discoverMints: async (
+    limit = Infinity,
+    { onUpdate, signal, initialMints = [] }: DiscoveryOptions = {},
+  ): Promise<MintRecommendation[]> => {
     const pool = new SimplePool();
     const relays = getNostrQueryRelays(DEFAULT_RELAYS);
     const recommendationsMap = new Map<string, MintRecommendation>();
+    for (const mint of initialMints) {
+      const url = canonicalUrl(mint.url);
+      if (url) recommendationsMap.set(url, { ...mint, url });
+    }
+    const radarByUrl = new Map<string, MintRecommendation>();
+    let updateTimer: ReturnType<typeof setTimeout> | undefined;
+    const snapshot = () =>
+      [...recommendationsMap.values()].map((mint) => ({
+        ...mint,
+        ...radarByUrl.get(mint.url),
+        name: radarByUrl.get(mint.url)?.name || mint.name,
+      }));
+    const publish = () => {
+      clearTimeout(updateTimer);
+      updateTimer = undefined;
+      if (!signal?.aborted) onUpdate?.(snapshot().slice(0, limit));
+    };
+    const scheduleUpdate = () => {
+      // Batch relay bursts so discovery does not re-render on every event.
+      if (onUpdate && !updateTimer && !signal?.aborted) updateTimer = setTimeout(publish, 100);
+    };
+    const mergeRadar = (mints: Awaited<ReturnType<typeof mintHealthService.radarList>>) => {
+      for (const mint of mints) {
+        const url = canonicalUrl(mint.url);
+        if (!url) continue;
+        if (!recommendationsMap.has(url))
+          recommendationsMap.set(url, { url, reviewsCount: 0, averageRating: null });
+        radarByUrl.set(url, {
+          url,
+          name: mint.name || undefined,
+          reviewsCount: mint.reviewsCount,
+          averageRating: mint.averageRating,
+          status: mint.status,
+          reliabilityScore: mint.score,
+          isTestnet: mint.isTest,
+        });
+      }
+    };
 
     // Pre-fill with featured mints for robustness
     FEATURED_MINTS.forEach((url) => {
+      if (recommendationsMap.has(url)) return;
       let name = url;
       try {
         name = new URL(url).hostname;
@@ -72,6 +116,49 @@ export const mintRecommendationService = {
       });
     });
 
+    // Saved/featured rows are immediately usable; network results append in arrival order.
+    mergeRadar(mintHealthService.cachedRadarList()?.data ?? []);
+    publish();
+
+    const collect = (filter: Filter, consume: (event: Event) => void): Promise<void> => {
+      if (!onUpdate)
+        return pool.querySync(relays, filter, { maxWait: 8000 }).then((events) => {
+          events.forEach(consume);
+        });
+      return new Promise((resolve) => {
+        let subscription: ReturnType<SimplePool['subscribeEose']> | undefined;
+        let finished = false;
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timeout);
+          signal?.removeEventListener('abort', finish);
+          subscription?.close();
+          resolve();
+        };
+        const timeout = setTimeout(finish, 8000);
+        signal?.addEventListener('abort', finish);
+        if (signal?.aborted) {
+          finish();
+          return;
+        }
+        try {
+          subscription = pool.subscribeEose(relays, filter, {
+            maxWait: 8000,
+            onevent: (event) => {
+              if (finished || signal?.aborted) return;
+              consume(event);
+              scheduleUpdate();
+            },
+            onclose: finish,
+          });
+          if (finished) subscription.close();
+        } catch {
+          finish();
+        }
+      });
+    };
+
     try {
       // 1. Fetch Mint Information (Kind 38172)
       const infoFilter: Filter = {
@@ -79,13 +166,7 @@ export const mintRecommendationService = {
         limit: 50,
       };
 
-      const [infoResult, reviewResult] = await Promise.allSettled([
-        pool.querySync(relays, infoFilter, { maxWait: 8000 }),
-        pool.querySync(relays, { kinds: [RECOMMENDATION_KIND], limit: 100 }, { maxWait: 8000 }),
-      ]);
-      const infoEvents = infoResult.status === 'fulfilled' ? infoResult.value : [];
-
-      infoEvents.forEach((event) => {
+      const infoPromise = collect(infoFilter, (event) => {
         const url = canonicalUrl(event.tags.find((t) => t[0] === 'u')?.[1]);
         if (url) {
           const existing = recommendationsMap.get(url) || {
@@ -110,11 +191,11 @@ export const mintRecommendationService = {
       });
 
       // 2. Fetch Recommendations/Reviews (Kind 38000)
-      const recEvents = reviewResult.status === 'fulfilled' ? reviewResult.value : [];
-
       const reviewsByUrl: Record<string, number[]> = {};
-
-      recEvents.forEach((event) => {
+      const seenReviews = new Set<string>();
+      const reviewsPromise = collect({ kinds: [RECOMMENDATION_KIND], limit: 100 }, (event) => {
+        if (event.id && seenReviews.has(event.id)) return;
+        if (event.id) seenReviews.add(event.id);
         const uTags = event.tags.filter((t) => t[0] === 'u');
         const ratingTag = event.tags.find((t) => t[0] === 'rating');
         const rating = ratingTag ? parseInt(ratingTag[1]) : null;
@@ -122,8 +203,12 @@ export const mintRecommendationService = {
         uTags.forEach((tag) => {
           const url = canonicalUrl(tag[1]);
           if (url) {
-            if (!reviewsByUrl[url]) reviewsByUrl[url] = [];
-            if (rating !== null) reviewsByUrl[url].push(rating);
+            if (!reviewsByUrl[url]) {
+              reviewsByUrl[url] = [];
+              const previous = recommendationsMap.get(url);
+              if (previous) previous.reviewsCount = FEATURED_MINTS.includes(url) ? 1 : 0;
+            }
+            if (rating !== null && Number.isFinite(rating)) reviewsByUrl[url].push(rating);
 
             if (!recommendationsMap.has(url)) {
               recommendationsMap.set(url, {
@@ -135,40 +220,38 @@ export const mintRecommendationService = {
 
             const rec = recommendationsMap.get(url)!;
             rec.reviewsCount++;
+            const ratings = reviewsByUrl[url];
+            if (ratings.length > 0)
+              rec.averageRating = ratings.reduce((a, b) => a + b, 0) / ratings.length;
           }
         });
       });
 
-      // Calculate average ratings
-      for (const [url, ratings] of Object.entries(reviewsByUrl)) {
-        const rec = recommendationsMap.get(url);
-        if (rec && ratings.length > 0) {
-          rec.averageRating = ratings.reduce((a, b) => a + b, 0) / ratings.length;
-        }
-      }
+      const radarPromise = mintHealthService
+        .radarList(signal)
+        .then((mints) => {
+          if (signal?.aborted) return;
+          mergeRadar(mints);
+          publish();
+        })
+        .catch(() => {
+          // Keep the already displayed cache and relay discoveries on provider failure.
+        });
+      await Promise.allSettled([infoPromise, reviewsPromise, radarPromise]);
     } catch (error) {
       console.error('Error discovering mints:', error);
     } finally {
+      clearTimeout(updateTimer);
       pool.close(relays);
     }
-
-    const radarMints = await radarPromise;
-    radarMints.forEach((mint) => {
-      const existing = recommendationsMap.get(mint.url);
-      recommendationsMap.set(mint.url, {
-        ...existing,
-        url: mint.url,
-        name: mint.name || existing?.name || new URL(mint.url).hostname,
-        reviewsCount: mint.reviewsCount,
-        averageRating: mint.averageRating,
-        status: mint.status,
-        reliabilityScore: mint.score,
-        isTestnet: mint.isTest,
-      });
-    });
+    if (signal?.aborted)
+      throw Object.assign(new Error('Discovery cancelled'), { name: 'AbortError' });
+    publish();
+    // Interactive discovery keeps row positions stable, including when refresh finishes.
+    if (onUpdate) return snapshot().slice(0, limit);
     const statusOrder = (mint: MintRecommendation) =>
       mint.status === 'online' ? 0 : mint.status ? 2 : 1;
-    return Array.from(recommendationsMap.values())
+    return snapshot()
       .sort(
         (a, b) =>
           statusOrder(a) - statusOrder(b) ||

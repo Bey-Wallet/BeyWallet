@@ -13,6 +13,9 @@ import { appRadii, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 
+const balanceFontSize = 44;
+const balanceLetterSpacing = -0.1;
+
 export default function Balance() {
   const theme = useTheme();
   const hiddenBalanceBackground = String(theme.gray3.val);
@@ -143,9 +146,9 @@ export default function Balance() {
             suffix={hideBalance ? '' : showBitcoinSymbol ? '' : ' sat'}
             trigger={`${hideBalance ? 'hidden' : 'visible_sats'}_${showBitcoinSymbol}`}
 
-            fontSize={appTypography.display.fontSize}
+            fontSize={balanceFontSize}
             fontWeight={600}
-            letterSpacing={appTypography.display.letterSpacing}
+            letterSpacing={balanceLetterSpacing}
             color="$accent1"
 
             decimalOpacity={1}
@@ -169,9 +172,9 @@ export default function Balance() {
             value={hideBalance ? '****' : (secondaryBalance ?? undefined)}
             trigger={hideBalance ? 'hidden' : 'visible_fiat'}
 
-            fontSize={appTypography.display.fontSize}
+            fontSize={balanceFontSize}
             fontWeight={600}
-            letterSpacing={appTypography.display.letterSpacing}
+            letterSpacing={balanceLetterSpacing}
             color="$accent1"
 
             decimalOpacity={1}

@@ -1,5 +1,5 @@
 diff --git a/node_modules/coco-cashu-core/dist/index.cjs b/node_modules/coco-cashu-core/dist/index.cjs
-index c6ab327..dfdf287 100644
+index c6ab327..79a283c 100644
 --- a/node_modules/coco-cashu-core/dist/index.cjs
 +++ b/node_modules/coco-cashu-core/dist/index.cjs
 @@ -1129,7 +1129,7 @@ var ProofService = class {
@@ -11,8 +11,99 @@ index c6ab327..dfdf287 100644
  		if (proofs.reduce((acc, proof) => acc + proof.amount, 0) < amount) throw new ProofValidationError("Not enough proofs to send");
  		const selectedProofs = (await this.walletService.getWallet(mintUrl)).selectProofsToSend(proofs, amount, includeFees);
  		this.logger?.debug("Selected proofs to send", {
+@@ -1368,6 +1368,7 @@ function splitAmount(value, keys) {
+ //#endregion
+ //#region services/MintQuoteService.ts
+ var MintQuoteService = class {
++	redemptions = new Map();
+ 	mintQuoteRepo;
+ 	mintService;
+ 	walletService;
+@@ -1411,6 +1412,23 @@ var MintQuoteService = class {
+ 		}
+ 	}
+ 	async redeemMintQuote(mintUrl, quoteId) {
++		// All callers, including MintQuoteProcessor, share one issuance per mint/quote.
++		const key = JSON.stringify([normalizeMintUrl(mintUrl), quoteId]);
++		let attempt = this.redemptions.get(key);
++		if (attempt?.completed) return Promise.resolve();
++		if (attempt?.promise) return attempt.promise;
++		if (!attempt) {
++			attempt = {};
++			this.redemptions.set(key, attempt);
++		}
++		const current = attempt;
++		current.promise = this.redeemMintQuoteOnce(mintUrl, quoteId, current).finally(() => {
++			current.promise = void 0;
++			if (!current.outputs && !current.completed) this.redemptions.delete(key);
++		});
++		return current.promise;
++	}
++	async redeemMintQuoteOnce(mintUrl, quoteId, attempt) {
+ 		this.logger?.info("Redeeming mint quote", {
+ 			mintUrl,
+ 			quoteId
+@@ -1432,20 +1450,27 @@ var MintQuoteService = class {
+ 				});
+ 				throw new Error("Quote amount undefined");
+ 			}
+-			const { wallet } = await this.walletService.getWalletWithActiveKeysetId(mintUrl);
+-			const { keep } = await this.proofService.createOutputsAndIncrementCounters(mintUrl, {
+-				keep: quote.amount,
+-				send: 0
+-			});
+-			const proofs = await wallet.mintProofsBolt11(quote.amount, quote.quote, void 0, {
+-				type: "custom",
+-				data: keep
+-			});
+-			await this.eventBus.emit("mint-quote:redeemed", {
+-				mintUrl,
+-				quoteId,
+-				quote
+-			});
++			// Remote ISSUED alone cannot prove that this wallet saved the issued proofs.
++			if (quote.state === "ISSUED" && !attempt.proofsSaved && !attempt.proofs) throw new Error("Issued mint quote requires local proof recovery");
++			if (!attempt.proofs && !attempt.proofsSaved) {
++				const { wallet } = await this.walletService.getWalletWithActiveKeysetId(mintUrl);
++				if (!attempt.outputs) {
++					const { keep } = await this.proofService.createOutputsAndIncrementCounters(mintUrl, {
++						keep: quote.amount,
++						send: 0
++					});
++					attempt.outputs = keep;
++				}
++				attempt.proofs = await wallet.mintProofsBolt11(quote.amount, quote.quote, void 0, {
++					type: "custom",
++					data: attempt.outputs
++				});
++			}
++			const proofs = attempt.proofs;
++			if (!attempt.proofsSaved) {
++				await this.proofService.saveProofs(mintUrl, mapProofToCoreProof(mintUrl, "ready", proofs));
++				attempt.proofsSaved = true;
++			}
+ 			this.logger?.info("Mint quote redeemed, proofs minted", {
+ 				mintUrl,
+ 				quoteId,
+@@ -1453,7 +1478,15 @@ var MintQuoteService = class {
+ 				proofs: proofs.length
+ 			});
+ 			await this.setMintQuoteState(mintUrl, quoteId, "ISSUED");
+-			await this.proofService.saveProofs(mintUrl, mapProofToCoreProof(mintUrl, "ready", proofs));
++			attempt.completed = true;
++			// Keep only completion metadata after persistence, not extra bearer copies.
++			attempt.outputs = void 0;
++			attempt.proofs = void 0;
++			await this.eventBus.emit("mint-quote:redeemed", {
++				mintUrl,
++				quoteId,
++				quote: { ...quote, state: "ISSUED" }
++			});
+ 			this.logger?.debug("Proofs saved to repository", {
+ 				mintUrl,
+ 				count: proofs.length
 diff --git a/node_modules/coco-cashu-core/dist/index.js b/node_modules/coco-cashu-core/dist/index.js
-index e300880..60b05b2 100644
+index e300880..fcb351c 100644
 --- a/node_modules/coco-cashu-core/dist/index.js
 +++ b/node_modules/coco-cashu-core/dist/index.js
 @@ -763,7 +763,13 @@ var WalletService = class {
@@ -39,3 +130,94 @@ index e300880..60b05b2 100644
  		if (proofs.reduce((acc, proof) => acc + proof.amount, 0) < amount) throw new ProofValidationError("Not enough proofs to send");
  		const selectedProofs = (await this.walletService.getWallet(mintUrl)).selectProofsToSend(proofs, amount, includeFees);
  		this.logger?.debug("Selected proofs to send", {
+@@ -1368,6 +1374,7 @@ function splitAmount(value, keys) {
+ //#endregion
+ //#region services/MintQuoteService.ts
+ var MintQuoteService = class {
++	redemptions = new Map();
+ 	mintQuoteRepo;
+ 	mintService;
+ 	walletService;
+@@ -1411,6 +1418,23 @@ var MintQuoteService = class {
+ 		}
+ 	}
+ 	async redeemMintQuote(mintUrl, quoteId) {
++		// All callers, including MintQuoteProcessor, share one issuance per mint/quote.
++		const key = JSON.stringify([normalizeMintUrl(mintUrl), quoteId]);
++		let attempt = this.redemptions.get(key);
++		if (attempt?.completed) return Promise.resolve();
++		if (attempt?.promise) return attempt.promise;
++		if (!attempt) {
++			attempt = {};
++			this.redemptions.set(key, attempt);
++		}
++		const current = attempt;
++		current.promise = this.redeemMintQuoteOnce(mintUrl, quoteId, current).finally(() => {
++			current.promise = void 0;
++			if (!current.outputs && !current.completed) this.redemptions.delete(key);
++		});
++		return current.promise;
++	}
++	async redeemMintQuoteOnce(mintUrl, quoteId, attempt) {
+ 		this.logger?.info("Redeeming mint quote", {
+ 			mintUrl,
+ 			quoteId
+@@ -1432,20 +1456,27 @@ var MintQuoteService = class {
+ 				});
+ 				throw new Error("Quote amount undefined");
+ 			}
+-			const { wallet } = await this.walletService.getWalletWithActiveKeysetId(mintUrl);
+-			const { keep } = await this.proofService.createOutputsAndIncrementCounters(mintUrl, {
+-				keep: quote.amount,
+-				send: 0
+-			});
+-			const proofs = await wallet.mintProofsBolt11(quote.amount, quote.quote, void 0, {
+-				type: "custom",
+-				data: keep
+-			});
+-			await this.eventBus.emit("mint-quote:redeemed", {
+-				mintUrl,
+-				quoteId,
+-				quote
+-			});
++			// Remote ISSUED alone cannot prove that this wallet saved the issued proofs.
++			if (quote.state === "ISSUED" && !attempt.proofsSaved && !attempt.proofs) throw new Error("Issued mint quote requires local proof recovery");
++			if (!attempt.proofs && !attempt.proofsSaved) {
++				const { wallet } = await this.walletService.getWalletWithActiveKeysetId(mintUrl);
++				if (!attempt.outputs) {
++					const { keep } = await this.proofService.createOutputsAndIncrementCounters(mintUrl, {
++						keep: quote.amount,
++						send: 0
++					});
++					attempt.outputs = keep;
++				}
++				attempt.proofs = await wallet.mintProofsBolt11(quote.amount, quote.quote, void 0, {
++					type: "custom",
++					data: attempt.outputs
++				});
++			}
++			const proofs = attempt.proofs;
++			if (!attempt.proofsSaved) {
++				await this.proofService.saveProofs(mintUrl, mapProofToCoreProof(mintUrl, "ready", proofs));
++				attempt.proofsSaved = true;
++			}
+ 			this.logger?.info("Mint quote redeemed, proofs minted", {
+ 				mintUrl,
+ 				quoteId,
+@@ -1453,7 +1484,15 @@ var MintQuoteService = class {
+ 				proofs: proofs.length
+ 			});
+ 			await this.setMintQuoteState(mintUrl, quoteId, "ISSUED");
+-			await this.proofService.saveProofs(mintUrl, mapProofToCoreProof(mintUrl, "ready", proofs));
++			attempt.completed = true;
++			// Keep only completion metadata after persistence, not extra bearer copies.
++			attempt.outputs = void 0;
++			attempt.proofs = void 0;
++			await this.eventBus.emit("mint-quote:redeemed", {
++				mintUrl,
++				quoteId,
++				quote: { ...quote, state: "ISSUED" }
++			});
+ 			this.logger?.debug("Proofs saved to repository", {
+ 				mintUrl,
+ 				count: proofs.length

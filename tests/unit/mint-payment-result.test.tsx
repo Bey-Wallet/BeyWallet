@@ -219,7 +219,7 @@ it('offers an explicit send action for addressed requests and views the saved ca
   await act(async () => tree.unmount());
 });
 
-it('keeps the invoice available after an unsuccessful payment check', async () => {
+it('keeps a detected payment visible when ecash issuance fails', async () => {
   mockCheckMintQuote.mockResolvedValue({ state: 'PAID' });
   const onPaid = jest.fn().mockRejectedValue(new Error('Not paid'));
   const tree = await render(<PaymentStage {...paymentProps} onPaid={onPaid} />);
@@ -227,11 +227,51 @@ it('keeps the invoice available after an unsuccessful payment check', async () =
   await act(async () => refresh().onPress());
   expect(onPaid).toHaveBeenCalledTimes(1);
   expect(mockToastShow).toHaveBeenCalledWith(
-    expect.any(String),
+    'Payment detected. Ecash issuance is unconfirmed.',
     expect.objectContaining({ kind: 'info', duration: 3000 }),
   );
   expect(tree.root.findByType('PaymentMenu' as any).props.busy).toBe(false);
   expect(button(tree, 'Copy').props.disabled).toBe(false);
+  expect(
+    tree.root.findByType(require('~/shared/ui/PaymentStatusRow').PaymentStatusRow).props.value,
+  ).toBe('Issuing ecash…');
+  await act(async () => tree.unmount());
+});
+
+it('joins locally completed issuance when polling observes ISSUED', async () => {
+  mockCheckMintQuote.mockResolvedValue({ state: 'ISSUED' });
+  const onPaid = jest.fn().mockResolvedValue(undefined);
+  const tree = await render(<PaymentStage {...paymentProps} onPaid={onPaid} />);
+  await act(async () => menuAction(tree, 'refresh').onPress());
+  expect(onPaid).toHaveBeenCalledTimes(1);
+  expect(mockToastShow).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
+it('continues known-paid issuance after the invoice payment deadline', async () => {
+  mockCheckMintQuote.mockResolvedValue({ state: 'PAID' });
+  const onPaid = jest.fn().mockRejectedValue(new Error('Issuance delayed'));
+  const tree = await render(
+    <PaymentStage {...paymentProps} onPaid={onPaid} expiry={Math.floor(Date.now() / 1000) + 1} />,
+  );
+  await act(async () => menuAction(tree, 'refresh').onPress());
+  await act(async () => jest.advanceTimersByTime(2000));
+  expect(menuAction(tree, 'refresh').disabled).toBe(false);
+  await act(async () => menuAction(tree, 'refresh').onPress());
+  expect(onPaid).toHaveBeenCalledTimes(2);
+  await act(async () => tree.unmount());
+});
+
+it('keeps silent unpaid polling from repeatedly making the screen busy', async () => {
+  const { usePendingPaymentPolling } = require('~/shared/hooks/usePendingPaymentPolling');
+  mockCheckMintQuote.mockReturnValue(new Promise(() => {}));
+  const tree = await render(<PaymentStage {...paymentProps} />);
+  const poll = usePendingPaymentPolling.mock.calls.at(-1)[0];
+  await act(async () => {
+    void poll();
+  });
+  expect(tree.root.findByType('PaymentMenu' as any).props.busy).toBe(false);
+  expect(paymentProps.onPaid).not.toHaveBeenCalled();
   await act(async () => tree.unmount());
 });
 
