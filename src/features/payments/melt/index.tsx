@@ -4,6 +4,7 @@ import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
+import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { PaymentConfirmation } from '~/services/wallet/paymentConfirmation';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -71,6 +72,7 @@ export default function MeltScreen() {
   const [isGettingQuote, setIsGettingQuote] = useState(false);
   const [isResolvingAddress, setIsResolvingAddress] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [isManualQuote, setIsManualQuote] = useState(false);
   usePendingOperationToast({
     active: isGettingQuote && !isManualQuote,
@@ -91,6 +93,10 @@ export default function MeltScreen() {
   const quoteGeneration = useRef(0);
   const stepRef = useRef(step);
   stepRef.current = step;
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  const mounted = useRef(true);
+  const statusCheck = useRef<Promise<void> | null>(null);
 
   const paymentFor = (mintUrl: string, bolt11: string) => {
     const current = paymentRef.current;
@@ -99,17 +105,64 @@ export default function MeltScreen() {
     return (paymentRef.current = new LightningPayment(mintUrl, bolt11));
   };
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       void paymentRef.current?.dispose().catch(() => {});
-    },
-    [],
-  );
+    };
+  }, []);
 
   const { mintUrl: activeMintUrl, setMintUrl, balance } = useFlowMint();
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const mints = useWalletStore((s) => s.mints);
   const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
+
+  const refreshPaymentStatus = useCallback((): Promise<void> => {
+    if (!mounted.current) return Promise.resolve();
+    if (statusCheck.current) return statusCheck.current;
+    const payment = paymentRef.current;
+    if (
+      !payment ||
+      stepRef.current !== 'result' ||
+      !['pending', 'unresolved'].includes(statusRef.current)
+    )
+      return Promise.resolve();
+    setIsCheckingPayment(true);
+    const check = (async () => {
+      const result = await payment.refresh();
+      if (!mounted.current || paymentRef.current !== payment || stepRef.current !== 'result')
+        return;
+      const next = result === 'paid' ? 'success' : result;
+      const changed = statusRef.current !== next;
+      if (result === 'paid' && changed) {
+        setResultTime(Date.now());
+        setError(null);
+      }
+      statusRef.current = next;
+      setStatus(next);
+      if (changed) {
+        void Promise.resolve(refreshBalance()).catch(() => {});
+        void queryClient.invalidateQueries({ queryKey: ['history'] }).catch(() => {});
+        void queryClient.invalidateQueries({ queryKey: ['transaction'] }).catch(() => {});
+      }
+    })();
+    statusCheck.current = check;
+    void check
+      .finally(() => {
+        if (statusCheck.current === check) statusCheck.current = null;
+        if (mounted.current) setIsCheckingPayment(false);
+      })
+      .catch(() => {});
+    return check;
+  }, [refreshBalance, queryClient]);
+
+  // Observe the same submitted payment on entry and foreground/focus/network return.
+  // The shared poller pauses in the background and never invokes pay().
+  usePendingPaymentPolling(
+    refreshPaymentStatus,
+    step === 'result' && (status === 'pending' || status === 'unresolved'),
+  );
 
   // Fixed invoices go straight to review once their mint quote is ready.
   useEffect(() => {
@@ -614,14 +667,8 @@ export default function MeltScreen() {
             time={resultTime}
             error={error}
             onClose={handleClose}
-            onRefresh={async () => {
-              const result = await paymentRef.current?.refresh();
-              if (result) {
-                if (result === 'paid' && status !== 'success') setResultTime(Date.now());
-                setStatus(result === 'paid' ? 'success' : result);
-              }
-              refreshBalance();
-            }}
+            checking={isCheckingPayment}
+            onRefresh={refreshPaymentStatus}
           />
         </YStack>
       )}

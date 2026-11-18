@@ -4,6 +4,19 @@ Automated tests cover currency formatting, local mint selection, confirmation no
 optional authentication, SDK-prepared creation fees, P2PK refund conditions, and reclaim races.
 Native acceptance below has not been performed in this workspace.
 
+## Outgoing Lightning receipt lifecycle
+
+Pending or unresolved outgoing Lightning receipts check the original payment while
+the receipt is visible, focused, online and foregrounded. Checks resume immediately
+on foreground/focus/network return and stop after settlement. Manual and automatic
+checks share one in-flight request; they never submit the invoice again. A late
+result after the receipt closes does not update its UI, balance or history queries.
+
+On Android, switch apps or lock the phone during a small Lightning payment, then
+return and unlock. Confirm that the original receipt updates to its settled state,
+History contains one payment and the balance changes once. Repeat with a network
+interruption; an unverified outcome must remain pending/unresolved until reconciled.
+
 ## Mint quote redemption coordination
 
 The pinned Coco patch coordinates foreground and background redemption by mint and quote.

@@ -10,6 +10,7 @@ export function MeltResultStage({
   error,
   onClose,
   onRefresh,
+  checking,
   invoice,
   quoteId,
   recipient,
@@ -23,6 +24,7 @@ export function MeltResultStage({
   error?: string | null;
   onClose: () => void;
   onRefresh?: () => void | Promise<void>;
+  checking?: boolean;
   invoice?: string;
   quoteId?: string;
   recipient?: string | null;
@@ -56,6 +58,7 @@ export function MeltResultStage({
       completed={status === 'success'}
       statusLabel={status === 'unresolved' ? 'Unresolved' : undefined}
       onCheckStatus={status === 'pending' || status === 'unresolved' ? onRefresh : undefined}
+      isCheckingStatus={checking}
       error={error}
       onClose={onClose}
     >

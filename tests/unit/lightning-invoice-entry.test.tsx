@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { AppState } from 'react-native';
 import MeltScreen from '~/features/payments/melt';
 jest.mock('~/shared/ui/PaymentInfoHeader', () => ({
   PaymentInfoHeader: require('~/shared/ui/PaymentFlowHeader').PaymentFlowHeader,
@@ -24,6 +25,12 @@ const mockWallet = {
 };
 const mockPreview = jest.fn();
 const mockPay = jest.fn();
+const mockRefresh = jest.fn();
+let mockPollingOffline = false;
+const mockAppListeners = new Set<(state: string) => void>();
+jest.mock('~/shared/hooks/useOfflineStatus', () => ({
+  useOfflineStatus: () => mockPollingOffline,
+}));
 const mockPayments: any[] = [];
 const mockOffline = jest.fn();
 const mockRequestInvoice = jest.fn();
@@ -52,6 +59,7 @@ jest.mock('~/services/wallet/lightningPayment', () => ({
       preview: jest.fn(() => mockPreview(mintUrl, invoice)),
       dispose: jest.fn(async () => {}),
       pay: mockPay,
+      refresh: jest.fn(() => mockRefresh()),
     };
     mockPayments.push(payment);
     return payment;
@@ -143,6 +151,19 @@ const payButton = () => tree.root.findByProps({ children: 'Pay' });
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  AppState.currentState = 'active';
+  mockPollingOffline = false;
+  mockAppListeners.clear();
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener: any) => {
+    mockAppListeners.add(listener);
+    return {
+      remove: () => {
+        mockAppListeners.delete(listener);
+      },
+    };
+  });
+  mockPay.mockReset().mockResolvedValue('pending');
+  mockRefresh.mockReset().mockResolvedValue('pending');
   mockRouteParams = {};
   mockSettings.primaryCurrency = 'SATS';
   mockSettings.secondaryCurrency = 'USD';
@@ -158,6 +179,107 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => tree?.unmount());
   jest.useRealTimers();
+  jest.restoreAllMocks();
+  mockAppListeners.clear();
+});
+
+async function startPendingPayment() {
+  await open();
+  await enter('lnbc20n1invoice');
+  await settle();
+  await act(async () => payButton().props.onPress());
+}
+const receipt = () => tree.root.findByType('MeltResultStage' as any);
+async function appState(state: 'active' | 'background') {
+  await act(async () => {
+    AppState.currentState = state;
+    mockAppListeners.forEach((listener) => listener(state));
+  });
+}
+
+it('reconciles a pending Lightning receipt on foreground return without submitting again', async () => {
+  await startPendingPayment();
+  expect(receipt().props.status).toBe('pending');
+  expect(mockRefresh).toHaveBeenCalledTimes(1);
+  await appState('background');
+  await act(async () => jest.advanceTimersByTimeAsync(10000));
+  expect(mockRefresh).toHaveBeenCalledTimes(1);
+  mockRefresh.mockResolvedValue('paid');
+  await appState('active');
+  expect(receipt().props.status).toBe('success');
+  expect(mockPay).toHaveBeenCalledTimes(1);
+  expect(mockRefresh).toHaveBeenCalledTimes(2);
+  expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['history'] });
+  expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['transaction'] });
+  await act(async () => jest.advanceTimersByTimeAsync(10000));
+  expect(mockRefresh).toHaveBeenCalledTimes(2);
+});
+
+it('pauses unresolved receipt checks offline and reconciles on reconnection', async () => {
+  mockPay.mockResolvedValue('unresolved');
+  mockRefresh.mockResolvedValue('unresolved');
+  await startPendingPayment();
+  expect(receipt().props.status).toBe('unresolved');
+  mockPollingOffline = true;
+  await act(async () => tree.update(<MeltScreen />));
+  const checks = mockRefresh.mock.calls.length;
+  await act(async () => jest.advanceTimersByTimeAsync(10000));
+  expect(mockRefresh).toHaveBeenCalledTimes(checks);
+  mockPollingOffline = false;
+  mockRefresh.mockResolvedValue('paid');
+  await act(async () => tree.update(<MeltScreen />));
+  expect(receipt().props.status).toBe('success');
+  expect(mockPay).toHaveBeenCalledTimes(1);
+});
+
+it('joins simultaneous manual and foreground checks while an observation is in flight', async () => {
+  let finish!: (value: string) => void;
+  mockRefresh.mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await startPendingPayment();
+  expect(receipt().props.checking).toBe(true);
+  const first = receipt().props.onRefresh();
+  const second = receipt().props.onRefresh();
+  expect(first).toBe(second);
+  await appState('background');
+  await appState('active');
+  expect(mockRefresh).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    finish('paid');
+    await first;
+  });
+  expect(receipt().props.status).toBe('success');
+  expect(receipt().props.checking).toBe(false);
+  expect(mockPay).toHaveBeenCalledTimes(1);
+});
+
+it('ignores a late status result after the receipt unmounts', async () => {
+  let finish!: (value: string) => void;
+  mockRefresh.mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await startPendingPayment();
+  const balanceCalls = mockWallet.refreshBalance.mock.calls.length;
+  const historyCalls = mockInvalidate.mock.calls.length;
+  await act(async () => tree.unmount());
+  await act(async () => finish('paid'));
+  expect(mockWallet.refreshBalance).toHaveBeenCalledTimes(balanceCalls);
+  expect(mockInvalidate).toHaveBeenCalledTimes(historyCalls);
+  expect(mockPay).toHaveBeenCalledTimes(1);
+});
+
+it('keeps an ambiguous payment pending after a failed observation and checks it again', async () => {
+  mockRefresh.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValue('paid');
+  await startPendingPayment();
+  expect(receipt().props.status).toBe('pending');
+  await act(async () => jest.advanceTimersByTimeAsync(2000));
+  expect(receipt().props.status).toBe('success');
+  expect(mockPay).toHaveBeenCalledTimes(1);
 });
 
 it('uses integer sats and Max without a rate or a currency switch when None is selected', async () => {
