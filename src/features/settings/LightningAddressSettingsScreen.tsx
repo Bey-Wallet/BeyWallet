@@ -21,16 +21,20 @@ import { SettingsToggleRow } from './components/SettingsToggleRow';
 import { useSettingsBusy } from './hooks/useSettingsBusy';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useAppToast } from '~/shared/hooks/useAppToast';
+import { useQuery } from '@tanstack/react-query';
+import { Spinner } from '~/shared/ui/Spinner';
 
 function useOperation() {
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState('');
+  const [operation, setOperation] = React.useState<string | null>(null);
   const active = React.useRef(false);
   useSettingsBusy(busy);
-  const run = async (action: () => Promise<unknown>) => {
+  const run = async (action: () => Promise<unknown>, label?: string) => {
     if (active.current) return;
     active.current = true;
     setBusy(true);
+    setOperation(label ?? null);
     setMessage('');
     try {
       await action();
@@ -43,9 +47,10 @@ function useOperation() {
     } finally {
       active.current = false;
       setBusy(false);
+      setOperation(null);
     }
   };
-  return { busy, message, run };
+  return { busy, message, run, operation };
 }
 
 export default function LightningAddressSettingsScreen() {
@@ -53,7 +58,7 @@ export default function LightningAddressSettingsScreen() {
   const state = useLightningAddressStore();
   const npub = useSettingsStore((s) => s.npub);
   const router = useRouter();
-  const { busy, message, run } = useOperation();
+  const { busy, message, run, operation } = useOperation();
   const [showPreviousAddresses, setShowPreviousAddresses] = React.useState(false);
   return (
     <SettingsPage>
@@ -127,7 +132,9 @@ export default function LightningAddressSettingsScreen() {
       <AppButton
         size="small"
         disabled={busy || !state.enabled}
-        onPress={() => run(() => getLightningAddressService().sync())}
+        loading={operation === 'sync'}
+        loadingText="Checking payments…"
+        onPress={() => run(() => getLightningAddressService().sync(), 'sync')}
       >
         Check for payments
       </AppButton>
@@ -155,7 +162,11 @@ export default function LightningAddressSettingsScreen() {
             size="small"
             emphasis="ghost"
             disabled={busy}
-            onPress={() => run(() => getLightningAddressService().sync(LEGACY_NPUB_CASH))}
+            loading={operation === 'legacy-sync'}
+            loadingText="Checking previous address…"
+            onPress={() =>
+              run(() => getLightningAddressService().sync(LEGACY_NPUB_CASH), 'legacy-sync')
+            }
           >
             Check previous npubx.cash address
           </AppButton>
@@ -173,21 +184,17 @@ export default function LightningAddressSettingsScreen() {
 export function LightningAddressMintScreen() {
   const router = useRouter();
   const state = useLightningAddressStore();
-  const [mints, setMints] = React.useState<string[]>([]);
   const { busy, message, run } = useOperation();
-  React.useEffect(() => {
-    let active = true;
-    void initService
-      .getRepo()
-      .mintRepository.getAllMints()
-      .then((items) => {
-        if (active) setMints(items.filter((m) => m.trusted).map((m) => m.mintUrl));
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
+  const mintQuery = useQuery({
+    queryKey: ['lightning-address', 'trusted-mints'],
+    networkMode: 'always',
+    retry: false,
+    queryFn: async () => {
+      const items = await initService.getRepo().mintRepository.getAllMints();
+      return items.filter((mint) => mint.trusted).map((mint) => mint.mintUrl);
+    },
+  });
+  const mints = mintQuery.data ?? [];
   return (
     <SettingsPage>
       <Stack.Screen options={{ title: 'Receiving mint' }} />
@@ -196,6 +203,20 @@ export function LightningAddressMintScreen() {
         before saving it with npub.cash. Changes affect future invoices; existing payments stay at
         their original mint.
       </SettingsDescription>
+      {mintQuery.isPending && <Spinner size={20} accessibilityLabel="Loading receiving mints" />}
+      {mintQuery.isError && (
+        <>
+          <SettingsMessage error>Could not load receiving mints.</SettingsMessage>
+          <AppButton
+            emphasis="secondary"
+            size="small"
+            loading={mintQuery.isFetching}
+            onPress={() => void mintQuery.refetch()}
+          >
+            Try again
+          </AppButton>
+        </>
+      )}
       <SettingsGroup>
         {mints.map((mint) => (
           <SettingsRow
@@ -223,8 +244,17 @@ export function LightningAddressMintScreen() {
           Enable Lightning address
         </AppButton>
       )}
-      {!mints.length && (
-        <SettingsDescription>Add and trust a compatible mint in Mints first.</SettingsDescription>
+      {mintQuery.isSuccess && !mints.length && (
+        <>
+          <SettingsDescription>Add and trust a compatible mint in Mints first.</SettingsDescription>
+          <AppButton
+            emphasis="secondary"
+            size="small"
+            onPress={() => router.push('/(tabs)/settings/mints' as Href)}
+          >
+            Manage mints
+          </AppButton>
+        </>
       )}
       {message && <SettingsMessage error>{message}</SettingsMessage>}
     </SettingsPage>
@@ -234,7 +264,7 @@ export function LightningAddressMintScreen() {
 export function LightningAddressPaymentsScreen() {
   const state = useLightningAddressStore();
   useFeedbackOwner(state.pending.map((receipt) => receipt.quoteId));
-  const { busy, message, run } = useOperation();
+  const { busy, message, run, operation } = useOperation();
   return (
     <SettingsPage>
       <Stack.Screen options={{ title: 'Pending incoming payments' }} />
@@ -246,7 +276,9 @@ export function LightningAddressPaymentsScreen() {
           haptic
           size="small"
           disabled={busy || !state.enabled}
-          onPress={() => run(() => getLightningAddressService().collectAll())}
+          loading={operation === 'collect-all'}
+          loadingText="Collecting payments…"
+          onPress={() => run(() => getLightningAddressService().collectAll(), 'collect-all')}
         >
           Collect all
         </AppButton>
@@ -272,8 +304,13 @@ export function LightningAddressPaymentsScreen() {
               haptic
               size="small"
               disabled={busy || !state.enabled}
+              loading={operation === `${receipt.mintUrl}:${receipt.quoteId}`}
+              loadingText="Collecting payment…"
               onPress={() =>
-                run(() => getLightningAddressService().collect(receipt.mintUrl, receipt.quoteId))
+                run(
+                  () => getLightningAddressService().collect(receipt.mintUrl, receipt.quoteId),
+                  `${receipt.mintUrl}:${receipt.quoteId}`,
+                )
               }
             >
               Collect

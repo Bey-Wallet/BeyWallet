@@ -144,6 +144,7 @@ export default function NostrActivityModal() {
   const people = usePeopleStore((state) => state.people);
   const [activeTab, setActiveTab] = useState<Tab>('pending');
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState(false);
   const [detailItem, setDetailItem] = useState<DetailItem | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const detailSheetRef = useRef<AppBottomSheetRef>(null);
@@ -162,8 +163,15 @@ export default function NostrActivityModal() {
   });
 
   // Nostr history from SDK
-  const { data: nostrHistory = [], refetch: refetchHistory } = useQuery({
+  const {
+    data: nostrHistory = [],
+    refetch: refetchHistory,
+    isPending: historyLoading,
+    isError: historyFailed,
+    isFetching: historyFetching,
+  } = useQuery({
     queryKey: ['history', 'nostr'],
+    networkMode: 'always',
     queryFn: async () => {
       const entries = await historyService.getHistory(100, 0);
       return entries.filter(
@@ -205,11 +213,13 @@ export default function NostrActivityModal() {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
+    setRefreshError(false);
 
     try {
-      await refreshPendingStates();
-      await refetchHistory();
-    } catch {}
+      await Promise.all([refreshPendingStates(), refetchHistory({ throwOnError: true })]);
+    } catch {
+      setRefreshError(true);
+    }
     setRefreshing(false);
   }, [refreshPendingStates, refetchHistory]);
 
@@ -335,6 +345,23 @@ export default function NostrActivityModal() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
         <YStack px="$4" gap="$1">
+          {(refreshError || (activeTab === 'sent' && historyFailed)) && (
+            <YStack bg="$gray2" rounded="$6" p="$4" gap="$3">
+              <Text color="$gray10" accessibilityRole="alert">
+                {activeTab === 'sent' && !nostrHistory.length
+                  ? 'Could not load sent payments.'
+                  : 'Could not refresh activity. Showing saved activity.'}
+              </Text>
+              <AppButton
+                emphasis="secondary"
+                size="small"
+                loading={refreshing || historyFetching}
+                onPress={handleRefresh}
+              >
+                Try again
+              </AppButton>
+            </YStack>
+          )}
           {activeTab === 'pending' && (
             <PendingTab
               items={unclaimed}
@@ -354,15 +381,23 @@ export default function NostrActivityModal() {
               secondaryCurrency={secondaryCurrency}
             />
           )}
-          {activeTab === 'sent' && (
-            <SentTab
-              entries={nostrHistory}
-              onDetail={openHistoryDetail}
-              btcData={btcData}
-              primaryCurrency={primaryCurrency}
-              secondaryCurrency={secondaryCurrency}
-            />
+          {activeTab === 'sent' && historyLoading && !nostrHistory.length && (
+            <YStack py="$6" items="center" gap="$3">
+              <Spinner size={20} />
+              <Text color="$gray10">Loading sent payments…</Text>
+            </YStack>
           )}
+          {activeTab === 'sent' &&
+            !historyLoading &&
+            (!historyFailed || nostrHistory.length > 0) && (
+              <SentTab
+                entries={nostrHistory}
+                onDetail={openHistoryDetail}
+                btcData={btcData}
+                primaryCurrency={primaryCurrency}
+                secondaryCurrency={secondaryCurrency}
+              />
+            )}
         </YStack>
       </ScrollView>
 

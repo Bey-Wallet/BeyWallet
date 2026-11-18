@@ -68,3 +68,21 @@ it('shows conflicting mint evidence as needing review rather than a failed payme
   expect(receipt.props.statusLabel).toBe('Checking transfer outcome');
   expect(tree.root.findAllByType('Button' as any)).toHaveLength(0);
 });
+
+it('retains pending payment status when its status check fails and offers verification guidance', async () => {
+  const check = jest.fn();
+  await act(async () => {
+    tree = create(
+      <ResultStage {...props} status="pending" statusCheckFailed onCheckStatus={check} />,
+    );
+  });
+  const receipt = tree.root.findByType('Receipt' as any);
+  expect(receipt.props.status).toBe('pending');
+  expect(receipt.props.completed).toBe(false);
+  expect(receipt.props.statusLabel).toBe('Last check unavailable');
+  expect(receipt.props.onCheckStatus).toBe(check);
+  expect(String(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children)).toContain(
+    'Could not verify this transfer',
+  );
+  expect(tree.root.findAllByType('Button' as any)).toHaveLength(0);
+});

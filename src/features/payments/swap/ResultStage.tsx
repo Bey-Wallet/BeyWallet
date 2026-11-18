@@ -16,6 +16,7 @@ export function ResultStage({
   record,
   onCheckStatus,
   checking,
+  statusCheckFailed = false,
   onRetry,
   extraDetails,
   headerRight,
@@ -29,6 +30,7 @@ export function ResultStage({
   record?: MintTransferRecord;
   onCheckStatus?: () => Promise<void>;
   checking?: boolean;
+  statusCheckFailed?: boolean;
   onRetry?: () => void;
   extraDetails?: React.ReactNode;
   headerRight?: () => React.ReactNode;
@@ -61,9 +63,11 @@ export function ResultStage({
       statusLabel={
         record?.stage === 'settlement'
           ? 'Checking transfer outcome'
-          : record?.stage === 'issuance'
-            ? 'Waiting for destination ecash'
-            : 'Payment in progress'
+          : statusCheckFailed
+            ? 'Last check unavailable'
+            : record?.stage === 'issuance'
+              ? 'Waiting for destination ecash'
+              : 'Payment in progress'
       }
       onCheckStatus={onCheckStatus}
       isCheckingStatus={checking}
@@ -79,10 +83,18 @@ export function ResultStage({
         />
       )}
       {status === 'pending' && (
-        <Text color="$gray10" fontSize={11} px="$4" py="$3">
-          {record?.stage === 'settlement'
-            ? 'The mints returned conflicting results. Keep checking this transfer before making another payment.'
-            : 'The transfer will continue checking automatically. You can close this screen.'}
+        <Text
+          color="$gray10"
+          fontSize={11}
+          px="$4"
+          py="$3"
+          accessibilityRole={statusCheckFailed ? 'alert' : undefined}
+        >
+          {statusCheckFailed
+            ? 'Could not verify this transfer. Refresh status or check History before making another payment.'
+            : record?.stage === 'settlement'
+              ? 'The mints returned conflicting results. Keep checking this transfer before making another payment.'
+              : 'The transfer will continue checking automatically. You can close this screen.'}
         </Text>
       )}
       {onRetry && (

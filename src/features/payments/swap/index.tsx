@@ -136,7 +136,8 @@ export default function SwapScreen() {
         error={
           displayed?.state === 'failed' ? 'The source mint did not complete the payment.' : error
         }
-        onCheckStatus={() => result.refetch().then(() => {})}
+        statusCheckFailed={result.isError}
+        onCheckStatus={() => result.refetch({ throwOnError: true }).then(() => {})}
         checking={result.isFetching}
         onRetry={
           displayed?.state === 'failed' && !result.isFetching && !result.isError

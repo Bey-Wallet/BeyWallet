@@ -1,6 +1,9 @@
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { Spinner } from '~/shared/ui/Spinner';
+import { useBeyDirectory } from '~/shared/hooks/useBeyDirectory';
+import { SearchDirectoryFeedback } from '~/shared/ui/SearchDirectoryFeedback';
+
 import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -20,6 +23,7 @@ import type { MintRecommendation } from '~/services/api/mintRecommendationServic
 import { mintUrlKey } from '~/shared/utils/mintUrl';
 
 const EMPTY_MINTS: MintRecommendation[] = [];
+const EMPTY_DIRECTORY: Record<string, string> = {};
 
 type SearchResultType = 'people' | 'mint' | 'address' | 'recent' | 'header';
 
@@ -36,7 +40,8 @@ export default function UniversalSearchScreen() {
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [recentSearches, setRecentSearches] = useState<SearchResultItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [directory, setDirectory] = useState<Record<string, string>>({});
+  const directoryQuery = useBeyDirectory();
+  const directory = directoryQuery.data ?? EMPTY_DIRECTORY;
   const router = useRouter();
 
   const people = usePeopleStore((state) => state.people);
@@ -45,18 +50,6 @@ export default function UniversalSearchScreen() {
 
   // Load directory and recent searches
   useEffect(() => {
-    const fetchDirectory = async () => {
-      try {
-        const res = await fetch(`https://bey.cash/.well-known/nostr.json?_t=${Date.now()}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.names) setDirectory(data.names);
-        }
-      } catch (err) {
-        console.error('[Search] Failed to fetch directory:', err);
-      }
-    };
-
     const loadRecents = () => {
       const cached = sqliteStorage.getItem('recent_searches');
       if (cached) {
@@ -68,7 +61,6 @@ export default function UniversalSearchScreen() {
       }
     };
 
-    fetchDirectory();
     loadRecents();
   }, []);
 
@@ -387,7 +379,20 @@ export default function UniversalSearchScreen() {
       </XStack>
 
       <YStack flex={1} width="100%">
-        {search.trim() !== '' && results.length === 0 && !isSearching ? (
+        {(directoryQuery.isPending || directoryQuery.isError) && (
+          <YStack px="$4" pb="$2">
+            <SearchDirectoryFeedback
+              loading={directoryQuery.isPending}
+              failed={directoryQuery.isError}
+              refreshing={directoryQuery.isFetching}
+              onRetry={() => void directoryQuery.refetch()}
+            />
+          </YStack>
+        )}
+        {search.trim() !== '' &&
+        results.length === 0 &&
+        !isSearching &&
+        directoryQuery.isSuccess ? (
           <YStack flex={1} items="center" justify="center" gap="$3" px="$4">
             <Search size={48} color="$gray8" />
             <Text fontSize="$5" fontWeight="600" color="$gray10">
