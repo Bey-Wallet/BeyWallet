@@ -15,7 +15,6 @@ import { XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppText } from '~/shared/ui/AppText';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
-import { BUICard } from '~/shared/ui/BUI/BUICard';
 import { appSpacing } from '~/shared/theme/appearance';
 import { hapticService } from '~/services/platform/hapticService';
 import { SettingsGroup, SettingsRow } from '~/features/settings/components/SettingsLayout';
@@ -56,10 +55,18 @@ export interface ConnectedMintSheetViewProps {
 export function ConnectedMintSheetView(props: ConnectedMintSheetViewProps) {
   const action = (title: string, icon: React.ReactNode, onPress: () => void, disabled = false) => (
     <YStack flex={1}>
-      <BUICard
-        inset={0}
-        label={title}
+      <AppPressable
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ disabled: !!(disabled || props.busy) }}
+        minHeight={72}
+        bg="$gray2"
+        rounded="$6"
+        overflow="hidden"
+        pressStyle={{ bg: '$gray3' }}
+        opacity={disabled || props.busy ? 0.48 : 1}
         onPress={() => {
+          if (disabled || props.busy) return;
           hapticService.selection();
           onPress();
         }}
@@ -75,7 +82,7 @@ export function ConnectedMintSheetView(props: ConnectedMintSheetViewProps) {
           {icon}
           <AppText variant="label2">{title}</AppText>
         </YStack>
-      </BUICard>
+      </AppPressable>
     </YStack>
   );
   return (

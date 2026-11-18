@@ -17,8 +17,12 @@ jest.mock('~/shared/ui/BUI/BUISelectionControl', () => ({
   BUICheckboxVisual: 'CheckboxVisual',
 }));
 jest.mock('~/features/explore/components/MintIcon', () => ({ MintIcon: 'MintIcon' }));
-jest.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack', Separator: 'Separator' }));
-jest.mock('~/shared/theme/appearance', () => ({ appSpacing: { group: 24 } }));
+jest.mock('tamagui', () => ({
+  XStack: 'XStack',
+  YStack: 'YStack',
+  Separator: 'Separator',
+  useThemeName: () => 'light',
+}));
 jest.mock('~/features/mints/hooks/useMintDiscovery', () => ({
   useMintDiscovery: () => ({
     data: [

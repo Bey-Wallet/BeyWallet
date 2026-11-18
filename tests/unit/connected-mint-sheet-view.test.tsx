@@ -10,7 +10,6 @@ jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => Strin
 jest.mock('~/shared/ui/AppText', () => ({ AppText: 'Text' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'HeaderButton' }));
-jest.mock('~/shared/ui/BUI/BUICard', () => ({ BUICard: 'Card' }));
 jest.mock('~/features/settings/components/SettingsLayout', () => ({
   SettingsGroup: 'Group',
   SettingsRow: 'Row',
@@ -60,6 +59,21 @@ it('shows connection first and allows every payment method to wrap without trunc
   ]);
   expect(rows.at(-1)!.props.onPress).toBe(fields.onDetails);
   expect(tree.root.findAllByProps({ bg: '$green3' })).toHaveLength(0);
+});
+
+it('keeps tile actions guarded while disabled or busy', async () => {
+  await act(async () => {
+    tree = create(<ConnectedMintSheetView {...fields} transferDisabled />);
+  });
+  const transfer = () => tree.root.findByProps({ accessibilityLabel: 'Transfer' });
+  transfer().props.onPress();
+  expect(fields.onTransfer).not.toHaveBeenCalled();
+  await act(async () => tree.update(<ConnectedMintSheetView {...fields} busy />));
+  transfer().props.onPress();
+  expect(fields.onTransfer).not.toHaveBeenCalled();
+  await act(async () => tree.update(<ConnectedMintSheetView {...fields} />));
+  transfer().props.onPress();
+  expect(fields.onTransfer).toHaveBeenCalledTimes(1);
 });
 it('only offers a connection refresh while offline/checking and wires its callback', async () => {
   await act(async () => {
