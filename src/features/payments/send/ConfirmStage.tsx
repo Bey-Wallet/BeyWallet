@@ -67,6 +67,7 @@ export function ConfirmStage(props: ConfirmStageProps) {
         hero={<PaymentAmount amount={Number(amount)} size="prominent" label="You're sending" />}
         footer={
           <AppButton
+            haptic
             size="large"
             fullWidth
             loading={isLoading}
@@ -132,6 +133,7 @@ export function ConfirmStage(props: ConfirmStageProps) {
                   })}
                 </XStack>
                 <AppButton
+                  haptic
                   emphasis="text"
                   labelFontSize={12}
                   alignSelf="center"

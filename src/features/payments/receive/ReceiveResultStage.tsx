@@ -62,7 +62,7 @@ export function ReceiveResultStage({
         </Text>
       )}
       {!complete && !offline && onClaimNow && (
-        <AppButton loading={isLoading} disabled={isLoading} onPress={onClaimNow}>
+        <AppButton haptic loading={isLoading} disabled={isLoading} onPress={onClaimNow}>
           Claim now
         </AppButton>
       )}

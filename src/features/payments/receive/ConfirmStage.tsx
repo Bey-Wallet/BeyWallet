@@ -208,6 +208,7 @@ export function ConfirmStage({
         hero={<PaymentAmount amount={tokenInfo.amount} size="prominent" label="You're receiving" />}
         footer={
           <AppButton
+            haptic
             variant="default"
             emphasis="primary"
             size="large"
@@ -240,6 +241,7 @@ export function ConfirmStage({
       >
         {!offline && (
           <AppButton
+            haptic
             variant="default"
             emphasis="secondary"
             size="small"

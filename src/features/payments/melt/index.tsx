@@ -555,6 +555,7 @@ export default function MeltScreen() {
             hero={<PaymentAmount amount={quoteAmount} size="prominent" label="You're paying" />}
             footer={
               <AppButton
+                haptic
                 variant="default"
                 emphasis="primary"
                 size="large"

@@ -598,6 +598,7 @@ export function OnchainMeltFlow() {
           hero={<PaymentAmount amount={meltQuote.amount} size="prominent" label="You're paying" />}
           footer={
             <AppButton
+              haptic
               size="large"
               fullWidth
               disabled={total > balance || paymentLock.current}

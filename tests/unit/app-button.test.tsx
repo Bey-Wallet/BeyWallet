@@ -7,6 +7,11 @@ import { buttonThemes } from '~/tamagui.config';
 import { defaultConfig } from '@tamagui/config/v5';
 import { getBUITheme } from '~/shared/ui/BUI/theme';
 import { processColor } from 'react-native';
+import { hapticService } from '~/services/platform/hapticService';
+
+jest.mock('~/services/platform/hapticService', () => ({
+  hapticService: { selection: jest.fn() },
+}));
 
 let mockTheme: Record<string, { val: string }>;
 let mockReducedMotion = false;
@@ -26,6 +31,7 @@ jest.mock('@tamagui/animations-react-native', () => ({ createAnimations: jest.fn
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 
 beforeEach(() => {
+  jest.clearAllMocks();
   mockReducedMotion = false;
   mockTheme = Object.fromEntries(
     Object.entries({ ...buttonThemes.light, blue10: defaultConfig.themes.light.blue10 }).map(
@@ -52,14 +58,32 @@ it.each([{ disabled: true }, { loading: true }, { loading: true, disabled: true 
   'blocks presses and exposes state: %j',
   async (state) => {
     const onPress = jest.fn();
-    const tree = await render({ ...state, onPress });
+    const tree = await render({ ...state, onPress, haptic: true });
     const button = tree.root.findByType('Button' as any);
     button.props.onPress({});
     expect(onPress).not.toHaveBeenCalled();
+    expect(hapticService.selection).not.toHaveBeenCalled();
     expect(button.props.accessibilityState).toEqual({ disabled: true, busy: !!state.loading });
     await act(async () => tree.unmount());
   },
 );
+
+it('ticks once for an explicit action before its handler, leaving other buttons quiet', async () => {
+  const onPress = jest.fn(() => expect(hapticService.selection).toHaveBeenCalledTimes(1));
+  const tree = await render({ haptic: true, onPress });
+  tree.root.findByType('Button' as any).props.onPress({});
+  expect(onPress).toHaveBeenCalledTimes(1);
+  await act(async () => tree.unmount());
+  jest.clearAllMocks();
+  const quiet = await render({ onPress: jest.fn() });
+  quiet.root.findByType('Button' as any).props.onPress({});
+  expect(hapticService.selection).not.toHaveBeenCalled();
+  await act(async () => quiet.unmount());
+  const inert = await render({ haptic: true });
+  inert.root.findByType('Button' as any).props.onPress({});
+  expect(hapticService.selection).not.toHaveBeenCalled();
+  await act(async () => inert.unmount());
+});
 
 it('centers only the loader, preserves label geometry, and restores icons after loading', async () => {
   const Icon = () => null;

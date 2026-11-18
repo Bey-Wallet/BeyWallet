@@ -181,6 +181,7 @@ export function ConversationItemCard(props: ConversationItemCardProps) {
       </AppPressable>
       {!!onPay && (
         <AppButton
+          haptic
           variant="accent"
           emphasis="primary"
           size="small"

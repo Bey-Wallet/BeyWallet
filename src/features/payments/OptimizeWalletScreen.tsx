@@ -406,6 +406,7 @@ export default function OptimizeWalletScreen() {
           </AppButton>
         ) : (
           <AppButton
+            haptic
             variant="default"
             emphasis="primary"
             size="large"

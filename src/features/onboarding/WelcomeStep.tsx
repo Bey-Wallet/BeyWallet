@@ -94,6 +94,7 @@ export function WelcomeStep({
         {hasSavedWallet ? (
           <>
             <AppButton
+              haptic
               disabled={busy}
               variant="critical"
               loading={isDeleting}
@@ -140,6 +141,7 @@ export function WelcomeStep({
               Import existing wallet
             </AppButton>
             <AppButton
+              haptic
               disabled={busy}
               variant="default"
               emphasis="primary"

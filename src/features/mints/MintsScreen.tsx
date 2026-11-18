@@ -362,6 +362,7 @@ export default function MintsScreen() {
             </AppText>
           )}
           <AppButton
+            haptic
             variant="critical"
             size="large"
             loading={busy}

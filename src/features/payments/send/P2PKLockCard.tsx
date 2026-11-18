@@ -180,6 +180,7 @@ export function P2PKLockCard({
             </Text>
           )}
           <AppButton
+            haptic
             size="large"
             fullWidth
             disabled={!normalized || disabled || offline}

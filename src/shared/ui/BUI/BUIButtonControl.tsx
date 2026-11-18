@@ -13,6 +13,7 @@ import {
 import { buiButtonSizes } from './theme';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
+import { hapticService } from '~/services/platform/hapticService';
 import {
   appBorders,
   appButtonSizes,
@@ -47,6 +48,8 @@ type AppButtonBaseProps = Omit<
   textColor?: TextProps['color'];
   /** Override glyph size without changing the button's touch target. */
   iconSize?: number;
+  /** Subtle press acknowledgment for explicit actions; navigation stays quiet by default. */
+  haptic?: boolean;
 };
 
 export type AppButtonProps = AppButtonBaseProps &
@@ -105,6 +108,7 @@ export const BUIButtonControl = forwardRef<GetRef<typeof Button>, BUIButtonContr
       iconSize: requestedIconSize,
       density = 'regular',
       onPress,
+      haptic = false,
       accessibilityState,
       accessibilityLabel,
       width,
@@ -185,7 +189,9 @@ export const BUIButtonControl = forwardRef<GetRef<typeof Button>, BUIButtonContr
           : { accessibilityState: { ...accessibilityState, disabled: blocked, busy: loading } })}
         disabled={blocked}
         onPress={(event) => {
-          if (!blocked) onPress?.(event);
+          if (blocked || !onPress) return;
+          if (haptic) hapticService.selection();
+          onPress(event);
         }}
         width={fillWidth ? '100%' : (width ?? (iconOnly ? minHeight : undefined))}
         minWidth={iconOnly ? minHeight : textOnly ? appDimensions.touchTarget : undefined}

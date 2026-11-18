@@ -54,7 +54,7 @@ export const InputSheet = forwardRef<
             fontFamily: 'AlloTextRegular',
           }}
         />
-        <AppButton size="large" fullWidth onPress={save}>
+        <AppButton haptic size="large" fullWidth onPress={save}>
           Done
         </AppButton>
       </YStack>

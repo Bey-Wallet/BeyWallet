@@ -81,6 +81,7 @@ export const TokenNostrSheet = forwardRef<
           </Text>
         )}
         <AppButton
+          haptic={!queued.current}
           variant="accent"
           emphasis="primary"
           fullWidth

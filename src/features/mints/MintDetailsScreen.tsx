@@ -331,8 +331,8 @@ function MintDetailsContent() {
           onRecheck={() => {
             void recheckConnection({ cancelRefetch: false });
           }}
-          onCopyUrl={() => {
-            void copyWithFeedback(mintUrl, toast);
+          onCopyUrl={async () => {
+            if (await copyWithFeedback(mintUrl, toast)) hapticService.acknowledge();
           }}
           balance={{
             amount: displayAsSats
@@ -368,6 +368,7 @@ function MintDetailsContent() {
           }
           bottomAction={
             <AppButton
+              haptic
               emphasis="secondary"
               size="large"
               icon={Trash2}
@@ -432,6 +433,7 @@ function MintDetailsContent() {
 
             <YStack gap="$3" mt="$2">
               <AppButton
+                haptic
                 variant="critical"
                 emphasis="primary"
                 size="large"

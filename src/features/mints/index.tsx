@@ -217,6 +217,7 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
           </Text>
         )}
         <AppButton
+          haptic
           variant="default"
           emphasis="primary"
           size="large"

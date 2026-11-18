@@ -230,6 +230,7 @@ export function ConsentStep({ onComplete, onBack, isBusy = false }: ConsentStepP
         </XStack>
 
         <AppButton
+          haptic
           variant="default"
           emphasis="primary"
           size="large"

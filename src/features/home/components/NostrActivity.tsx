@@ -331,6 +331,7 @@ export default function NostrActivity() {
           </YStack>
           <YStack gap="$3">
             <AppButton
+              haptic
               variant="default"
               emphasis="primary"
               size="large"
@@ -340,6 +341,7 @@ export default function NostrActivity() {
               Pay Request
             </AppButton>
             <AppButton
+              haptic
               variant="critical"
               emphasis="secondary"
               size="large"

@@ -107,7 +107,7 @@ function MerchantCheckout({
           }
           footer={
             <YStack rounded={999} overflow="hidden">
-              <AppButton fullWidth size="large" disabled={busy} onPress={onNext}>
+              <AppButton haptic fullWidth size="large" disabled={busy} onPress={onNext}>
                 Next sale
               </AppButton>
             </YStack>

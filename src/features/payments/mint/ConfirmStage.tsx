@@ -55,6 +55,7 @@ export function ConfirmStage({
         }
         footer={
           <AppButton
+            haptic
             variant="default"
             emphasis="primary"
             size="large"

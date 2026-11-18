@@ -299,11 +299,11 @@ export default function OtaUpdateScreen() {
       </SettingsGroup>
       {errorMsg && <SettingsMessage error>{errorMsg}</SettingsMessage>}
       {status === 'ready' ? (
-        <AppButton icon={ArrowUpCircle} onPress={handleRestart}>
+        <AppButton haptic icon={ArrowUpCircle} onPress={handleRestart}>
           Restart to apply update
         </AppButton>
       ) : status === 'update-available' ? (
-        <AppButton icon={DownloadCloud} onPress={handleDownload}>
+        <AppButton haptic icon={DownloadCloud} onPress={handleDownload}>
           Download update
         </AppButton>
       ) : (

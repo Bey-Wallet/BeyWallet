@@ -296,6 +296,7 @@ export function PermissionsStep({
 
         {/* Finish Button */}
         <AppButton
+          haptic
           disabled={isFinishing || isRequestingBio}
           variant="default"
           emphasis="primary"
@@ -348,6 +349,7 @@ export function PermissionsStep({
               Enable Biometrics
             </AppButton>
             <AppButton
+              haptic
               disabled={isFinishing}
               variant="default"
               emphasis="text"

@@ -210,6 +210,7 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                       Set up a receiving mint to enable your Lightning address.
                     </Text>
                     <AppButton
+                      haptic
                       emphasis="secondary"
                       size="small"
                       fullWidth={false}

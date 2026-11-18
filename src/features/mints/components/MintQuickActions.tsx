@@ -4,6 +4,7 @@ import { XStack, YStack } from 'tamagui';
 import { appSpacing } from '~/shared/theme/appearance';
 import { BUICard } from '~/shared/ui/BUI/BUICard';
 import { MintText } from './MintUI';
+import { hapticService } from '~/services/platform/hapticService';
 
 export function MintQuickActions({
   onTransfer,
@@ -25,7 +26,10 @@ export function MintQuickActions({
         <YStack flex={1}>
           <BUICard
             inset={0}
-            onPress={onTransfer}
+            onPress={() => {
+              hapticService.selection();
+              onTransfer();
+            }}
             disabled={transferDisabled}
             label="Transfer funds"
           >
@@ -46,7 +50,10 @@ export function MintQuickActions({
         <YStack flex={1}>
           <BUICard
             inset={0}
-            onPress={onRestore}
+            onPress={() => {
+              hapticService.selection();
+              onRestore();
+            }}
             disabled={restoreDisabled || restoring}
             label="Restore funds"
           >

@@ -362,6 +362,7 @@ function ConnectedMintSheetContent({ mintUrl, onClose }: { mintUrl: string; onCl
                 <AppText variant="title3">Remove this mint?</AppText>
                 <AppText tone="secondary">Your transaction history stays in your wallet.</AppText>
                 <AppButton
+                  haptic
                   variant="critical"
                   loading={busy}
                   disabled={removeDisabled}

@@ -126,6 +126,7 @@ export function NumericKeypad({
   const amountColor = isOverBalance || isBalanceZero ? '$red10' : '$color';
   const confirmButton = (
     <AppButton
+      haptic
       variant="default"
       emphasis="primary"
       size="large"

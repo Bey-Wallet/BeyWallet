@@ -17,6 +17,7 @@ import { AppText } from '~/shared/ui/AppText';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { BUICard } from '~/shared/ui/BUI/BUICard';
 import { appSpacing } from '~/shared/theme/appearance';
+import { hapticService } from '~/services/platform/hapticService';
 import { SettingsGroup, SettingsRow } from '~/features/settings/components/SettingsLayout';
 
 export interface ConnectedMintSheetViewProps {
@@ -55,7 +56,15 @@ export interface ConnectedMintSheetViewProps {
 export function ConnectedMintSheetView(props: ConnectedMintSheetViewProps) {
   const action = (title: string, icon: React.ReactNode, onPress: () => void, disabled = false) => (
     <YStack flex={1}>
-      <BUICard inset={0} label={title} onPress={onPress} disabled={disabled || props.busy}>
+      <BUICard
+        inset={0}
+        label={title}
+        onPress={() => {
+          hapticService.selection();
+          onPress();
+        }}
+        disabled={disabled || props.busy}
+      >
         <YStack
           minHeight={72}
           py={appSpacing.gap}

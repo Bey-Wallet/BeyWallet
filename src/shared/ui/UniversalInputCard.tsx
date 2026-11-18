@@ -331,6 +331,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
             {children}
             <XStack testID="payment-input-actions" justify="center" items="center">
               <AppButton
+                haptic
                 variant="default"
                 emphasis="secondary"
                 size="small"
@@ -387,6 +388,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
                     onPress={clearInput}
                   />
                   <AppButton
+                    haptic
                     variant="default"
                     emphasis="primary"
                     size="small"
@@ -478,6 +480,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
                   onPress={clearInput}
                 />
                 <AppButton
+                  haptic
                   variant="default"
                   emphasis="primary"
                   size={compact ? 'xsmall' : 'xxsmall'}

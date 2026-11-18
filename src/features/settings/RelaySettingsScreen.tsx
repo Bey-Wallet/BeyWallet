@@ -126,6 +126,7 @@ export function RelaySettingsScreen() {
         Reconnect all relays
       </AppButton>
       <AppButton
+        haptic
         variant="default"
         emphasis="secondary"
         icon={RotateCcw}

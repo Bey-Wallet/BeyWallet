@@ -117,6 +117,7 @@ export function MintBalanceRow({
         </AppPressable>
         {showBalance && showMax && (
           <AppButton
+            haptic
             variant="default"
             emphasis="secondary"
             size="xxsmall"

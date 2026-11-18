@@ -97,6 +97,7 @@ export function ExportBackupSettingsScreen() {
         This backup includes spendable ecash. Store it securely and never share it.
       </SettingsMessage>
       <AppButton
+        haptic
         icon={FileUp}
         loading={task.busy}
         loadingText="Exporting backup…"
@@ -167,6 +168,7 @@ export function RestoreBackupSettingsScreen() {
         before the file picker opens.
       </SettingsDescription>
       <AppButton
+        haptic
         icon={FileDown}
         variant="warning"
         loading={task.busy}
@@ -245,6 +247,7 @@ export function DeleteWalletSettingsScreen() {
             Copy recovery phrase
           </AppButton>
           <AppButton
+            haptic
             variant="critical"
             icon={Trash2}
             loading={task.busy}

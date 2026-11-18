@@ -293,6 +293,7 @@ export function PaymentRequestStage({
         footer={
           (!autoPay || hasOperation || !!localError || (isSending && !automaticDelivery)) && (
             <AppButton
+              haptic={!hasOperation}
               variant="default"
               emphasis="primary"
               size="large"

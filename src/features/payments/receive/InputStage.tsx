@@ -203,6 +203,7 @@ export function InputStage({
       <View position="absolute" px="$4" bottom="$4" left="$0" right="$0">
         {isValidToken ? (
           <AppButton
+            haptic
             variant="default"
             emphasis="primary"
             size="large"

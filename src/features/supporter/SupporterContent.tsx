@@ -112,6 +112,7 @@ export function SupporterContent({
           )}
           <YStack gap="$2" items="center">
             <AppButton
+              haptic
               variant="default"
               emphasis="primary"
               size="medium"

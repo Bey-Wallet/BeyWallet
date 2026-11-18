@@ -745,6 +745,7 @@ export default function ConversationScreen() {
               </Text>
             ) : accepted ? null : !incomingInvitation ? (
               <AppButton
+                haptic
                 variant="default"
                 emphasis="secondary"
                 icon={UserPlus}
@@ -760,6 +761,7 @@ export default function ConversationScreen() {
                 </Text>
                 <XStack gap="$2">
                   <AppButton
+                    haptic
                     flex={1}
                     variant="warning"
                     emphasis="secondary"
@@ -768,6 +770,7 @@ export default function ConversationScreen() {
                     Accept
                   </AppButton>
                   <AppButton
+                    haptic
                     flex={1}
                     variant="critical"
                     emphasis="secondary"

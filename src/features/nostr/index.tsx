@@ -387,10 +387,11 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
           >
             Copy address
           </AppButton>
-          <AppButton icon={Edit3} disabled={isDeleting} onPress={handleEditStart}>
+          <AppButton haptic icon={Edit3} disabled={isDeleting} onPress={handleEditStart}>
             Change username
           </AppButton>
           <AppButton
+            haptic
             icon={Trash2}
             variant="critical"
             emphasis="secondary"
@@ -431,6 +432,7 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
             )}
           </YStack>
           <AppButton
+            haptic
             icon={AtSign}
             loading={isRegistering}
             loadingText={isEditing ? 'Updating username…' : 'Claiming username…'}

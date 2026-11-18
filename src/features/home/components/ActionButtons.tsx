@@ -5,6 +5,7 @@ import { ArrowDown, ArrowRightLeft, ArrowUp, Scan } from '@tamagui/lucide-icons'
 import { useRouter } from 'expo-router';
 import ActionSelectorSheet, { ActionSelectorSheetRef } from '~/shared/ui/ActionSelectorSheet';
 import { appSpacing } from '~/shared/theme/appearance';
+import { hapticService } from '~/services/platform/hapticService';
 
 function HomeAction({
   label,
@@ -27,7 +28,10 @@ function HomeAction({
       plain
       title={label}
       accessibilityLabel={accessibilityLabel}
-      onPress={onPress}
+      onPress={() => {
+        hapticService.selection();
+        onPress();
+      }}
     >
       <Icon size={iconSize} color="$accent1" strokeWidth={iconStrokeWidth} />
     </BUIActionButton>

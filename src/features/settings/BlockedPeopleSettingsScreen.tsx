@@ -178,7 +178,7 @@ export function BlockedPeopleSettingsScreen() {
         )}
       />
       {blocked.length > 0 && (
-        <AppButton icon={UserRoundCheck} disabled={!selected.length} onPress={unblock}>
+        <AppButton haptic icon={UserRoundCheck} disabled={!selected.length} onPress={unblock}>
           {selected.length ? `Unblock selected (${selected.length})` : 'Select contacts to unblock'}
         </AppButton>
       )}

@@ -716,6 +716,7 @@ function TransactionDetailsContent() {
             Cancel
           </AppButton>
           <AppButton
+            haptic
             variant="critical"
             emphasis="primary"
             size="medium"

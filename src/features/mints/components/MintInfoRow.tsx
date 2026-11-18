@@ -4,6 +4,7 @@ import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { MintDetailRow } from './MintUI';
+import { hapticService } from '~/services/platform/hapticService';
 
 /** Dense read-only information; copy actions retain a full-size touch target. */
 export function MintInfoRow({
@@ -25,8 +26,10 @@ export function MintInfoRow({
       onPress={
         copyValue
           ? async () => {
-              if (await copyWithFeedback(copyValue, toast))
+              if (await copyWithFeedback(copyValue, toast)) {
+                hapticService.acknowledge();
                 toast.showFeedback(interactionCopy.copiedToClipboard);
+              }
             }
           : undefined
       }

@@ -68,6 +68,7 @@ export function MintTrustContent({
         </AppText>
       )}
       <AppButton
+        haptic
         size="large"
         emphasis="primary"
         disabled={!canConfirm}

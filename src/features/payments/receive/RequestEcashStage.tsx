@@ -602,6 +602,7 @@ export function RequestEcashStage({
         footer={
           !merchant && (
             <AppButton
+              haptic
               size="large"
               fullWidth
               disabled={isRequestBusy}
@@ -685,6 +686,7 @@ export function RequestEcashStage({
         </ListTable>
         {needsReview && (
           <AppButton
+            haptic
             emphasis="secondary"
             onPress={() => DeviceEventEmitter.emit('nostr:openClaim', incomingPayment)}
           >
@@ -701,7 +703,11 @@ export function RequestEcashStage({
                 You can create a QR request. NFC is paused until the saved payment is resolved.
               </Text>
             )}
-            <AppButton emphasis="secondary" onPress={() => void nfcReceiveCoordinator.retry()}>
+            <AppButton
+              haptic
+              emphasis="secondary"
+              onPress={() => void nfcReceiveCoordinator.retry()}
+            >
               Review NFC payment
             </AppButton>
           </YStack>
@@ -713,6 +719,7 @@ export function RequestEcashStage({
         )}
         {targetNpub && !!creqString && (
           <AppButton
+            haptic
             emphasis="text"
             loading={isSending}
             disabled={isSending || isGenerating}

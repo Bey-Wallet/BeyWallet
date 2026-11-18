@@ -58,6 +58,7 @@ export function MintBackupSettingsScreen() {
         </SettingsDescription>
       </YStack>
       <AppButton
+        haptic
         icon={CloudUpload}
         loading={task.busy || backup.publishing}
         disabled={offline}

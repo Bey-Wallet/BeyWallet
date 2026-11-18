@@ -101,6 +101,7 @@ export default function TabLayout() {
             >
               <HeaderIconButton
                 accessibilityLabel="Open NFC"
+                haptic
                 icon={<Nfc />}
                 onPress={() => {
                   nfcFlow.openReader();

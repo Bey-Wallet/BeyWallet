@@ -198,6 +198,7 @@ export default function SwapScreen() {
             }
             footer={
               <AppButton
+                haptic
                 size="large"
                 fullWidth
                 loading={isProcessing}

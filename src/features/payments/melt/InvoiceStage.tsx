@@ -370,6 +370,7 @@ export function InvoiceStage({
 
       {isBolt11 ? (
         <AppButton
+          haptic
           size="large"
           fullWidth
           onPress={onContinue}

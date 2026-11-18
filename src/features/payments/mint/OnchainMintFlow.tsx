@@ -241,6 +241,7 @@ export function OnchainMintFlow() {
           }
           footer={
             <AppButton
+              haptic
               size="large"
               fullWidth
               disabled={!activeMintUrl}
