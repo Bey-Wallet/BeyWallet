@@ -22,6 +22,7 @@ import {
   useBUITheme,
 } from '~/shared/ui/BUI';
 import { useBUIStore } from '~/state/buiStore';
+import { MintSheetDesignPreview } from './bui/MintSheetDesignPreview';
 
 const sheetKinds = ['Information', 'Selection', 'Form', 'Scrollable', 'Steps'] as const;
 const dialogKinds = [
@@ -124,6 +125,7 @@ export function BUISheetsScreen() {
       >
         {category === 'Sheets' && (
           <>
+            <MintSheetDesignPreview />
             <BUISection
               name="Live sheet previews"
               measurement="Information, plain selection, keyboard form, long scrollable content and a three-step local flow. BUI header64 / content padding16 / button56 / minimum touch48."

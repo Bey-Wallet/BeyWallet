@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { YStack } from 'tamagui';
 import { MintCard, MintRows, MintSection, MintDetailRow, MintText as Text } from './MintUI';
-import { Activity, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
+import { Activity, ChevronDown, ChevronUp, RefreshCw } from '@tamagui/lucide-icons';
+import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { MintPreviewHealth, useCashuHealthList, useRadarHealth } from './MintPreviewHealth';
 import { mintHealthUrl } from '~/services/api/mintHealthService';
 import { MintAboutRows } from './MintAboutRows';
-import { appSpacing } from '~/shared/theme/appearance';
 import { MintDescription } from './MintDescription';
 
 export function MintOverview({
@@ -41,7 +41,7 @@ export function MintOverview({
           : 'Unavailable';
 
   return (
-    <YStack gap={appSpacing.group}>
+    <YStack gap="$5">
       {(radar.data?.isTest || monitoredMint?.isTest) && (
         <Text kind="body2" color="$orange10" accessibilityRole="alert">
           Test mint · Not real bitcoin
@@ -63,6 +63,28 @@ export function MintOverview({
       )}
       <MintSection title="Overview">
         <MintRows>
+          <MintDetailRow
+            label="Connection"
+            valueColor={
+              connection === 'online' ? '$green11' : connection === 'offline' ? '$red11' : '$gray10'
+            }
+            value={
+              connection === 'online'
+                ? 'Online'
+                : connection === 'offline'
+                  ? 'Offline'
+                  : 'Checking…'
+            }
+            rightContent={
+              <HeaderIconButton
+                icon={RefreshCw}
+                accessibilityLabel="Recheck mint connection"
+                loading={connection === 'checking'}
+                disabled={connection === 'checking'}
+                onPress={onRecheck}
+              />
+            }
+          />
           <MintAboutRows url={url} info={info} showDescription={false} />
         </MintRows>
       </MintSection>

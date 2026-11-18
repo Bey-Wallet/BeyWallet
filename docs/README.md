@@ -11,6 +11,8 @@ disagree, and update both in the same change.
 
 ## Features
 
+- [Connected mint sheet](features/connected-mint-sheet.md) — approved layout, live actions,
+  removal guards, privacy behavior and device checks.
 - [Haptic feedback](haptics.md) — interaction policy, preference, implementation and device checks.
 - [People and Nostr](features/people-and-nostr.md) — identity, discovery, favorites, payment
   history, payment claiming, trust boundaries, and diagnostics.

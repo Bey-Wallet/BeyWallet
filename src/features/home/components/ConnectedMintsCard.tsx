@@ -1,4 +1,5 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
+import { useConnectedMintSheet } from '~/features/mints/hooks/useConnectedMintSheet';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useCallback, useEffect, useState } from 'react';
@@ -115,7 +116,7 @@ const MintRowItem = React.memo(
           hoverStyle={{ opacity: 0.85 }}
           pressStyle={{ opacity: 0.7 }}
           onPress={() => onPress(mint.mintUrl)}
-          accessibilityLabel={`Open ${displayName} mint details${active ? ', active mint' : ''}`}
+          accessibilityLabel={`Manage ${displayName}${active ? ', active mint' : ''}`}
           accessibilityHint={
             unavailable ? 'Mint unreachable. Use the refresh button to recheck.' : undefined
           }
@@ -287,6 +288,7 @@ const MintPlaceholderItem = React.memo(
 MintPlaceholderItem.displayName = 'MintPlaceholderItem';
 
 export const ConnectedMintsCard = () => {
+  const { openMint, mintSheet } = useConnectedMintSheet();
   const router = useRouter();
   const { requestConnection, connectingUrl, sheet: connectionSheet } = useQuickMintConnection();
   const mints = useWalletStore((s) => s.mints);
@@ -323,12 +325,9 @@ export const ConnectedMintsCard = () => {
 
   const handleMintPress = useCallback(
     (mintUrl: string) => {
-      router.push({
-        pathname: '/(modals)/mint-details',
-        params: { mintUrl },
-      });
+      openMint(mintUrl);
     },
-    [router],
+    [openMint],
   );
 
   const handleAddMint = useCallback(() => {
@@ -446,6 +445,7 @@ export const ConnectedMintsCard = () => {
         ]}
       </YStack>
       {connectionSheet}
+      {mintSheet}
     </YStack>
   );
 };

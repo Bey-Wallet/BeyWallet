@@ -84,8 +84,9 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
         <YStack gap="$4" pb="$8" width="100%" items="center" justify="flex-end">
           <AppButton
             variant="default"
-            emphasis="primary"
-            size="large"
+            emphasis="secondary"
+            size="medium"
+            fullWidth={false}
             icon={<Fingerprint size={20} />}
             onPress={() => handleAuthenticate(true)}
           >

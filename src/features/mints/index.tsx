@@ -8,7 +8,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useMemo } from 'react';
 import { YStack } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
-import { Share2, Plus } from '@tamagui/lucide-icons';
+import { Share2, Plus, QrCode } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 
 import { hapticService } from '~/services/platform/hapticService';
@@ -176,15 +176,20 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
       <Stack.Screen
         options={{
           title: name,
+          headerTitleStyle: { fontFamily: 'AlloTextSemiBold', fontSize: 18 },
           gestureEnabled: !isConnecting,
           headerRight: () => (
             <BUIActionMenu
               label="Mint actions"
               headerTrigger
               items={[
+                { id: 'qr', title: 'Mint QR code', icon: <QrCode size={20} color="$color" /> },
                 { id: 'share', title: 'Share mint', icon: <Share2 size={20} color="$color" /> },
               ]}
-              onAction={() => void handleShare()}
+              onAction={(id) => {
+                if (id === 'qr') setShowQr(true);
+                if (id === 'share') void handleShare();
+              }}
             />
           ),
         }}
@@ -203,7 +208,6 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
         onCopyUrl={() => {
           void handleCopy(url, 'URL');
         }}
-        onQr={() => setShowQr(true)}
       />
 
       <YStack p="$4" pb={insets.bottom || '$4'} bg="$background" gap="$3">

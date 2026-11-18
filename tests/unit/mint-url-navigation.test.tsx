@@ -19,6 +19,10 @@ jest.mock('~/services/platform/hapticService', () => ({
 }));
 
 const mockPush = jest.fn();
+const mockOpenMint = jest.fn();
+jest.mock('~/features/mints/hooks/useConnectedMintSheet', () => ({
+  useConnectedMintSheet: () => ({ openMint: mockOpenMint, mintSheet: null }),
+}));
 let mockDiscoveredMints: { url: string; name: string }[] = [];
 let mockMintMetadata: Record<string, Record<string, unknown>> = {};
 let mockMintErrors: Record<string, Error> = {};
@@ -233,10 +237,7 @@ it('dims an unreachable mint and rechecks it without opening its details', async
     tree.root.findAllByProps({ accessibilityLabel: 'Recheck unreachable mints' }),
   ).toHaveLength(0);
   await act(async () => row.parent!.props.onPress());
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(modals)/mint-details',
-    params: { mintUrl },
-  });
+  expect(mockOpenMint).toHaveBeenCalledWith(mintUrl);
   delete mockMintErrors[mintUrl];
   await act(async () => {
     useWalletStore.setState({ refreshCounter: 1 });
@@ -478,10 +479,7 @@ it('manages all mint balances, including untrusted mints, separately from discov
     '42 sat',
   );
   await act(async () => row.props.onPress());
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(modals)/mint-details',
-    params: { mintUrl },
-  });
+  expect(mockOpenMint).toHaveBeenCalledWith(mintUrl);
   await act(async () =>
     tree.root
       .findAllByType('AppButton' as any)
@@ -580,10 +578,7 @@ it('keeps connected mints in order without recommendation filler or payment badg
   for (const mintUrl of urls) {
     expect(connectedRow(mintUrl).findAllByProps({ accessibilityRole: 'image' })).toEqual([]);
     await act(async () => connectedRow(mintUrl).parent!.props.onPress());
-    expect(mockPush).toHaveBeenLastCalledWith({
-      pathname: '/(modals)/mint-details',
-      params: { mintUrl },
-    });
+    expect(mockOpenMint).toHaveBeenLastCalledWith(mintUrl);
   }
 });
 

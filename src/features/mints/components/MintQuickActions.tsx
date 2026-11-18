@@ -1,37 +1,47 @@
 import React from 'react';
-import { QrCode, RefreshCw } from '@tamagui/lucide-icons';
+import { ArrowRightLeft, RefreshCw } from '@tamagui/lucide-icons';
 import { XStack, YStack } from 'tamagui';
 import { appSpacing } from '~/shared/theme/appearance';
 import { BUICard } from '~/shared/ui/BUI/BUICard';
 import { MintText } from './MintUI';
 
 export function MintQuickActions({
-  onQr,
+  onTransfer,
+  transferDisabled = false,
   onRestore,
   restoreDisabled = false,
   restoring = false,
 }: {
-  onQr: () => void;
+  onTransfer?: () => void;
+  transferDisabled?: boolean;
   onRestore?: () => void;
   restoreDisabled?: boolean;
   restoring?: boolean;
 }) {
+  if (!onTransfer && !onRestore) return null;
   return (
     <XStack gap={appSpacing.compact}>
-      <YStack flex={1}>
-        <BUICard inset={0} onPress={onQr} label="Show mint QR code">
-          <YStack
-            minHeight={72}
-            py={appSpacing.gap}
-            gap={appSpacing.small}
-            items="center"
-            justify="center"
+      {onTransfer && (
+        <YStack flex={1}>
+          <BUICard
+            inset={0}
+            onPress={onTransfer}
+            disabled={transferDisabled}
+            label="Transfer funds"
           >
-            <QrCode size={22} color="$color" />
-            <MintText kind="label2">QR</MintText>
-          </YStack>
-        </BUICard>
-      </YStack>
+            <YStack
+              minHeight={72}
+              py={appSpacing.gap}
+              gap={appSpacing.small}
+              items="center"
+              justify="center"
+            >
+              <ArrowRightLeft size={22} color="$color" />
+              <MintText kind="label2">Transfer</MintText>
+            </YStack>
+          </BUICard>
+        </YStack>
+      )}
       {onRestore && (
         <YStack flex={1}>
           <BUICard

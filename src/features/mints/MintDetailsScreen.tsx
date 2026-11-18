@@ -2,18 +2,17 @@ import { BUILabel } from '~/shared/ui/BUI/BUIBadge';
 import { MintAppearance, MintCard, MintText as Text } from './components/MintUI';
 import { BUIHeaderAction } from '~/shared/ui/BUI/BUIHeader';
 import { BUIActionMenu } from '~/shared/ui/BUI/BUIActionMenu';
-import { buiTypography } from '~/shared/ui/BUI/typography';
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
-import { appSpacing } from '~/shared/theme/appearance';
+import { appSpacing, appTypography } from '~/shared/theme/appearance';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { YStack, XStack, View } from 'tamagui';
 import {
   ArrowLeft,
-  ArrowRightLeft,
+  QrCode,
   Share2,
   Pencil,
   Check,
@@ -215,11 +214,11 @@ function MintDetailsContent() {
             selectTextOnFocus
             returnKeyType="done"
             autoCapitalize="sentences"
-            {...buiTypography.h3}
+            {...appTypography.title3}
             color="$color"
             textAlign="center"
             width={200}
-            height={36}
+            height={32}
             py={0}
             px="$2"
             bg="$gray2"
@@ -299,6 +298,7 @@ function MintDetailsContent() {
                 label="Mint actions"
                 headerTrigger
                 items={[
+                  { id: 'qr', title: 'Mint QR code', icon: <QrCode size={20} color="$color" /> },
                   { id: 'share', title: 'Share mint', icon: <Share2 size={20} color="$color" /> },
                   {
                     id: 'remove',
@@ -309,6 +309,7 @@ function MintDetailsContent() {
                   },
                 ]}
                 onAction={(id) => {
+                  if (id === 'qr') setShowQr(true);
                   if (id === 'share') void handleShare();
                   if (id === 'remove') {
                     removeMintSheetRef.current?.present();
@@ -348,34 +349,22 @@ function MintDetailsContent() {
                     : `${balance.toLocaleString()} sat`,
           }}
           badges={
-            <>
-              <BUILabel tone={isTrusted ? 'success' : 'error'}>
-                {isTrusted ? 'Trusted by you' : 'Untrusted'}
-              </BUILabel>
-              {isActive && <BUILabel tone="primary">Active</BUILabel>}
-            </>
+            (!isTrusted || isActive) && (
+              <>
+                {!isTrusted && <BUILabel tone="error">Untrusted</BUILabel>}
+                {isActive && <BUILabel tone="primary">Active</BUILabel>}
+              </>
+            )
           }
-          onQr={() => setShowQr(true)}
           onRestore={handleRestoreProofs}
           restoring={isRestoring && restoringMintUrl === mintUrl}
           restoreDisabled={isRestoring && restoringMintUrl !== mintUrl}
-          primaryAction={
-            isTrusted && balance > 0 ? (
-              <AppButton
-                size="large"
-                emphasis="primary"
-                icon={ArrowRightLeft}
-                disabled={isRestoring || isRemoving}
-                onPress={() =>
-                  router.push({
-                    pathname: '/(modals)/swap',
-                    params: { sourceMintUrl: walletMint.mintUrl },
-                  })
-                }
-              >
-                Transfer funds
-              </AppButton>
-            ) : undefined
+          transferDisabled={!isTrusted || balance <= 0 || isRestoring || isRemoving}
+          onTransfer={() =>
+            router.push({
+              pathname: '/(modals)/swap',
+              params: { sourceMintUrl: walletMint.mintUrl },
+            })
           }
           bottomAction={
             <AppButton

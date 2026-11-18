@@ -1,21 +1,19 @@
 import React from 'react';
 import { ScrollView, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Copy } from '@tamagui/lucide-icons';
 import { AppPressable } from '~/shared/ui/AppPressable';
+import { AppText } from '~/shared/ui/AppText';
 import { MintImage } from '~/shared/ui/RemoteImage';
-import { appSpacing, appTypography } from '~/shared/theme/appearance';
-import { MintText as Text } from './MintUI';
+import { appSpacing } from '~/shared/theme/appearance';
 import { MintOverview } from './MintOverview';
 import { MintQuickActions } from './MintQuickActions';
-import { AppIconButton } from '~/shared/ui/AppIconButton';
-import { QrCode, RefreshCw } from '@tamagui/lucide-icons';
 
 export type MintConnection = 'online' | 'offline' | 'checking';
 
-/** Common mint presentation; callers retain ownership of wallet operations. */
+/** Full mint pages use the sheet's layout language; their controllers keep all operations. */
 export function MintDetailsView({
   url,
-  name,
   icon,
   info,
   connection,
@@ -24,12 +22,12 @@ export function MintDetailsView({
   onCopyUrl,
   balance,
   badges,
-  onQr,
+  onTransfer,
+  transferDisabled,
   onRestore,
   restoring,
   restoreDisabled,
   bottomAction,
-  primaryAction,
 }: {
   url: string;
   name: string;
@@ -41,129 +39,83 @@ export function MintDetailsView({
   onCopyUrl: () => void;
   balance?: { amount: string; unit?: string; secondary?: string };
   badges?: React.ReactNode;
-  onQr: () => void;
+  onTransfer?: () => void;
+  transferDisabled?: boolean;
   onRestore?: () => void;
   restoring?: boolean;
   restoreDisabled?: boolean;
   bottomAction?: React.ReactNode;
-  primaryAction?: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
-  const connectionControl = (
-    <XStack items="center" gap="$1">
-      <XStack
-        rounded={100}
-        px="$3"
-        py="$1"
-        bg={connection === 'online' ? '$green3' : connection === 'offline' ? '$red3' : '$gray3'}
-      >
-        <Text
-          kind="label3"
-          color={
-            connection === 'online' ? '$green11' : connection === 'offline' ? '$red11' : '$gray10'
-          }
-          accessibilityLiveRegion="polite"
-        >
-          {connection === 'online' ? 'Online' : connection === 'offline' ? 'Offline' : 'Checking…'}
-        </Text>
-      </XStack>
-      <AppIconButton
-        emphasis="ghost"
-        size="xxsmall"
-        icon={RefreshCw}
-        accessibilityLabel="Recheck mint connection"
-        loadingText="Checking mint connection…"
-        loading={connection === 'checking'}
-        disabled={connection === 'checking'}
-        onPress={onRecheck}
-      />
-    </XStack>
+  const mintIcon = (
+    <YStack width={72} height={72} rounded="$6" overflow="hidden" flexShrink={0}>
+      <MintImage mintUrl={url} src={icon} width={72} height={72} rounded="$6" />
+    </YStack>
   );
   return (
     <ScrollView
       flex={1}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: insets.bottom + appSpacing.group }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + appSpacing.page }}
     >
-      <YStack px={appSpacing.page} pt={appSpacing.group} gap={appSpacing.group}>
-        <YStack gap={appSpacing.page}>
-          {balance && (
-            <XStack items="center" justify="space-between" gap="$2" flexWrap="wrap">
-              <XStack gap="$2" items="center" flexWrap="wrap">
-                {badges}
-              </XStack>
-              {connectionControl}
-            </XStack>
-          )}
-          <XStack items="center" gap={appSpacing.gap}>
-            {balance ? (
-              <YStack gap="$1" flex={1} minWidth={0}>
-                <Text kind="body2" color="$gray10">
-                  Mint balance
-                </Text>
-                <Text
-                  kind="num1"
-                  {...appTypography.display}
-                  color="$color"
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                >
+      <YStack px={appSpacing.page} pt="$4" gap="$5">
+        {balance ? (
+          <XStack items="center" gap="$4" justify="space-between">
+            <YStack gap="$1" flex={1} minWidth={0}>
+              <XStack gap="$2" items="baseline" flexWrap="wrap">
+                <AppText variant="display" numberOfLines={1} adjustsFontSizeToFit flexShrink={1}>
                   {balance.amount}
-                  {balance.unit && <Text kind="label2">{` ${balance.unit}`}</Text>}
-                </Text>
-                {balance.secondary && (
-                  <Text kind="label2" color="$gray10">
-                    {balance.secondary}
-                  </Text>
-                )}
-              </YStack>
-            ) : null}
-            <MintImage
-              mintUrl={url}
-              src={icon}
-              width={64}
-              height={64}
-              rounded="$6"
-              flexShrink={0}
-            />
-            {!balance && (
-              <YStack flex={1} minWidth={0}>
-                <AppPressable
-                  minWidth={0}
-                  minHeight={48}
-                  justify="center"
-                  gap="$1"
-                  accessibilityLabel="Copy mint URL"
-                  onPress={onCopyUrl}
-                >
-                  <Text kind="h3">{name}</Text>
-                  <Text kind="body2" color="$gray10" numberOfLines={1} ellipsizeMode="middle">
-                    {url}
-                  </Text>
-                </AppPressable>
-                {connectionControl}
-              </YStack>
-            )}
-            {!balance && (
-              <AppIconButton
-                emphasis="secondary"
-                size="medium"
-                icon={<QrCode size={22} />}
-                accessibilityLabel="Show mint QR code"
-                onPress={onQr}
-              />
-            )}
+                </AppText>
+                {!!balance.unit && <AppText tone="secondary">{balance.unit}</AppText>}
+              </XStack>
+              {!!balance.secondary && (
+                <AppText variant="body1" tone="secondary">
+                  {balance.secondary}
+                </AppText>
+              )}
+            </YStack>
+            {mintIcon}
           </XStack>
-        </YStack>
-        {primaryAction}
-        {balance && (
-          <MintQuickActions
-            onQr={onQr}
-            onRestore={onRestore}
-            restoring={restoring}
-            restoreDisabled={restoreDisabled}
-          />
+        ) : (
+          <YStack items="center" gap="$2">
+            {mintIcon}
+            <AppPressable
+              width="100%"
+              minWidth={0}
+              minHeight={48}
+              justify="center"
+              gap="$1"
+              accessibilityLabel="Copy mint URL"
+              onPress={onCopyUrl}
+            >
+              <XStack gap="$1" items="center" justify="center">
+                <AppText
+                  variant="body3"
+                  tone="secondary"
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                  flexShrink={1}
+                  textAlign="center"
+                >
+                  {url}
+                </AppText>
+                <Copy size={12} color="$gray10" />
+              </XStack>
+            </AppPressable>
+          </YStack>
         )}
+        {badges && (
+          <XStack gap="$2" items="center" flexWrap="wrap">
+            {badges}
+          </XStack>
+        )}
+        <MintQuickActions
+          onTransfer={onTransfer}
+          transferDisabled={transferDisabled}
+          onRestore={onRestore}
+          restoring={restoring}
+          restoreDisabled={restoreDisabled}
+        />
         <MintOverview
           url={url}
           info={info}
