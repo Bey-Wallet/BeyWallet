@@ -4,6 +4,10 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import ScannerScreen from '~/features/payments/ScannerScreen';
 import { useP2PKScanStore } from '~/state/p2pkScanStore';
 import { URDecoder } from '@gandlaf21/bc-ur';
+import { hapticService } from '~/services/platform/hapticService';
+jest.mock('~/services/platform/hapticService', () => ({
+  hapticService: { acknowledge: jest.fn() },
+}));
 
 const mockResolve = jest.fn();
 const mockFeedback = jest.fn();
@@ -19,6 +23,10 @@ jest.mock('~/services/platform/qrImageService', () => ({
 }));
 beforeEach(() => {
   jest.clearAllMocks();
+  mockRedirect.mockImplementation((_result: unknown, options: any) => {
+    options.onBeforeRedirect?.();
+    return true;
+  });
   mockCameraGranted = true;
   mockPickImage.mockResolvedValue(null);
   mockParams = { returnTo: '/receive' };
@@ -376,5 +384,35 @@ it('decodes a complete single-part UR image before routing its full payload', as
   await act(async () => tree.root.findByType('AppButton' as any).props.onPress());
   expect(mockResolve).toHaveBeenCalledWith('cashuB-full-payload');
   expect(mockRedirect).toHaveBeenCalledTimes(1);
+  await act(async () => tree.unmount());
+});
+
+it('acknowledges a supported QR once despite repeated camera frames', async () => {
+  mockResolve.mockResolvedValue({ type: 'cashu_request', cleaned: 'request' });
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<ScannerScreen />);
+  });
+  const scan = tree.root.findByType('CameraView' as any).props.onBarcodeScanned;
+  await act(async () => {
+    void scan({ data: 'request' });
+    void scan({ data: 'request' });
+  });
+  expect(mockResolve).toHaveBeenCalledTimes(1);
+  expect(hapticService.acknowledge).toHaveBeenCalledTimes(1);
+  await act(async () => tree.unmount());
+});
+
+it('does not acknowledge unrecognized scan input', async () => {
+  mockResolve.mockResolvedValue({ type: 'unknown' });
+  mockRedirect.mockImplementation(() => false);
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<ScannerScreen />);
+  });
+  await act(async () =>
+    tree.root.findByType('CameraView' as any).props.onBarcodeScanned({ data: 'unknown' }),
+  );
+  expect(hapticService.acknowledge).not.toHaveBeenCalled();
   await act(async () => tree.unmount());
 });

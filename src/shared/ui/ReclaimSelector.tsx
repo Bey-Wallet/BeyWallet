@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { hapticService } from '~/services/platform/hapticService';
 import { Text, XStack, YStack } from 'tamagui';
 import { ChevronDown } from '@tamagui/lucide-icons';
 import { ListTableRow } from '~/shared/ui/ListTable';
@@ -34,7 +35,10 @@ export function ReclaimSelector({
                 size="small"
                 emphasis={p.hours === hours ? 'primary' : 'secondary'}
                 disabled={disabled}
-                onPress={() => onChange(p.hours)}
+                onPress={() => {
+                  if (p.hours !== hours) hapticService.selection();
+                  onChange(p.hours);
+                }}
               >
                 {p.label}
               </AppButton>

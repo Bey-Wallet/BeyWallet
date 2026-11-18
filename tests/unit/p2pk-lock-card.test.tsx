@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { P2PKLockCard } from '~/features/payments/send/P2PKLockCard';
+jest.mock('~/services/platform/hapticService', () => ({ hapticService: { selection: jest.fn() } }));
 
 const mockPresent = jest.fn();
 const mockDismiss = jest.fn();

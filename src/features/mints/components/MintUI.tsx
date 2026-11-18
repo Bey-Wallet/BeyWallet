@@ -1,16 +1,13 @@
 import React from 'react';
-import { Theme, YStack, useThemeName, type TextProps } from 'tamagui';
+import { Theme, XStack, YStack, useThemeName, type TextProps } from 'tamagui';
+import { ChevronRight } from '@tamagui/lucide-icons';
+import { AppText } from '~/shared/ui/AppText';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUICard } from '~/shared/ui/BUI/BUICard';
 import { BUIText } from '~/shared/ui/BUI/BUIText';
-import {
-  BUIListRow,
-  BUIListGroup,
-  BUIListHeader,
-  BUIListSeparator,
-} from '~/shared/ui/BUI/BUIListRow';
-import { buiSeparator } from '~/shared/ui/BUI/layout';
+import type { BUITypeRole } from '~/shared/ui/BUI/typography';
 import { BUIAppearanceProvider } from '~/shared/ui/BUI/useBUITheme';
-import { appSpacing } from '~/shared/theme/appearance';
+import { appSpacing, appTypography } from '~/shared/theme/appearance';
 
 /** BUI surfaces are scoped to mint details and preview, including their sheets. */
 export function MintAppearance({ children }: { children: React.ReactNode }) {
@@ -37,24 +34,36 @@ export function MintCard({
   );
 }
 
-export function MintText(props: React.ComponentProps<typeof BUIText>) {
-  return <BUIText kind="body2" {...props} />;
+const mintTextRoles: Record<BUITypeRole, keyof typeof appTypography> = {
+  num1: 'display',
+  num2: 'amountSmall',
+  h1: 'title1',
+  h2: 'title2',
+  h3: 'title3',
+  label1: 'label1',
+  label2: 'label2',
+  label3: 'label3',
+  body1: 'body1',
+  body2: 'body2',
+  body3: 'body3',
+  body4CAPS: 'caption',
+  mono: 'mono',
+};
+
+export function MintText({ kind = 'body2', ...props }: React.ComponentProps<typeof BUIText>) {
+  return <BUIText kind={kind} {...appTypography[mintTextRoles[kind]]} {...props} />;
 }
 
 export function MintRows({ children }: { children: React.ReactNode }) {
   return (
-    <BUIListGroup inset={0} separators={false}>
+    <YStack bg="$gray2" rounded="$6" overflow="hidden">
       <YStack mt={-2}>{children}</YStack>
-    </BUIListGroup>
+    </YStack>
   );
 }
 
 export function MintDivider() {
-  return (
-    <YStack height={2}>
-      <BUIListSeparator thickness={2} extraStartInset={-buiSeparator.startInset} />
-    </YStack>
-  );
+  return <YStack height={2} width="100%" bg="$background" />;
 }
 
 export function MintSection({
@@ -67,10 +76,15 @@ export function MintSection({
   children: React.ReactNode;
 }) {
   return (
-    <YStack>
-      <YStack mx={-appSpacing.page}>
-        <BUIListHeader title={title} description={description} />
-      </YStack>
+    <YStack gap="$2">
+      <AppText variant="label3" tone="secondary" accessibilityRole="header" px="$2">
+        {title}
+      </AppText>
+      {description && (
+        <AppText variant="body2" tone="secondary" px="$2">
+          {description}
+        </AppText>
+      )}
       {children}
     </YStack>
   );
@@ -90,7 +104,7 @@ type MintDetailRowProps = {
   accessibilityLabel?: string;
 };
 
-/** BUI rows keep facts readable on narrow screens and grow with long values. */
+/** Match the sheet's grouped rows and allow every value to wrap. */
 export function MintDetailRow({
   label,
   value,
@@ -104,37 +118,59 @@ export function MintDetailRow({
   expanded,
   accessibilityLabel,
 }: MintDetailRowProps) {
+  const content = (
+    <XStack
+      minHeight={48}
+      px={appSpacing.page}
+      py={appSpacing.compact}
+      gap="$3"
+      items="center"
+      accessible={!onPress && !!accessibilityLabel}
+      accessibilityLabel={!onPress ? accessibilityLabel : undefined}
+    >
+      {Icon && (
+        <XStack width={22} items="center" justify="center">
+          <Icon size={20} color={iconColor ?? '$iconSecondary'} />
+        </XStack>
+      )}
+      <AppText variant="label1" flex={1} color={labelColor ?? '$color'}>
+        {label}
+      </AppText>
+      {value != null && (
+        <YStack flex={1} minWidth={0} items="flex-end">
+          {typeof value === 'string' || typeof value === 'number' ? (
+            <AppText variant="body2" color={valueColor ?? '$gray10'} textAlign="right">
+              {value}
+            </AppText>
+          ) : (
+            value
+          )}
+        </YStack>
+      )}
+      {rightContent ?? (onPress ? <ChevronRight size={20} color="$gray10" /> : null)}
+    </XStack>
+  );
   return (
     <YStack>
       <MintDivider />
-      <BUIListRow
-        title={
-          <BUIText kind="label2" color={labelColor ?? '$color'}>
-            {label}
-          </BUIText>
-        }
-        subtitle={
-          value == null ? undefined : (
-            <BUIText kind="body2" color={valueColor ?? '$gray10'}>
-              {value}
-            </BUIText>
-          )
-        }
-        leading={Icon ? <Icon size={20} color={iconColor ?? '$iconSecondary'} /> : undefined}
-        trailing={rightContent}
-        destination={onPress && !rightContent ? 'internal' : undefined}
-        minHeight={value == null ? 48 : 56}
-        maxSubtitleLines={0}
-        accessibilityLabel={
-          accessibilityLabel ??
-          (onPress
-            ? [label, typeof value === 'string' ? value : undefined].filter(Boolean).join(', ')
-            : undefined)
-        }
-        disabled={disabled}
-        expanded={expanded}
-        onPress={onPress}
-      />
+      {onPress ? (
+        <AppPressable
+          onPress={onPress}
+          disabled={disabled}
+          opacity={disabled ? 0.5 : 1}
+          accessibilityRole="button"
+          accessibilityLabel={
+            accessibilityLabel ??
+            [label, typeof value === 'string' ? value : undefined].filter(Boolean).join(', ')
+          }
+          accessibilityState={{ disabled, expanded }}
+          pressStyle={{ bg: '$gray3' }}
+        >
+          {content}
+        </AppPressable>
+      ) : (
+        content
+      )}
     </YStack>
   );
 }

@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { useResultHaptic } from '~/shared/hooks/useResultHaptic';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 import { PendingTokenLayout } from '~/shared/ui/PendingTokenLayout';
 import {
@@ -29,7 +28,6 @@ interface ResultStageProps {
 export function ResultStage(props: ResultStageProps) {
   const [time] = useState(Date.now);
   const receiptAction = useRef<ReceiptImageShareAction>(null);
-  useResultHaptic(props.status === 'error' ? 'error' : undefined);
   const [reclaiming, setReclaiming] = useState(false);
   const receipt =
     props.status === 'success' && props.token

@@ -11,6 +11,9 @@ disagree, and update both in the same change.
 
 ## Features
 
+- [Connected mint sheet](features/connected-mint-sheet.md) — approved layout, live actions,
+  removal guards, privacy behavior and device checks.
+- [Haptic feedback](haptics.md) — interaction policy, preference, implementation and device checks.
 - [People and Nostr](features/people-and-nostr.md) — identity, discovery, favorites, payment
   history, payment claiming, trust boundaries, and diagnostics.
 
@@ -25,6 +28,8 @@ disagree, and update both in the same change.
 
 ## Deferred designs and product exploration
 
+- [Haptic feedback plan](plans/haptics-feedback-plan.md) — approved policy, platform mappings,
+  preferences, event ownership and device acceptance; implementation results are linked above.
 - [Spotlight design reference](plans/bey-spotlight-design-reference.md) — deferred, reverted UI
   experiment; final compact cards, gradient treatments, gestures, modal behavior, and a visual
   reconstruction for later reference.

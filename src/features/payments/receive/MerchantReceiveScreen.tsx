@@ -2,7 +2,6 @@ import React, { useCallback, useRef, useState } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Theme, XStack, YStack } from 'tamagui';
-import * as Haptics from 'expo-haptics';
 import { AmountStage } from '~/features/payments/mint/AmountStage';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { useWalletStore } from '~/state/walletStore';
@@ -79,7 +78,7 @@ function MerchantCheckout({
     if (settled.current) return;
     settled.current = true;
     setCompleted(true);
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
     void useWalletStore.getState().refreshBalance();
   }, []);
   return (
@@ -108,7 +107,7 @@ function MerchantCheckout({
           }
           footer={
             <YStack rounded={999} overflow="hidden">
-              <AppButton fullWidth size="large" disabled={busy} onPress={onNext}>
+              <AppButton haptic fullWidth size="large" disabled={busy} onPress={onNext}>
                 Next sale
               </AppButton>
             </YStack>

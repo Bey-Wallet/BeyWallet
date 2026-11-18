@@ -7,6 +7,35 @@ let mockPendingDeletion = false;
 const mockWipe = jest.fn(async () => {});
 const mockFinishWipe = jest.fn(async () => {});
 const mockClearWallet = jest.fn(async () => {});
+const mockClearFiles = jest.fn(async () => {});
+const mockResetMemory = jest.fn();
+const mockResumeWrites = jest.fn();
+jest.mock('expo-secure-store', () => ({ deleteItemAsync: jest.fn(async () => {}) }));
+jest.mock('~/services/platform/walletTemporaryFiles', () => ({
+  clearWalletTemporaryFiles: () => mockClearFiles(),
+}));
+jest.mock('~/services/wallet/walletMemoryReset', () => ({
+  resetWalletMemory: (...args: unknown[]) => mockResetMemory(...args),
+}));
+jest.mock('~/services/wallet/mintBackupService', () => ({ resetMintBackup: jest.fn() }));
+jest.mock('~/features/nfc/nfcFlow', () => ({
+  nfcFlow: { resetForWalletDeletion: jest.fn(async () => {}) },
+}));
+jest.mock('~/services/platform/nfcService', () => ({
+  nfcService: { clearWalletData: jest.fn(async () => {}) },
+}));
+jest.mock('~/services/wallet/nfcReceiveCoordinator', () => ({
+  nfcReceiveCoordinator: { resetForWalletDeletion: jest.fn(async () => {}) },
+}));
+jest.mock('~/services/platform/notificationService', () => ({
+  notificationService: { clear: jest.fn(async () => {}) },
+}));
+jest.mock('~/shared/utils/queryClient', () => ({
+  queryClient: { cancelQueries: jest.fn(async () => {}), clear: jest.fn() },
+}));
+jest.mock('~/storage/sqlite/fileRestoreStorage', () => ({
+  fileRestoreJournal: { io: { read: jest.fn(async () => null) } },
+}));
 jest.mock('~/storage/sqlite/encryptedDatabase', () => ({
   walletStorageDeletionPending: () => mockPendingDeletion,
   destroyEncryptedWalletStorage: () => mockWipe(),
@@ -22,6 +51,7 @@ jest.mock('~/services/wallet/recoveryCoordinator', () => ({
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({
   closeDb: jest.fn(),
   invalidateWalletSnapshot: jest.fn(),
+  suspendWalletStorageWrites: () => mockResumeWrites,
 }));
 jest.mock('coco-cashu-core', () => ({ Manager: jest.fn() }));
 jest.mock('~/storage/sqlite', () => ({ ExpoSqliteRepositories: jest.fn() }));
@@ -65,6 +95,7 @@ it('does not delete anything on startup without a durable deletion intent', asyn
   await initService.resumePendingWalletDeletion();
   expect(mockWipe).not.toHaveBeenCalled();
   expect(mockClearWallet).not.toHaveBeenCalled();
+  expect(mockClearFiles).not.toHaveBeenCalled();
 });
 
 it('retains the recovery phrase when resumed file deletion fails', async () => {
@@ -73,6 +104,19 @@ it('retains the recovery phrase when resumed file deletion fails', async () => {
   await expect(initService.resumePendingWalletDeletion()).rejects.toThrow();
   expect(mockClearWallet).not.toHaveBeenCalled();
   expect(mockFinishWipe).not.toHaveBeenCalled();
+  expect(mockResetMemory).not.toHaveBeenCalled();
+  expect(mockResumeWrites).toHaveBeenCalledTimes(1);
+});
+
+it('keeps deletion retryable if temporary backup cleanup fails', async () => {
+  mockPendingDeletion = true;
+  mockClearFiles.mockRejectedValueOnce(new Error('Cache busy'));
+  await expect(initService.resumePendingWalletDeletion()).rejects.toThrow();
+  expect(mockClearWallet).not.toHaveBeenCalled();
+  expect(mockFinishWipe).not.toHaveBeenCalled();
+  await initService.resumePendingWalletDeletion();
+  expect(mockResetMemory).toHaveBeenCalledTimes(1);
+  expect(mockFinishWipe).toHaveBeenCalledTimes(1);
 });
 
 it('retries interrupted phrase deletion before clearing deletion intent', async () => {
@@ -84,4 +128,35 @@ it('retries interrupted phrase deletion before clearing deletion intent', async 
   expect(mockWipe).toHaveBeenCalledTimes(2);
   expect(mockClearWallet).toHaveBeenCalledTimes(2);
   expect(mockFinishWipe).toHaveBeenCalledTimes(1);
+});
+
+it('coalesces duplicate delete presses and resets memory only after local files and the seed are removed', async () => {
+  const first = initService.destroyWallet();
+  const second = initService.destroyWallet();
+  expect(first).toBe(second);
+  await first;
+  expect(mockWipe).toHaveBeenCalledTimes(1);
+  expect(mockClearFiles).toHaveBeenCalledTimes(1);
+  expect(mockClearWallet).toHaveBeenCalledTimes(1);
+  expect(mockResetMemory).toHaveBeenCalledWith(false);
+  expect(mockClearFiles.mock.invocationCallOrder[0]).toBeLessThan(
+    mockClearWallet.mock.invocationCallOrder[0],
+  );
+  expect(mockClearWallet.mock.invocationCallOrder[0]).toBeLessThan(
+    mockResetMemory.mock.invocationCallOrder[0],
+  );
+  expect(mockResetMemory.mock.invocationCallOrder[0]).toBeLessThan(
+    mockFinishWipe.mock.invocationCallOrder[0],
+  );
+});
+
+it('keeps the active setup when creation clears an old wallet, and permits retry after a cleanup failure', async () => {
+  const cleanup = jest
+    .spyOn(initService, 'cleanup')
+    .mockRejectedValueOnce(new Error('Database busy'));
+  await expect(initService.destroyWallet()).rejects.toThrow('Database busy');
+  expect(mockWipe).not.toHaveBeenCalled();
+  cleanup.mockRestore();
+  await initService.destroyWallet({ preserveSetup: true });
+  expect(mockResetMemory).toHaveBeenCalledWith(true);
 });

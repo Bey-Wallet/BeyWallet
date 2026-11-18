@@ -12,7 +12,6 @@ import {
   Landmark,
   Sprout,
 } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 
@@ -29,12 +28,11 @@ export function ConsentStep({ onComplete, onBack, isBusy = false }: ConsentStepP
 
   const handleContinue = () => {
     if (!checked || isBusy) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
     onComplete();
   };
 
   const handleOpenTerms = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     void toast.openExternal('http://bey.cash/privacy-policy');
   };
 
@@ -47,7 +45,7 @@ export function ConsentStep({ onComplete, onBack, isBusy = false }: ConsentStepP
         navigationDisabled={isBusy}
         onNavigate={() => {
           if (isBusy) return;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
           onBack();
         }}
       />
@@ -197,7 +195,7 @@ export function ConsentStep({ onComplete, onBack, isBusy = false }: ConsentStepP
           disabled={isBusy}
           onPress={() => {
             if (isBusy) return;
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
             setChecked(!checked);
           }}
         >
@@ -232,6 +230,7 @@ export function ConsentStep({ onComplete, onBack, isBusy = false }: ConsentStepP
         </XStack>
 
         <AppButton
+          haptic
           variant="default"
           emphasis="primary"
           size="large"

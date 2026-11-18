@@ -53,6 +53,19 @@ reports failure before clearing the recovery phrase. Deletion intent is durably
 recorded so startup can finish an interrupted deletion
 before it can recreate an empty database alongside an old recovery phrase. The
 marker clears only after the files, database key and recovery phrase are gone.
+
+Deletion also removes picker-owned backup copies, temporary backup/proof exports and
+receipt images in the app's private cache/documents. It never follows the saved
+Downloads/SAF directory grant or deletes a backup the user saved outside Bey.
+Wallet, identity, settings, contacts, message drafts, recovery, scans, NFC controllers
+and query caches reset in the same process; production returns directly to onboarding.
+Persisted-store writes are suspended during reset so they cannot recreate deleted
+storage. Outstanding balance/settings reads are invalidated across that boundary.
+Repeated delete requests share one operation. No network deletion or artificial delay
+is added; local wallet work and an executing NFC payment must finish safely first.
+New-wallet creation uses the same cleanup while preserving its current setup step
+and generated phrase. Interrupted deletion resumes the same temporary-file cleanup
+before its durable marker is cleared.
 Android automatic application backup is disabled; explicit cloud/device-transfer rules also exclude SQLite files and
 SecureStore to prevent restoration of databases without their device-bound key.
 User-exported backup files remain unchanged and unencrypted; this work does not

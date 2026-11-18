@@ -1,4 +1,5 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
+import { hapticService } from '~/services/platform/hapticService';
 import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
@@ -16,7 +17,6 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { YStack, XStack, Text, Separator, Avatar } from 'tamagui';
 import { AlertCircle, Zap, ShieldCheck, Sprout } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -198,7 +198,6 @@ export function PaymentRequestStage({
       return;
     actionLock.current = true;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setAutomaticDelivery(origin === 'automatic');
     setIsSending(true);
     setLocalError(null);
@@ -212,7 +211,7 @@ export function PaymentRequestStage({
       const msg = operationId
         ? `${paymentRef.current?.failureMessage || 'Delivery unconfirmed.'} Existing operation ${operationId} is in History. Do not pay this request again.`
         : err?.message || 'Payment failed';
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
       setLocalError(msg);
     } finally {
       setHasOperation(!!paymentRef.current?.operationId);
@@ -256,7 +255,7 @@ export function PaymentRequestStage({
     setHasOperation(true);
     if (savedPayment.state === 'paid' && savedPayment.operationId && !completed.current) {
       completed.current = true;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
       onSuccess(amountSats, savedPayment.operationId, paymentRef.current?.encoded || '');
     } else if (savedPayment.state === 'rolled_back') {
       setLocalError('This payment was reclaimed. Check History.');
@@ -294,6 +293,7 @@ export function PaymentRequestStage({
         footer={
           (!autoPay || hasOperation || !!localError || (isSending && !automaticDelivery)) && (
             <AppButton
+              haptic={!hasOperation}
               variant="default"
               emphasis="primary"
               size="large"
@@ -375,6 +375,7 @@ export function PaymentRequestStage({
                     if (actionLock.current || paymentRef.current || savedPayment || hasOperation)
                       return;
                     setCost(null);
+                    if (enabled !== (amountMode === 'exact')) hapticService.selection();
                     setAmountMode(enabled ? 'exact' : 'net');
                   }}
                 />

@@ -27,7 +27,6 @@ import {
 } from '@tamagui/lucide-icons';
 import * as Clipboard from 'expo-clipboard';
 import { networkService } from '~/services/platform/networkService';
-import * as Haptics from 'expo-haptics';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import { useRouter } from 'expo-router';
@@ -200,7 +199,6 @@ export function OnchainMeltFlow() {
   };
 
   const toggleMode = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (inputMode === 'SATS') {
       if (btcData?.price) {
         const sats = Number(amount) || 0;
@@ -215,7 +213,6 @@ export function OnchainMeltFlow() {
   };
 
   const handleMax = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const balString = String(balance);
     setAmount(balString);
     if (inputMode === 'SATS') {
@@ -286,7 +283,7 @@ export function OnchainMeltFlow() {
       } else {
         setAddress(text);
       }
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
       toast.showFeedback(interactionCopy.addressPastedFromClipboard);
     } catch (e) {
       console.warn('[OnchainMeltFlow] Clipboard read failed:');
@@ -448,7 +445,7 @@ export function OnchainMeltFlow() {
       refreshBalance();
     } catch (err: any) {
       console.error('[OnchainMeltFlow] Payment execution failed:');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
       setErrorMsg(err.message || 'Failed to send payment');
       setStep('error');
     }
@@ -601,6 +598,7 @@ export function OnchainMeltFlow() {
           hero={<PaymentAmount amount={meltQuote.amount} size="prominent" label="You're paying" />}
           footer={
             <AppButton
+              haptic
               size="large"
               fullWidth
               disabled={total > balance || paymentLock.current}

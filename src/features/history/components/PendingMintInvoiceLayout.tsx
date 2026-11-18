@@ -12,7 +12,7 @@ import { Share as RNShare } from 'react-native';
 import { PaymentActionsMenu, type PaymentMenuAction } from '~/shared/ui/PaymentActionsMenu';
 import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import QRCode from '~/shared/ui/PaymentQRCode';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 
 import { useAppToast } from '~/shared/hooks/useAppToast';
 
@@ -64,7 +64,7 @@ export function PendingMintInvoiceLayout({
 
   const handleCopy = async () => {
     if (!(await copyWithFeedback(savedInvoice, toast))) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    hapticService.acknowledge();
     setCopied(true);
     toast.showFeedback(interactionCopy.invoiceCopiedToClipboard);
     setTimeout(() => setCopied(false), 2000);
@@ -111,7 +111,6 @@ export function PendingMintInvoiceLayout({
                       id: 'cancel',
                       title: 'Cancel invoice',
                       onPress: () => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                         void onCancel();
                       },
                     },

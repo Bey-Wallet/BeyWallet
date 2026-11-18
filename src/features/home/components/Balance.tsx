@@ -8,7 +8,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { appRadii, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
@@ -59,13 +59,13 @@ export default function Balance() {
   const handlePrimaryCurrencyToggle = React.useCallback(() => {
     const current = useSettingsStore.getState();
     if (current.hideBalance || current.secondaryCurrency === 'NONE') return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    hapticService.selection();
     const nextVal = current.primaryCurrency === 'SATS' ? 'FIAT' : 'SATS';
     void current.setPrimaryCurrency(nextVal);
   }, []);
 
   const handleHideBalanceToggle = React.useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    hapticService.selection();
     const current = useSettingsStore.getState();
     void current.setHideBalance(!current.hideBalance);
   }, []);

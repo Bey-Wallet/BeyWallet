@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { hapticService } from '~/services/platform/hapticService';
 import { Animated, AppState, Easing, I18nManager, Modal, useWindowDimensions } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { Check, ChevronsUpDown } from '@tamagui/lucide-icons';
@@ -198,6 +199,7 @@ export function BUIActionSelector({
                         gap={8}
                         onPress={() => {
                           if (!expanded) return;
+                          if (item.id !== selectedId) hapticService.selection();
                           setExpanded(false);
                           onSelect(item);
                         }}

@@ -330,7 +330,7 @@ it('shows compact mint facts on preview and keeps reliability in its own card', 
   expect(tree.root.findAllByType(MintRows)).toHaveLength(2);
   expect(
     tree.root.findAllByType(MintDetailRow).filter((node) => node.props.label === 'Connection'),
-  ).toHaveLength(0);
+  ).toHaveLength(1);
   expect(mockPush).not.toHaveBeenCalled();
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
 });
@@ -561,7 +561,7 @@ it('does not tick explicitly unsupported, disabled, or malformed NUT entries', a
   ]);
 });
 
-it('copies a long public key in full while keeping the displayed value to one line', async () => {
+it('shows a long public key without truncation and copies it in full', async () => {
   const publicKey = '03' + 'ab'.repeat(32);
   await act(async () => {
     tree = create(<MintAboutRows url={url} info={{ ...mockInfo, pubkey: publicKey }} />);
@@ -569,7 +569,8 @@ it('copies a long public key in full while keeping the displayed value to one li
   const keyText = tree.root
     .findAllByType('Text' as any)
     .find((node) => node.props.children === publicKey)!;
-  expect(keyText.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'middle' });
+  expect(keyText.props.numberOfLines).toBeUndefined();
+  expect(keyText.props.ellipsizeMode).toBeUndefined();
   await act(async () =>
     tree.root.findByProps({ accessibilityLabel: 'Copy public key' }).props.onPress(),
   );
@@ -654,8 +655,12 @@ it('shares the exact URL and opens and dismisses the QR overlay without connecti
       .props.onAction('share'),
   );
   expect(share).toHaveBeenCalledWith({ message: url });
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Show mint QR code' })).toHaveLength(0);
   await act(async () =>
-    tree.root.findByProps({ accessibilityLabel: 'Show mint QR code' }).props.onPress(),
+    tree.root
+      .findByType('Screen' as any)
+      .props.options.headerRight()
+      .props.onAction('qr'),
   );
   expect(tree.root.findByType('QRCode' as any).props.value).toBe(url);
   await act(async () => tree.root.findByType('Modal' as any).props.onRequestClose());

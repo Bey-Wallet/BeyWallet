@@ -1,6 +1,16 @@
-import { sqliteStorage, closeDb, invalidateWalletSnapshot } from '~/storage/sqlite/sqliteStorage';
+import {
+  sqliteStorage,
+  closeDb,
+  invalidateWalletSnapshot,
+  suspendWalletStorageWrites,
+} from '~/storage/sqlite/sqliteStorage';
 const mockRun = jest.fn();
 const mockRead = jest.fn();
+jest.mock('~/storage/sqlite/encryptedDatabase', () => ({
+  openEncryptedDatabase: () => require('expo-sqlite').openDatabaseSync(),
+  prepareRecoveryDatabaseEncryption: jest.fn(),
+  walletDatabaseNames: { active: 'test.db' },
+}));
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({
     execSync: jest.fn(),
@@ -49,4 +59,19 @@ it('uses persisted values after restart and leaves other storage keys uncached',
   sqliteStorage.setItem('other', 'same');
   sqliteStorage.setItem('other', 'same');
   expect(mockRun).toHaveBeenCalledTimes(2);
+});
+
+it('does not reopen storage or persist stale store resets during deletion, and restores writes for a fresh wallet', () => {
+  const resume = suspendWalletStorageWrites();
+  const nested = suspendWalletStorageWrites();
+  sqliteStorage.setItem('wallet-storage', 'old-wallet');
+  sqliteStorage.removeItem('people');
+  expect(mockRun).not.toHaveBeenCalled();
+  resume();
+  resume();
+  sqliteStorage.setItem('wallet-storage', 'old-wallet');
+  expect(mockRun).not.toHaveBeenCalled();
+  nested();
+  sqliteStorage.setItem('wallet-storage', 'new-wallet');
+  expect(mockRun).toHaveBeenCalledTimes(1);
 });

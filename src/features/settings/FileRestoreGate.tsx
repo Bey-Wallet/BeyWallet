@@ -191,6 +191,7 @@ export function FileRestoreGate() {
           {ready ? (
             <>
               <AppButton
+                haptic
                 size="large"
                 fullWidth
                 variant={mode === 'replace' ? 'warning' : 'default'}

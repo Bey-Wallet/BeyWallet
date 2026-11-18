@@ -210,6 +210,7 @@ export function LightningAddressMintScreen() {
       </SettingsGroup>
       {!state.enabled && !!state.receivingMint && (
         <AppButton
+          haptic
           size="small"
           disabled={busy}
           onPress={() =>
@@ -242,6 +243,7 @@ export function LightningAddressPaymentsScreen() {
       </SettingsDescription>
       {!!state.pending.length && (
         <AppButton
+          haptic
           size="small"
           disabled={busy || !state.enabled}
           onPress={() => run(() => getLightningAddressService().collectAll())}
@@ -267,6 +269,7 @@ export function LightningAddressPaymentsScreen() {
               </Text>
             )}
             <AppButton
+              haptic
               size="small"
               disabled={busy || !state.enabled}
               onPress={() =>

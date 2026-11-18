@@ -12,7 +12,7 @@ import React from 'react';
 import { Text, XStack } from 'tamagui';
 import { AlertTriangle, RefreshCw } from '@tamagui/lucide-icons';
 
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useWalletStore } from '~/state/walletStore';
@@ -191,7 +191,7 @@ export function ConfirmStage({
   const handleCopy = async (text: string, label: string) => {
     if (!(await copyWithFeedback(text, toast))) return;
     toast.showFeedback(interactionCopy.copiedToClipboard);
-    Haptics.selectionAsync();
+    hapticService.acknowledge();
   };
 
   return (
@@ -208,6 +208,7 @@ export function ConfirmStage({
         hero={<PaymentAmount amount={tokenInfo.amount} size="prominent" label="You're receiving" />}
         footer={
           <AppButton
+            haptic
             variant="default"
             emphasis="primary"
             size="large"
@@ -219,7 +220,6 @@ export function ConfirmStage({
               (!offline && (proofStatus === 'checking' || proofStatus === 'spent'))
             }
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
               if (offline) {
                 if (isSavingLater) return;
                 setIsSavingLater(true);
@@ -241,6 +241,7 @@ export function ConfirmStage({
       >
         {!offline && (
           <AppButton
+            haptic
             variant="default"
             emphasis="secondary"
             size="small"
@@ -249,7 +250,6 @@ export function ConfirmStage({
             loading={isSavingLater}
             disabled={isLoading || isSavingLater}
             onPress={async () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               setIsSavingLater(true);
               try {
                 await onReceiveLater();

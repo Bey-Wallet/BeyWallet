@@ -17,6 +17,10 @@ const mockSettings = {
   notificationsEnabled: true,
   hideBalance: false,
   biometricEnabled: false,
+  homeExpanded: false,
+  hapticsEnabled: true,
+  setHomeExpanded: jest.fn(),
+  setHapticsEnabled: jest.fn(),
   setPrimaryCurrency: jest.fn(),
   setShowBitcoinSymbol: jest.fn(),
   setNotificationsEnabled: jest.fn(),
@@ -58,26 +62,33 @@ afterEach(async () => {
   await act(async () => tree?.unmount());
 });
 
-it('shows the Bitcoin symbol switch inline and keeps other appearance rows navigable', async () => {
+it('shows appearance toggles inline and keeps theme and currency navigable', async () => {
   await act(async () => {
     tree = create(<SettingsCategoryScreen category="preferences" />);
   });
   const rows = tree.root.findAllByType(SettingsToggleRow);
-  expect(rows.map((row) => row.props.title)).toEqual(['Bitcoin symbol']);
+  expect(rows.map((row) => row.props.title)).toEqual([
+    'Bitcoin symbol',
+    'Expanded Home',
+    'Haptic feedback',
+  ]);
   expect(mockSettings.setPrimaryCurrency).not.toHaveBeenCalled();
   expect(mockSettings.setShowBitcoinSymbol).not.toHaveBeenCalled();
   expect(mockSettings.setNotificationsEnabled).not.toHaveBeenCalled();
   expect(mockPush).not.toHaveBeenCalled();
   const navigation = tree.root.findAllByType('Row' as any);
-  expect(navigation.map((row) => row.props.title)).toEqual([
-    'Theme',
-    'Display currency',
-    'Expanded Home',
-  ]);
+  expect(navigation.map((row) => row.props.title)).toEqual(['Theme', 'Display currency']);
   navigation[0].props.onPress();
   expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings/theme');
   await rows[0].props.save(true);
   expect(mockSettings.setShowBitcoinSymbol).toHaveBeenCalledWith(true);
+  expect(rows[1].props.checked).toBe(false);
+  expect(rows[2].props.checked).toBe(true);
+  await rows[1].props.save(true);
+  await rows[2].props.save(false);
+  expect(mockSettings.setHomeExpanded).toHaveBeenCalledWith(true);
+  expect(mockSettings.setHapticsEnabled).toHaveBeenCalledWith(false);
+  expect(mockPush).toHaveBeenCalledTimes(1);
 });
 
 it('requires authentication before changing the inline biometric setting in either direction', async () => {
@@ -110,7 +121,7 @@ it('persists the inline hide-balance preference', async () => {
 
 it('allocates every setting into the approved nested groups', () => {
   const expected = {
-    preferences: [['theme', 'currency', 'bitcoin-symbol', 'balance-area']],
+    preferences: [['theme', 'currency', 'bitcoin-symbol', 'balance-area', 'haptics']],
     security: [
       ['app-lock', 'hide-balance'],
       ['receiving-policy', 'blocked-people'],
@@ -157,7 +168,7 @@ it.each(Object.keys(settingsCategories) as SettingsCategory[])(
       tree = create(<SettingsCategoryScreen category={category} />);
     });
     expect(tree.root.findAllByType(SettingsToggleRow)).toHaveLength(
-      category === 'security' ? 2 : category === 'preferences' ? 1 : 0,
+      category === 'security' ? 2 : category === 'preferences' ? 3 : 0,
     );
     expect(mockAuthenticate).not.toHaveBeenCalled();
     expect(mockSettings.setBiometricEnabled).not.toHaveBeenCalled();

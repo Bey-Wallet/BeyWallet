@@ -40,7 +40,7 @@ it('starts immediately, runs once across rerenders, and awaits real completion',
   expect(onComplete).toHaveBeenCalledWith('test-only-generated-phrase');
   expect(Haptics.notificationAsync).not.toHaveBeenCalled();
   await act(async () => finish());
-  expect(Haptics.notificationAsync).toHaveBeenCalledWith(Haptics.NotificationFeedbackType.Success);
+  expect(Haptics.notificationAsync).not.toHaveBeenCalled();
   expect(onError).not.toHaveBeenCalled();
   await act(async () => tree.unmount());
 });

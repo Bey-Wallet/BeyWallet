@@ -1,10 +1,10 @@
+import { hapticService } from '~/services/platform/hapticService';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton, type AppButtonIcon } from '~/shared/ui/AppButton';
 import React, { useCallback, useMemo } from 'react';
 import { YStack, XStack, Text, View } from 'tamagui';
 import { Delete } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 
 interface NumericKeypadProps {
   appearance?: 'default' | 'pos';
@@ -96,16 +96,19 @@ export function NumericKeypad({
 
   const handlePress = useCallback(
     (digit: string) => {
-      if (isLoading || (digit === '.' && !allowDecimal)) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onValueChange(value === '0' ? digit : value + digit);
+      if (isLoading || (digit === '.' && (!allowDecimal || value.includes('.')))) return;
+
+      const next = value === '0' ? digit : value + digit;
+      if (next !== value) hapticService.keypad();
+      onValueChange(next);
     },
     [value, onValueChange, isLoading, allowDecimal],
   );
 
   const handleDelete = useCallback(() => {
     if (isLoading) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    if (value !== '0') hapticService.keypad();
     if (value.length <= 1) {
       onValueChange('0');
     } else {
@@ -115,7 +118,7 @@ export function NumericKeypad({
 
   const handleConfirm = useCallback(() => {
     if (isLoading || confirmDisabled) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     onConfirm();
   }, [onConfirm, isLoading, confirmDisabled]);
 
@@ -123,6 +126,7 @@ export function NumericKeypad({
   const amountColor = isOverBalance || isBalanceZero ? '$red10' : '$color';
   const confirmButton = (
     <AppButton
+      haptic
       variant="default"
       emphasis="primary"
       size="large"

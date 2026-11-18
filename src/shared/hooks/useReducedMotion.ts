@@ -40,6 +40,7 @@ function subscribe(listener: () => void) {
 }
 
 const getSnapshot = () => reducedMotion;
+export const getReducedMotion = getSnapshot;
 const getServerSnapshot = () => true;
 
 /** Share native preference work across controls; stay still until the first read completes. */

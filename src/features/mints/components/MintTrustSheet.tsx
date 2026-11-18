@@ -1,9 +1,11 @@
+import { hapticService } from '~/services/platform/hapticService';
 import React, { forwardRef } from 'react';
 import { XStack, YStack, View } from 'tamagui';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUICheckboxVisual } from '~/shared/ui/BUI/BUISelectionControl';
+import { BUIAppearanceProvider, useBUIOverlayAppearance } from '~/shared/ui/BUI/useBUITheme';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { MintTrustContent } from './MintTrustContent';
 import { MintText as Text } from './MintUI';
@@ -23,6 +25,7 @@ export const MintTrustSheet = forwardRef<
     onConfirm: () => void | Promise<void>;
   }
 >(function MintTrustSheet({ mint, busy, error, remember, onRememberChange, onConfirm }, ref) {
+  const appearance = useBUIOverlayAppearance();
   const { data: info } = useMintInfo(mint?.url || '', {
     enabled: !!mint && (!mint.name || !mint.icon),
   });
@@ -40,55 +43,62 @@ export const MintTrustSheet = forwardRef<
     metadataText(info?.icon);
   return (
     <AppBottomSheet title="Trust this mint?" ref={ref} canDismiss={!busy}>
-      {mint && (
-        <MintTrustContent
-          mints={[{ url: mint.url, name }]}
-          busy={busy}
-          error={error}
-          onConfirm={onConfirm}
-          identity={
-            <XStack items="center" gap="$3">
-              <View
-                width={48}
-                height={48}
-                rounded="$6"
-                overflow="hidden"
-                bg="$gray3"
-                flexShrink={0}
-              >
-                <MintImage mintUrl={mint.url} source={{ uri: icon, width: 48, height: 48 }} />
-              </View>
-              <YStack flex={1} minWidth={0} gap="$1">
-                <Text kind="label2">{name}</Text>
-                <Text color="$gray10" kind="body3" selectable>
-                  {mint.url}
-                </Text>
-              </YStack>
-            </XStack>
-          }
-        >
-          <AppPressable
-            self="center"
-            minHeight={48}
-            px="$3"
-            flexDirection="row"
-            items="center"
-            gap="$1"
-            accessibilityRole="checkbox"
-            accessibilityLabel="Do not show again"
-            accessibilityState={{ checked: remember, disabled: busy }}
-            disabled={busy}
-            onPress={() => onRememberChange(!remember)}
+      <BUIAppearanceProvider value={appearance}>
+        {mint && (
+          <MintTrustContent
+            mints={[{ url: mint.url, name }]}
+            busy={busy}
+            error={error}
+            onConfirm={onConfirm}
+            identity={
+              <XStack items="center" gap="$3">
+                <View
+                  width={48}
+                  height={48}
+                  rounded="$6"
+                  overflow="hidden"
+                  bg="$gray3"
+                  flexShrink={0}
+                >
+                  <MintImage mintUrl={mint.url} source={{ uri: icon, width: 48, height: 48 }} />
+                </View>
+                <YStack flex={1} minWidth={0} gap="$1">
+                  <Text kind="label2">{name}</Text>
+                  <Text color="$gray10" kind="body3" selectable>
+                    {mint.url}
+                  </Text>
+                </YStack>
+              </XStack>
+            }
           >
-            <View scale={0.75} opacity={0.8}>
-              <BUICheckboxVisual checked={remember} disabled={busy} />
-            </View>
-            <Text kind="body3" color="$gray10">
-              Do not show again
-            </Text>
-          </AppPressable>
-        </MintTrustContent>
-      )}
+            <AppPressable
+              self="center"
+              minHeight={48}
+              px="$3"
+              flexDirection="row"
+              items="center"
+              gap="$1"
+              accessibilityRole="checkbox"
+              accessibilityLabel="Do not show again"
+              accessibilityState={{ checked: remember, disabled: busy }}
+              disabled={busy}
+              onPress={() => {
+                if (!busy) {
+                  hapticService.selection();
+                  onRememberChange(!remember);
+                }
+              }}
+            >
+              <View scale={0.75} opacity={0.8}>
+                <BUICheckboxVisual checked={remember} disabled={busy} />
+              </View>
+              <Text kind="body3" color="$gray10">
+                Do not show again
+              </Text>
+            </AppPressable>
+          </MintTrustContent>
+        )}
+      </BUIAppearanceProvider>
     </AppBottomSheet>
   );
 });

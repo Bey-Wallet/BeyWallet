@@ -2,18 +2,17 @@ import { BUILabel } from '~/shared/ui/BUI/BUIBadge';
 import { MintAppearance, MintCard, MintText as Text } from './components/MintUI';
 import { BUIHeaderAction } from '~/shared/ui/BUI/BUIHeader';
 import { BUIActionMenu } from '~/shared/ui/BUI/BUIActionMenu';
-import { buiTypography } from '~/shared/ui/BUI/typography';
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
-import { appSpacing } from '~/shared/theme/appearance';
+import { appSpacing, appTypography } from '~/shared/theme/appearance';
 import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { YStack, XStack, View } from 'tamagui';
 import {
   ArrowLeft,
-  ArrowRightLeft,
+  QrCode,
   Share2,
   Pencil,
   Check,
@@ -21,7 +20,7 @@ import {
   Trash2,
 } from '@tamagui/lucide-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
@@ -86,7 +85,7 @@ function MintDetailsContent() {
     try {
       await removeMint(mintUrl || '');
       removeMintSheetRef.current?.dismiss();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      hapticService.completion();
       safeGoBack();
       toast.showFeedback(interactionCopy.mintRemoved);
     } catch (e: any) {
@@ -100,7 +99,7 @@ function MintDetailsContent() {
 
   const handleRestoreProofs = () => {
     if (!mintUrl) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     router.push({ pathname: '/recover-funds', params: { mintUrl } });
   };
 
@@ -215,11 +214,11 @@ function MintDetailsContent() {
             selectTextOnFocus
             returnKeyType="done"
             autoCapitalize="sentences"
-            {...buiTypography.h3}
+            {...appTypography.title3}
             color="$color"
             textAlign="center"
             width={200}
-            height={36}
+            height={32}
             py={0}
             px="$2"
             bg="$gray2"
@@ -254,7 +253,6 @@ function MintDetailsContent() {
   const connection = isCheckingConnection ? 'checking' : connectionError ? 'offline' : 'online';
 
   const handleShare = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await RNShare.share({ message: mintUrl });
     } catch (error) {
@@ -272,7 +270,6 @@ function MintDetailsContent() {
               accessibilityLabel="Go back"
               icon={<ArrowLeft color="$color" />}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 safeGoBack();
               }}
             />
@@ -301,6 +298,7 @@ function MintDetailsContent() {
                 label="Mint actions"
                 headerTrigger
                 items={[
+                  { id: 'qr', title: 'Mint QR code', icon: <QrCode size={20} color="$color" /> },
                   { id: 'share', title: 'Share mint', icon: <Share2 size={20} color="$color" /> },
                   {
                     id: 'remove',
@@ -311,9 +309,9 @@ function MintDetailsContent() {
                   },
                 ]}
                 onAction={(id) => {
+                  if (id === 'qr') setShowQr(true);
                   if (id === 'share') void handleShare();
                   if (id === 'remove') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     removeMintSheetRef.current?.present();
                   }
                 }}
@@ -333,8 +331,8 @@ function MintDetailsContent() {
           onRecheck={() => {
             void recheckConnection({ cancelRefetch: false });
           }}
-          onCopyUrl={() => {
-            void copyWithFeedback(mintUrl, toast);
+          onCopyUrl={async () => {
+            if (await copyWithFeedback(mintUrl, toast)) hapticService.acknowledge();
           }}
           balance={{
             amount: displayAsSats
@@ -351,37 +349,26 @@ function MintDetailsContent() {
                     : `${balance.toLocaleString()} sat`,
           }}
           badges={
-            <>
-              <BUILabel tone={isTrusted ? 'success' : 'error'}>
-                {isTrusted ? 'Trusted by you' : 'Untrusted'}
-              </BUILabel>
-              {isActive && <BUILabel tone="primary">Active</BUILabel>}
-            </>
+            (!isTrusted || isActive) && (
+              <>
+                {!isTrusted && <BUILabel tone="error">Untrusted</BUILabel>}
+                {isActive && <BUILabel tone="primary">Active</BUILabel>}
+              </>
+            )
           }
-          onQr={() => setShowQr(true)}
           onRestore={handleRestoreProofs}
           restoring={isRestoring && restoringMintUrl === mintUrl}
           restoreDisabled={isRestoring && restoringMintUrl !== mintUrl}
-          primaryAction={
-            isTrusted && balance > 0 ? (
-              <AppButton
-                size="large"
-                emphasis="primary"
-                icon={ArrowRightLeft}
-                disabled={isRestoring || isRemoving}
-                onPress={() =>
-                  router.push({
-                    pathname: '/(modals)/swap',
-                    params: { sourceMintUrl: walletMint.mintUrl },
-                  })
-                }
-              >
-                Transfer funds
-              </AppButton>
-            ) : undefined
+          transferDisabled={!isTrusted || balance <= 0 || isRestoring || isRemoving}
+          onTransfer={() =>
+            router.push({
+              pathname: '/(modals)/swap',
+              params: { sourceMintUrl: walletMint.mintUrl },
+            })
           }
           bottomAction={
             <AppButton
+              haptic
               emphasis="secondary"
               size="large"
               icon={Trash2}
@@ -446,6 +433,7 @@ function MintDetailsContent() {
 
             <YStack gap="$3" mt="$2">
               <AppButton
+                haptic
                 variant="critical"
                 emphasis="primary"
                 size="large"

@@ -32,7 +32,6 @@ import {
   initService,
 } from '~/services/wallet';
 import { seedService } from '~/services/platform/seedService';
-import * as Haptics from 'expo-haptics';
 import { YStack } from 'tamagui';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -361,7 +360,6 @@ export function SendModalScreen() {
       if (isDetected || stopped) return;
       isDetected = true;
       console.log(`[SendModalScreen] ✅ SUCCESS CONFIRMED via ${source} for:`, operationId);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       setStep('success');
       queryClient.invalidateQueries({ queryKey: ['history'] });
@@ -673,7 +671,7 @@ export function SendModalScreen() {
     if (executionLock.current || !reviewReady) return;
     executionLock.current = true;
     submittedReviewRef.current = reviewRef.current;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     try {
       if (sendMode === 'nostr') {
         if (isOffline) {
@@ -698,7 +696,6 @@ export function SendModalScreen() {
 
   const handleNext = () => {
     if (step === 'amount') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setStep('confirm');
     }
   };

@@ -12,7 +12,6 @@ import * as Updates from 'expo-updates';
 import { DownloadCloud, RefreshCw, ArrowUpCircle } from '@tamagui/lucide-icons';
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
-import * as Haptics from 'expo-haptics';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 
 const STORAGE_KEY_LAST_OTA_CHANGELOG = 'last_installed_ota_changelog';
@@ -130,9 +129,6 @@ export default function OtaUpdateScreen() {
 
   const handleCheckUpdates = useCallback(async (isManual = false) => {
     try {
-      if (isManual) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
       setStatus('checking');
       setErrorMsg('');
 
@@ -149,7 +145,6 @@ export default function OtaUpdateScreen() {
       if (check.isAvailable && check.manifest) {
         setNewManifest(check.manifest);
         setStatus('update-available');
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
         setStatus('no-update');
       }
@@ -172,7 +167,6 @@ export default function OtaUpdateScreen() {
     if (operationLock.current) return;
     operationLock.current = true;
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setStatus('downloading');
       await Updates.fetchUpdateAsync();
 
@@ -204,12 +198,10 @@ export default function OtaUpdateScreen() {
       }
 
       setStatus('ready');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
       console.error('[OtaUpdate] Download failed:', error);
       setStatus('error');
       setErrorMsg(error.message || 'Failed to download update bundle.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       operationLock.current = false;
     }
@@ -217,7 +209,6 @@ export default function OtaUpdateScreen() {
 
   const handleRestart = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       await Updates.reloadAsync();
     } catch (e: any) {
       console.warn('[OtaUpdate] Reload failed:', e);
@@ -308,11 +299,11 @@ export default function OtaUpdateScreen() {
       </SettingsGroup>
       {errorMsg && <SettingsMessage error>{errorMsg}</SettingsMessage>}
       {status === 'ready' ? (
-        <AppButton icon={ArrowUpCircle} onPress={handleRestart}>
+        <AppButton haptic icon={ArrowUpCircle} onPress={handleRestart}>
           Restart to apply update
         </AppButton>
       ) : status === 'update-available' ? (
-        <AppButton icon={DownloadCloud} onPress={handleDownload}>
+        <AppButton haptic icon={DownloadCloud} onPress={handleDownload}>
           Download update
         </AppButton>
       ) : (

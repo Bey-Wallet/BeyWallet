@@ -173,6 +173,7 @@ export function GetChangeSettingsScreen() {
         )}
         {!result && (
           <AppButton
+            haptic={!!review && !error && !review.submitted}
             fullWidth
             loading={loading || executing}
             loadingText={executing ? 'Getting change' : 'Preparing review'}

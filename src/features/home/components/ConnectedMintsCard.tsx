@@ -1,4 +1,5 @@
 import { MintImage } from '~/shared/ui/RemoteImage';
+import { useConnectedMintSheet } from '~/features/mints/hooks/useConnectedMintSheet';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useCallback, useEffect, useState } from 'react';
@@ -9,7 +10,6 @@ import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import * as Haptics from 'expo-haptics';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { mintInfoQueryOptions, useMintInfo } from '~/shared/hooks/useMintInfo';
@@ -116,7 +116,7 @@ const MintRowItem = React.memo(
           hoverStyle={{ opacity: 0.85 }}
           pressStyle={{ opacity: 0.7 }}
           onPress={() => onPress(mint.mintUrl)}
-          accessibilityLabel={`Open ${displayName} mint details${active ? ', active mint' : ''}`}
+          accessibilityLabel={`Manage ${displayName}${active ? ', active mint' : ''}`}
           accessibilityHint={
             unavailable ? 'Mint unreachable. Use the refresh button to recheck.' : undefined
           }
@@ -288,6 +288,7 @@ const MintPlaceholderItem = React.memo(
 MintPlaceholderItem.displayName = 'MintPlaceholderItem';
 
 export const ConnectedMintsCard = () => {
+  const { openMint, mintSheet } = useConnectedMintSheet();
   const router = useRouter();
   const { requestConnection, connectingUrl, sheet: connectionSheet } = useQuickMintConnection();
   const mints = useWalletStore((s) => s.mints);
@@ -324,28 +325,21 @@ export const ConnectedMintsCard = () => {
 
   const handleMintPress = useCallback(
     (mintUrl: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.push({
-        pathname: '/(modals)/mint-details',
-        params: { mintUrl },
-      });
+      openMint(mintUrl);
     },
-    [router],
+    [openMint],
   );
 
   const handleAddMint = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/(modals)/add-mint');
   }, [router]);
 
   const handleManageMints = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/(modals)/mints');
   }, [router]);
 
   const handleAddRecommendedMint = useCallback(
     (mintUrl: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const mint = getMintPlaceholders([]).find((mint) => mint.mintUrl === mintUrl);
       void requestConnection({ url: mintUrl, name: mint?.name });
     },
@@ -451,6 +445,7 @@ export const ConnectedMintsCard = () => {
         ]}
       </YStack>
       {connectionSheet}
+      {mintSheet}
     </YStack>
   );
 };

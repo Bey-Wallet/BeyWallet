@@ -1,4 +1,7 @@
-import { invalidateWalletSnapshot } from '~/storage/sqlite/sqliteStorage';
+import {
+  invalidateWalletSnapshot,
+  suspendWalletStorageWrites,
+} from '~/storage/sqlite/sqliteStorage';
 import { recoveryCoordinator } from './recoveryCoordinator';
 /**
  * Initialization service — manages Manager lifecycle.
@@ -324,18 +327,37 @@ async function requireNoFileRestore(): Promise<void> {
     throw new Error('Finish or cancel the pending backup restore before changing your wallet.');
 }
 
+let deletionFlight: Promise<void> | null = null;
+
+/** Keep the durable wipe intent until every local persistent copy has been removed. */
+async function finishLocalWalletDeletion(preserveSetup = false) {
+  const { clearWalletTemporaryFiles } =
+    require('~/services/platform/walletTemporaryFiles') as typeof import('~/services/platform/walletTemporaryFiles');
+  const { resetWalletMemory } =
+    require('./walletMemoryReset') as typeof import('./walletMemoryReset');
+  const { nfcService } =
+    require('~/services/platform/nfcService') as typeof import('~/services/platform/nfcService');
+  await destroyEncryptedWalletStorage();
+  await clearWalletTemporaryFiles();
+  await nfcService.clearWalletData();
+  await seedService.clearWallet();
+  await SecureStore.deleteItemAsync('bey_wallet_onboarded');
+  resetWalletMemory(preserveSetup);
+  await finishWalletStorageDeletion();
+}
+
 export const initService = {
   /** Resume only a previously authorized deletion, before opening any wallet on startup. */
   resumePendingWalletDeletion: async (): Promise<void> => {
     if (!walletStorageDeletionPending()) return;
+    const resumeWrites = suspendWalletStorageWrites();
     try {
       closeDb(true);
-      await destroyEncryptedWalletStorage();
-      await seedService.clearWallet();
-      await SecureStore.deleteItemAsync('bey_wallet_onboarded');
-      await finishWalletStorageDeletion();
+      await finishLocalWalletDeletion();
     } catch {
       throw new WalletDeletionPendingError();
+    } finally {
+      resumeWrites();
     }
   },
   /**
@@ -520,7 +542,7 @@ export const initService = {
   createWallet: async (mnemonic: string): Promise<Manager> => {
     await requireNoFileRestore();
     console.log('[InitService] Creating new wallet, destroying existing wallet first...');
-    await initService.destroyWallet();
+    await initService.destroyWallet({ preserveSetup: true });
 
     isInitializing = true;
     try {
@@ -669,79 +691,49 @@ export const initService = {
    * Completely destroy the wallet — delete DB, clear seed, full wipe.
    * Used for "Delete Wallet" in settings.
    */
-  destroyWallet: async (): Promise<void> => {
-    await requireNoFileRestore();
-    const releaseRecoveryLock = recoveryCoordinator.beginLifecycle();
-    invalidateWalletSnapshot();
-    try {
-      await recoveryCoordinator.drainBackground();
-      const { feedbackCoordinator } = await import('~/services/feedback/feedbackCoordinator');
-      feedbackCoordinator.clear();
-      const { notificationService } = await import('~/services/platform/notificationService');
-      await notificationService.clear();
-      const { useSettingsStore, notificationDefaults } = await import('~/state/settingsStore');
-      useSettingsStore.setState({
-        notificationPreferences: { ...notificationDefaults },
-        notificationsEnabled: true,
-        seedBackedUp: false,
-        hideMintConnectionDisclaimer: false,
-      });
-      console.log('[InitService] Destroying wallet...');
-      const { resetMintBackup } =
-        require('./mintBackupService') as typeof import('./mintBackupService');
-      const { useMintBackupStore, mintBackupDefaults } =
-        require('~/state/mintBackupStore') as typeof import('~/state/mintBackupStore');
-      resetMintBackup();
-      useMintBackupStore.setState({ ...mintBackupDefaults, publishing: false });
-
-      // These account-scoped stores must not carry acceptance or messages into
-      // the next wallet in the same process. Clear while storage is still open.
-      const { usePeopleStore } =
-        require('~/state/peopleStore') as typeof import('~/state/peopleStore');
-      const { useNostrInboxStore } =
-        require('~/state/nostrInboxStore') as typeof import('~/state/nostrInboxStore');
-      const { useNostrReceiveSettingsStore } =
-        require('~/state/nostrReceiveSettingsStore') as typeof import('~/state/nostrReceiveSettingsStore');
-      usePeopleStore.setState({ people: {} });
-      useNostrInboxStore.setState({ items: [], activeClaimId: null });
-      useNostrReceiveSettingsStore.setState({ policy: 'ask' });
-      const { useNostrHistoryStore } =
-        require('~/state/nostrHistoryStore') as typeof import('~/state/nostrHistoryStore');
-      useNostrHistoryStore.setState({ walletId: null, restoredAt: null, includeOlder: false });
-      const { useRecoverySessionStore, releaseRecoveryPause } =
-        await import('~/state/recoverySessionStore');
-      useRecoverySessionStore.setState({ session: null });
-      releaseRecoveryPause();
-
-      const { useWalletStore } =
-        require('~/state/walletStore') as typeof import('~/state/walletStore');
-      useWalletStore.setState({
-        isRestoring: false,
-        restoreQueue: [],
-        mintRestoreStatuses: [],
-        restoringMintUrl: null,
-      });
-
-      // 1. Cleanup watchers and manager after account-scoped store writes.
-      await initService.cleanup();
-
-      // 2. Delete the SQLite databases (both main and restore)
-      const { useNostrRelayStore } =
-        require('~/state/nostrRelayStore') as typeof import('~/state/nostrRelayStore');
-      useNostrRelayStore.getState().resetRelays();
-      // Resetting a persisted store above may reopen the shared handle. Close it
-      // before deleting every encrypted/legacy copy, and retain keys on failure.
-      closeDb(true);
-      await destroyEncryptedWalletStorage();
-
-      // 3. Clear the seed from secure storage
-      await seedService.clearWallet();
-      await finishWalletStorageDeletion();
-      console.log('[InitService] Seed cleared');
-
-      console.log('[InitService] Wallet destroyed');
-    } finally {
-      releaseRecoveryLock();
-    }
+  destroyWallet: (options: { preserveSetup?: boolean } = {}): Promise<void> => {
+    if (deletionFlight) return deletionFlight;
+    deletionFlight = (async () => {
+      await requireNoFileRestore();
+      const releaseRecoveryLock = recoveryCoordinator.beginLifecycle();
+      invalidateWalletSnapshot();
+      try {
+        await recoveryCoordinator.drainBackground();
+        const { nfcFlow } =
+          require('~/features/nfc/nfcFlow') as typeof import('~/features/nfc/nfcFlow');
+        await nfcFlow.resetForWalletDeletion();
+        const { nfcReceiveCoordinator } =
+          require('./nfcReceiveCoordinator') as typeof import('./nfcReceiveCoordinator');
+        await nfcReceiveCoordinator.resetForWalletDeletion();
+        const { feedbackCoordinator } =
+          require('~/services/feedback/feedbackCoordinator') as typeof import('~/services/feedback/feedbackCoordinator');
+        feedbackCoordinator.clear();
+        console.log('[InitService] Destroying wallet...');
+        const { resetMintBackup } =
+          require('./mintBackupService') as typeof import('./mintBackupService');
+        resetMintBackup();
+        // Stop all writers before deleting storage. Never cut off an active wallet operation.
+        await initService.cleanup({ strict: true });
+        const { queryClient } =
+          require('~/shared/utils/queryClient') as typeof import('~/shared/utils/queryClient');
+        await queryClient.cancelQueries();
+        const resumeWrites = suspendWalletStorageWrites();
+        try {
+          const { notificationService } =
+            require('~/services/platform/notificationService') as typeof import('~/services/platform/notificationService');
+          await notificationService.clear();
+          closeDb(true);
+          await finishLocalWalletDeletion(options.preserveSetup);
+        } finally {
+          resumeWrites();
+        }
+        console.log('[InitService] Wallet destroyed');
+      } finally {
+        releaseRecoveryLock();
+      }
+    })().finally(() => {
+      deletionFlight = null;
+    });
+    return deletionFlight;
   },
 };

@@ -8,7 +8,6 @@ import { router } from 'expo-router';
 import { YStack, XStack, Text, View, ScrollView } from 'tamagui';
 import { Scan, Nfc, AlertCircle, ClipboardPaste } from '@tamagui/lucide-icons';
 
-import * as Haptics from 'expo-haptics';
 import * as ClipboardAPI from 'expo-clipboard';
 
 interface InputStageProps {
@@ -39,7 +38,6 @@ export function InputStage({
       const text = await ClipboardAPI.getStringAsync();
       if (text) {
         setToken(text);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
     } catch {
       setPasteError(interactionCopy.clipboardReadFailed.title);
@@ -80,7 +78,6 @@ export function InputStage({
   }, [token, isValidToken, isLoading, error, lastAttemptedToken, onContinue, onAutoContinue]);
 
   const handleScanPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onScanPress?.();
   };
 
@@ -181,7 +178,6 @@ export function InputStage({
               bg="$gray2"
               rounded="$4"
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 nfcFlow.openReader();
               }}
               pressStyle={{ bg: '$gray3' }}
@@ -207,6 +203,7 @@ export function InputStage({
       <View position="absolute" px="$4" bottom="$4" left="$0" right="$0">
         {isValidToken ? (
           <AppButton
+            haptic
             variant="default"
             emphasis="primary"
             size="large"

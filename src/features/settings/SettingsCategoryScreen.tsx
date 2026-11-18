@@ -42,6 +42,8 @@ export function SettingsCategoryScreen({ category }: { category: SettingsCategor
       requiresApproval?: boolean;
     }
   > = {
+    'balance-area': { checked: settings.homeExpanded, save: settings.setHomeExpanded },
+    haptics: { checked: settings.hapticsEnabled, save: settings.setHapticsEnabled },
     'bitcoin-symbol': {
       checked: settings.showBitcoinSymbol,
       description: 'Use ₿ instead of the sat label',

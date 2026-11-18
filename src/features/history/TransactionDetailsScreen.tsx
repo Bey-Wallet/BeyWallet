@@ -30,7 +30,6 @@ import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { YStack, XStack, Text, useThemeName } from 'tamagui';
 import { Trash2 } from '@tamagui/lucide-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 
 import { formatPaymentDateTime } from '~/shared/utils/time';
 import { onchainNetwork, onchainNetworkDisplay } from '~/shared/utils/onchain';
@@ -108,7 +107,7 @@ function TransactionDetailsContent() {
 
   const handleDeleteTransaction = async () => {
     if (!entry) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
     try {
       // Delete history entry
       await historyService.deleteHistoryEntries([String(entry.id)]);
@@ -340,7 +339,7 @@ function TransactionDetailsContent() {
     if (!entry || !token || reclaimLock.current || claimLock.current) return;
     reclaimLock.current = true;
     refreshRevision.current++;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     setIsReclaiming(true);
     try {
       const result = await reclaimPayment(token.trim(), metadata);
@@ -587,7 +586,7 @@ function TransactionDetailsContent() {
     if (!entry || !token || claimLock.current || reclaimLock.current) return;
     claimLock.current = true;
     refreshRevision.current++;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     setIsClaiming(true);
     try {
       if (await networkService.isOffline()) return;
@@ -717,6 +716,7 @@ function TransactionDetailsContent() {
             Cancel
           </AppButton>
           <AppButton
+            haptic
             variant="critical"
             emphasis="primary"
             size="medium"
@@ -785,7 +785,6 @@ function TransactionDetailsContent() {
       destructive: true,
       icon: <Trash2 size={20} color="$red10" />,
       onPress: () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         deleteSheetRef.current?.present();
       },
     },

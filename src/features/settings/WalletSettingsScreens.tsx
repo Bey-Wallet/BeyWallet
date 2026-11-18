@@ -93,6 +93,7 @@ export function OptimizeSettingsScreen() {
       )}
       {offline && <SettingsMessage>Go online to optimize your wallet.</SettingsMessage>}
       <AppButton
+        haptic
         icon={Sparkles}
         loading={task.busy}
         loadingText="Optimizing wallet…"
@@ -140,6 +141,7 @@ export function VerifyProofsSettingsScreen() {
         disabled={task.busy}
       />
       <AppButton
+        haptic
         icon={ShieldCheck}
         loading={task.busy}
         loadingText="Verifying proofs…"

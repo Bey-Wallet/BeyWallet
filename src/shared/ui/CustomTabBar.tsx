@@ -7,7 +7,6 @@ import {
   rememberSettingsOrigin,
   settingsTabIsActive,
 } from '~/features/settings/settingsNavigation';
-import * as Haptics from 'expo-haptics';
 import { usePeopleUnreadCounts } from '~/features/people/hooks/usePeopleUnreadCounts';
 import { UnreadBadge } from './UnreadBadge';
 import { appDimensions, appIconSizes, appSpacing } from '~/shared/theme/appearance';
@@ -56,10 +55,6 @@ export function CustomTabBar({
                 navigation.navigate(route.name, { screen: 'index' });
               } else navigation.navigate(route.name);
             }
-
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
-              // Ignore haptic feedback errors
-            });
           };
 
           const activeColor = theme.tabActive.val;

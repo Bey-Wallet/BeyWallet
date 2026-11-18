@@ -4,6 +4,7 @@ const feedbackStartedAt = Date.now();
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
+import { walletStorageGeneration } from '~/storage/sqlite/walletStorageLifecycle';
 import { initService, walletService, mintManager, quotesService } from '~/services/wallet';
 import type { MintInfo } from '~/services/wallet';
 import {
@@ -99,10 +100,12 @@ export const useWalletStore = create<WalletState>()(
       mintRestoreStatuses: [],
 
       initialize: async () => {
+        const generation = walletStorageGeneration();
         set({ isInitializing: true, error: null });
         console.log('[WalletStore] Starting initialization...');
         try {
           const walletExists = await initService.walletExists();
+          if (generation !== walletStorageGeneration()) return;
           if (!walletExists) {
             console.log('[WalletStore] No wallet exists, skipping initialization');
             set({ isInitializing: false });
@@ -110,8 +113,10 @@ export const useWalletStore = create<WalletState>()(
           }
 
           const manager = await initService.init();
+          if (generation !== walletStorageGeneration()) return;
 
           const mintInfos = await mintManager.getMintInfoList();
+          if (generation !== walletStorageGeneration()) return;
           set({
             mints: mintInfos,
             activeMintUrl: selectTrustedMint(mintInfos, get().activeMintUrl),
@@ -119,6 +124,7 @@ export const useWalletStore = create<WalletState>()(
           await get().refreshBalance();
 
           const allMints = await manager.mint.getAllMints();
+          if (generation !== walletStorageGeneration()) return;
 
           set({
             isInitializing: false,
@@ -152,6 +158,7 @@ export const useWalletStore = create<WalletState>()(
           }
           console.log('[WalletStore] Initialization complete');
         } catch (err: any) {
+          if (generation !== walletStorageGeneration()) return;
           console.error('[WalletStore] Initialization failed:');
           set({ error: err.message, isInitializing: false });
         }
@@ -219,6 +226,7 @@ export const useWalletStore = create<WalletState>()(
       },
 
       refreshBalance: async () => {
+        const generation = walletStorageGeneration();
         try {
           set({ isRefreshing: true, error: null });
           if (!initService.isInitialized()) {
@@ -229,12 +237,14 @@ export const useWalletStore = create<WalletState>()(
           const activeUrl = get().activeMintUrl;
           // Single DB call — derive active mint balance from the map
           const balances = await walletService.getBalances();
+          if (generation !== walletStorageGeneration()) return;
           const balance = activeUrl ? (balances[activeUrl] ?? 0) : 0;
 
           set({ balance, balances, refreshCounter: get().refreshCounter + 1, isRefreshing: false });
 
           // Auto-check and redeem pending on-chain quotes in the background
           InteractionManager.runAfterInteractions(() => {
+            if (generation !== walletStorageGeneration()) return;
             get()
               .autoCheckPendingOnchainQuotes()
               .catch((err) => {
@@ -247,6 +257,7 @@ export const useWalletStore = create<WalletState>()(
               });
           });
         } catch (err: any) {
+          if (generation !== walletStorageGeneration()) return;
           console.error('[WalletStore] Error refreshing balance:');
           set({ error: err.message, isRefreshing: false });
         }
@@ -290,9 +301,11 @@ export const useWalletStore = create<WalletState>()(
       },
 
       refreshMintList: async () => {
+        const generation = walletStorageGeneration();
         try {
           set({ isRefreshing: true });
           const mintInfos = await mintManager.getMintInfoList();
+          if (generation !== walletStorageGeneration()) return;
           const activeMintUrl = selectTrustedMint(mintInfos, get().activeMintUrl);
           set({
             mints: mintInfos,
@@ -301,6 +314,7 @@ export const useWalletStore = create<WalletState>()(
             isRefreshing: false,
           });
         } catch (err: any) {
+          if (generation !== walletStorageGeneration()) return;
           console.error('[WalletStore] Failed to refresh mint list:');
           set({ isRefreshing: false });
         }

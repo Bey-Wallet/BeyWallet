@@ -1,5 +1,4 @@
 import { Router } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { useWalletStore } from '~/state/walletStore';
 import { UniversalInputResult } from '~/shared/utils/universalInputResolver';
 
@@ -17,7 +16,6 @@ export function handleUniversalRedirect(
     return false;
   }
 
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   if (options.onBeforeRedirect) {
     options.onBeforeRedirect();
   }

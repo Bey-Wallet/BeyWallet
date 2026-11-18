@@ -11,7 +11,6 @@ import {
   Coins,
   RotateCcw,
 } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -170,7 +169,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
     if (checking.current) return;
     checking.current = true;
     setIsChecking(true);
-    Haptics.selectionAsync();
+
     try {
       const message = await checkHistoryStatus(entry);
       await queryClient.invalidateQueries({ queryKey: ['history'] });
@@ -216,7 +215,6 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
           pressStyle={{ opacity: 0.8 }}
           accessibilityLabel={`${label}, ${signedValue}, ${activity ? walletActivityStatus(activity.state) : statusLabel || paymentType}. Open details`}
           onPress={() => {
-            Haptics.selectionAsync();
             onPress(entry.id, entry.type);
           }}
         >

@@ -9,6 +9,7 @@ import {
   RecoveryPhraseSettingsScreen,
   ExportBackupSettingsScreen,
   RestoreBackupSettingsScreen,
+  DeleteWalletSettingsScreen,
 } from '~/features/settings/BackupScreens';
 
 const mockAuthenticate = jest.fn();
@@ -87,6 +88,29 @@ jest.mock('~/state/onboardingStore', () => ({
 }));
 
 beforeEach(() => jest.clearAllMocks());
+
+it('deletes only after authentication and the explicit delete action, without asking for an app restart', async () => {
+  const alert = jest.spyOn(Alert, 'alert');
+  mockAuthenticate.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<DeleteWalletSettingsScreen />);
+  });
+  const buttons = () => tree.root.findAllByType('AppButton' as any);
+  await act(async () => buttons()[0].props.onPress());
+  expect(mockDestroy).not.toHaveBeenCalled();
+  await act(async () => buttons()[0].props.onPress());
+  expect(mockDestroy).not.toHaveBeenCalled();
+  const remove = buttons().find(
+    (node) => node.props.children === 'I’ve backed up, delete everything',
+  )!;
+  await act(async () => remove.props.onPress());
+  expect(mockDestroy).toHaveBeenCalledTimes(1);
+  expect(alert).not.toHaveBeenCalled();
+  expect(buttons()[0].props.children).toBe('Authenticate to continue');
+  await act(async () => tree.unmount());
+  alert.mockRestore();
+});
 
 it('authenticates phrase access and offers only side-by-side Copy and Hide actions', async () => {
   const phrase = Array.from({ length: 12 }, (_, index) => `fixture${index + 1}`).join(' ');

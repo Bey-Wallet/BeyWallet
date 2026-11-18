@@ -17,7 +17,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { YStack, Text, Paragraph } from 'tamagui';
 
 import { networkService } from '~/services/platform/networkService';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useRouter } from 'expo-router';
@@ -153,7 +153,7 @@ export function OnchainMintFlow() {
   const handleCopy = async () => {
     if (!quoteData) return;
     if (!(await copyWithFeedback(quoteData.request, toast))) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    hapticService.acknowledge();
     setCopied(true);
     toast.showFeedback(interactionCopy.addressCopiedToClipboard);
     setTimeout(() => setCopied(false), 2000);
@@ -241,6 +241,7 @@ export function OnchainMintFlow() {
           }
           footer={
             <AppButton
+              haptic
               size="large"
               fullWidth
               disabled={!activeMintUrl}

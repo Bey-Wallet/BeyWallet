@@ -5,7 +5,6 @@ import { useNavigation } from 'expo-router';
 import { Text, XStack } from 'tamagui';
 import { appDimensions, appSpacing } from '~/shared/theme/appearance';
 import { SlidersHorizontal, Search, X } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
 import { HistoryScreen } from './index';
 
 export function HistoryTabScreen() {
@@ -21,12 +20,12 @@ export function HistoryTabScreen() {
   }, []);
   const toggleFilters = useCallback(() => {
     Keyboard.dismiss();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     setShowFilters((visible) => !visible);
   }, []);
   const toggleSearch = useCallback(() => {
     Keyboard.dismiss();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     setShowSearch((visible) => !visible);
   }, []);
 

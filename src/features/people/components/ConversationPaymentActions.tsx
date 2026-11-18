@@ -15,6 +15,7 @@ export function ConversationPaymentActions({
   return (
     <XStack gap={appSpacing.compact} items="center" justify="center" width="100%" flexWrap="wrap">
       <AppButton
+        haptic
         fullWidth={false}
         variant="default"
         emphasis="secondary"
@@ -28,6 +29,7 @@ export function ConversationPaymentActions({
         Request
       </AppButton>
       <AppButton
+        haptic
         fullWidth={false}
         variant="default"
         emphasis="secondary"

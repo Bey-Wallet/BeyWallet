@@ -1,3 +1,5 @@
+import { hapticService } from '~/services/platform/hapticService';
+import { useConnectedMintSheet } from './hooks/useConnectedMintSheet';
 import React, { useEffect, useRef, useState } from 'react';
 import { RefreshControl } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
@@ -132,6 +134,7 @@ function MintRow({
 
 /** Home and Settings share this management destination; adding is a separate task. */
 export default function MintsScreen() {
+  const { openMint, mintSheet } = useConnectedMintSheet();
   const router = useRouter();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
@@ -163,10 +166,9 @@ export default function MintsScreen() {
       sheet.current?.dismiss();
     }
   }, [busy]);
-  const openMint = (mintUrl: string) =>
-    router.push({ pathname: '/(modals)/mint-details', params: { mintUrl } });
   const toggle = (url: string) => {
     if (busy || !removable.includes(url)) return;
+    hapticService.selection();
     setSelected((current) =>
       current.includes(url) ? current.filter((item) => item !== url) : [...current, url],
     );
@@ -183,6 +185,8 @@ export default function MintsScreen() {
       await queryClient.invalidateQueries({ queryKey: ['mint-removal'] });
       void useWalletStore.getState().syncMintsToNostr();
       const kept = Object.keys(result.blocked).length;
+      if (kept) hapticService.review();
+      else if (result.removed.length) hapticService.completion();
       setMessage(
         kept
           ? `${result.removed.length} removed. ${kept} kept because wallet state changed.`
@@ -257,9 +261,11 @@ export default function MintsScreen() {
                 emphasis="text"
                 size="small"
                 disabled={busy || !removable.length}
-                onPress={() =>
-                  setSelected(selectedUrls.length === removable.length ? [] : removable)
-                }
+                onPress={() => {
+                  if (busy || !removable.length) return;
+                  hapticService.selection();
+                  setSelected(selectedUrls.length === removable.length ? [] : removable);
+                }}
               >
                 {removable.length > 0 && selectedUrls.length === removable.length
                   ? 'Clear selection'
@@ -334,6 +340,7 @@ export default function MintsScreen() {
           {selecting ? `Remove selected (${selectedUrls.length})` : 'Add mint'}
         </AppButton>
       </YStack>
+      {mintSheet}
       <AppBottomSheet ref={sheet} title="Remove selected mints?" canDismiss={!busy}>
         <YStack gap="$4">
           <AppText tone="secondary">
@@ -355,6 +362,7 @@ export default function MintsScreen() {
             </AppText>
           )}
           <AppButton
+            haptic
             variant="critical"
             size="large"
             loading={busy}

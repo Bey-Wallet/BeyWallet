@@ -341,7 +341,6 @@ it('keeps NFC retry and refresh blocked while the session is locked', async () =
   expect(nfcFlow.newPayment).not.toHaveBeenCalled();
   await act(async () => sheet.unmount());
 });
-jest.mock('~/shared/hooks/useResultHaptic', () => ({ useResultHaptic: jest.fn() }));
 
 it.each(['reading', 'sending', 'receiving', 'paying', 'pending'] as const)(
   'shows progress during %s',

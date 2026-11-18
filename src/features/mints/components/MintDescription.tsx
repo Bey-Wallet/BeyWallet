@@ -3,7 +3,7 @@ import { YStack } from 'tamagui';
 import { Text as NativeText, StyleSheet } from 'react-native';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { useBUITheme } from '~/shared/ui/BUI/useBUITheme';
-import { buiTypography } from '~/shared/ui/BUI/typography';
+import { appTypography } from '~/shared/theme/appearance';
 
 /** Measure native text lines so the inline link stays inside the three-line preview. */
 export function MintDescription({ description }: { description: string }) {
@@ -50,7 +50,9 @@ export function MintDescription({ description }: { description: string }) {
       >
         {expanded || preview === null ? description : `${preview}… `}
         {preview !== null && (
-          <NativeText style={styles.link}>{expanded ? ' See less' : 'See more'}</NativeText>
+          <NativeText style={[styles.link, { color: colors.muted }]}>
+            {expanded ? ' See less' : 'See more'}
+          </NativeText>
         )}
       </NativeText>
     </YStack>
@@ -74,11 +76,15 @@ export function MintDescription({ description }: { description: string }) {
 const styles = StyleSheet.create({
   body: {
     fontFamily: 'AlloTextRegular',
-    fontSize: buiTypography.body2.fontSize,
-    lineHeight: buiTypography.body2.lineHeight,
-    letterSpacing: buiTypography.body2.letterSpacing,
+    fontSize: appTypography.body2.fontSize,
+    lineHeight: appTypography.body2.lineHeight,
+    letterSpacing: appTypography.body2.letterSpacing,
     includeFontPadding: false,
   },
-  link: { fontFamily: 'AlloTextMedium' },
+  link: {
+    fontFamily: 'AlloTextRegular',
+    fontSize: appTypography.body3.fontSize,
+    letterSpacing: appTypography.body3.letterSpacing,
+  },
   measurement: { position: 'absolute', left: 0, right: 0, opacity: 0 },
 });

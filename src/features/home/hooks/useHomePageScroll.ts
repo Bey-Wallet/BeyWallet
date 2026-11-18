@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { appSpacing } from '~/shared/theme/appearance';
+import { hapticService } from '~/services/platform/hapticService';
 
 /** Snap expanded Home to its balance and mint sections, without clipping long mint lists. */
 export function useHomePageScroll(enabled: boolean) {
   const measuredOffset = useRef<number | null>(null);
   const [mintOffset, setMintOffset] = useState<number | null>(null);
-  const currentPage = useRef(0);
+  const gesturePage = useRef<{ page: 0 | 1; epoch: number | undefined } | null>(null);
   useEffect(() => {
-    currentPage.current = 0;
+    gesturePage.current = null;
     setMintOffset(enabled ? measuredOffset.current : null);
   }, [enabled]);
 
@@ -17,23 +17,26 @@ export function useHomePageScroll(enabled: boolean) {
     (event: LayoutChangeEvent) => {
       const offset = Math.max(0, event.nativeEvent.layout.y - appSpacing.page);
       measuredOffset.current = offset;
+      gesturePage.current = null;
       if (enabled) setMintOffset(offset);
     },
     [enabled],
   );
 
   const ready = enabled && mintOffset !== null && mintOffset > 0;
-  const onPageSettled = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (!ready || mintOffset === null) return;
-      const y = event.nativeEvent.contentOffset.y;
-      const page = Math.abs(y) <= 6 ? 0 : Math.abs(y - mintOffset) <= 6 ? 1 : null;
-      if (page === null || page === currentPage.current) return;
-      currentPage.current = page;
-      void Haptics.selectionAsync().catch(() => {});
-    },
-    [ready, mintOffset],
-  );
+  const finishSwipe = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!ready || gesturePage.current === null) return;
+    const y = event.nativeEvent.contentOffset.y;
+    // Wait for snapping to finish; the mint list remains freely scrollable below its start.
+    if (Math.abs(y) > 2 && y < mintOffset! - 2) return;
+    const page = y >= mintOffset! - 2 ? 1 : 0;
+    const changed = page !== gesturePage.current.page;
+    const eligible =
+      gesturePage.current.epoch !== undefined &&
+      gesturePage.current.epoch === hapticService.epoch();
+    gesturePage.current = null;
+    if (changed && eligible) hapticService.selection();
+  };
 
   return {
     onMintLayout,
@@ -42,8 +45,20 @@ export function useHomePageScroll(enabled: boolean) {
       snapToEnd: ready ? false : undefined,
       disableIntervalMomentum: ready,
       decelerationRate: ready ? ('fast' as const) : ('normal' as const),
-      onMomentumScrollEnd: onPageSettled,
-      onScrollEndDrag: onPageSettled,
+      onScrollBeginDrag: ready
+        ? (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+            gesturePage.current = {
+              page: event.nativeEvent.contentOffset.y >= mintOffset! / 2 ? 1 : 0,
+              epoch: hapticService.epoch(),
+            };
+          }
+        : undefined,
+      onScrollEndDrag: ready
+        ? (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+            if (event.nativeEvent.velocity?.y === 0) finishSwipe(event);
+          }
+        : undefined,
+      onMomentumScrollEnd: ready ? finishSwipe : undefined,
     },
   };
 }

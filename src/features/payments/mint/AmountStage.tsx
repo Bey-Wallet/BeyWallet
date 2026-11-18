@@ -1,3 +1,4 @@
+import { hapticService } from '~/services/platform/hapticService';
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useRef } from 'react';
@@ -16,7 +17,6 @@ import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 
-import * as Haptics from 'expo-haptics';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { ListTableRow } from '~/shared/ui/ListTable';
@@ -182,7 +182,8 @@ export function AmountStage({
   };
 
   const toggleMode = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    hapticService.selection();
+
     if (inputMode === 'SATS') {
       if (btcData?.price) {
         const sats = Number(amount) || 0;

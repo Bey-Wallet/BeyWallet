@@ -11,7 +11,7 @@ import { Share as RNShare } from 'react-native';
 import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import QRCode from '~/shared/ui/PaymentQRCode';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -102,7 +102,7 @@ export function PaymentStage({
     if (isExpired) return;
     try {
       if (!(await copyWithFeedback(invoice, toast))) return;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      hapticService.acknowledge();
       toast.showFeedback(interactionCopy.invoiceCopied);
     } catch {
       toast.showFeedback(interactionCopy.couldNotCopyInvoicePleaseTryAgain);
@@ -112,8 +112,7 @@ export function PaymentStage({
   const checkPayment = async (silent = false) => {
     if (checkLock.current || isExpired || offline || !listening) return;
     checkLock.current = true;
-    if (!silent) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!silent) setIsChecking(true);
+    if (!silent) if (!silent) setIsChecking(true);
     let detected = paymentObserved;
     try {
       const quote = await quotesService.checkMintQuote(mintUrl, quoteId);
@@ -127,7 +126,6 @@ export function PaymentStage({
       await onPaid();
     } catch {
       if (!silent) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         toast.showFeedback(
           detected
             ? interactionCopy.paymentReceivedIssuanceUnconfirmed

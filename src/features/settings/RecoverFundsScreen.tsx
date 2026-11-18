@@ -280,6 +280,7 @@ export function RecoverFundsScreen() {
         )}
         {review && (
           <AppButton
+            haptic
             icon={ScanSearch}
             disabled={offline || !session.selected.length || busy || running || discovering}
             loading={busy}

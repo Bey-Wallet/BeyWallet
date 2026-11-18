@@ -205,6 +205,7 @@ export default function ProofManagerScreen() {
             trust.
           </SettingsDescription>
           <AppButton
+            haptic
             icon={Share2}
             variant="default"
             emphasis="secondary"
@@ -217,6 +218,7 @@ export default function ProofManagerScreen() {
       )}
       {state === 'spent' && rows.length > 0 && (
         <AppButton
+          haptic
           icon={Trash2}
           variant="critical"
           emphasis="secondary"

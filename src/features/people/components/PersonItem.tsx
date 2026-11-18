@@ -1,7 +1,6 @@
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Text, XStack, YStack, View as TView, Separator } from 'tamagui';
-import * as Haptics from 'expo-haptics';
 import Blockies from '~/shared/ui/Blockies';
 
 export interface PersonItemProps {
@@ -29,7 +28,6 @@ function truncateNpub(npub: string): string {
 export const PersonItem = React.memo<PersonItemProps>(
   ({ npub, username, onPress, position = 'middle' }) => {
     const handlePress = () => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onPress(npub, username);
     };
 

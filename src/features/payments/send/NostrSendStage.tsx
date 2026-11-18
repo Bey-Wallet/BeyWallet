@@ -1,3 +1,4 @@
+import { hapticService } from '~/services/platform/hapticService';
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
@@ -32,7 +33,6 @@ import {
 } from '~/services/wallet/currencyService';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import * as Clipboard from 'expo-clipboard';
-import * as Haptics from 'expo-haptics';
 import { selectSortedPeople, type Person, usePeopleStore } from '~/state/peopleStore';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
@@ -162,7 +162,6 @@ export function NostrSendStage({
 
   const selectProfile = useCallback(
     (profile: NostrProfile) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setRecipientNpub(profile.npub);
       setRecipientUsername(getNostrRecipientLabel(profile));
       setSearch('');
@@ -233,7 +232,6 @@ export function NostrSendStage({
   };
 
   const clearRecipient = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRecipientNpub('');
     setRecipientUsername('');
     setSearch('');
@@ -340,7 +338,8 @@ export function NostrSendStage({
   };
 
   const toggleMode = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    hapticService.selection();
+
     if (inputMode === 'SATS') {
       if (btcData?.price) {
         const fiat = currencyService.convertSatsToCurrency(Number(amount) || 0, btcData.price);
@@ -354,7 +353,6 @@ export function NostrSendStage({
   };
 
   const handleMax = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const maxSats = balance.toString();
     setAmount(maxSats);
     if (inputMode === 'SATS') setLocalInputValue(maxSats);

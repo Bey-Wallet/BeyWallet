@@ -213,6 +213,7 @@ it('shows only a sats balance for None with FIAT saved and restores fiat when se
       .some(
         (node) =>
           node.props.children === 10000 ||
+          node.props.children === '10,000' ||
           (Array.isArray(node.props.children) && node.props.children.includes('10,000')),
       ),
   ).toBe(true);
@@ -311,17 +312,19 @@ it('opens inline editing from a mint selector without reopening it after save', 
   expect(useWalletStore.getState().setMintNickname).toHaveBeenCalledWith(url, 'Picker nickname');
 });
 
-it('keeps the balance, replaces payment actions with QR and Restore, and shows mint information', async () => {
+it('keeps Transfer and Restore actions, moves QR into the menu, and shows mint information', async () => {
   await render();
   const labels = tree.root.findAllByType('Text' as any).map((node) => node.props.children);
-  expect(labels).toEqual(expect.arrayContaining(['QR', 'Restore', 'TRUSTED BY YOU']));
-  for (const label of ['Deposit', 'Withdraw', 'Transfer']) expect(labels).not.toContain(label);
+  expect(labels).toEqual(expect.arrayContaining(['Transfer', 'Restore']));
+  for (const label of ['Deposit', 'Withdraw', 'QR', 'TRUSTED BY YOU'])
+    expect(labels).not.toContain(label);
   expect(labels).not.toEqual(expect.arrayContaining(['Mint Transactions']));
   expect(labels).not.toEqual(expect.arrayContaining(['About Mint']));
   expect(tree.root.findAllByType('MintPreviewHealth' as any)).toHaveLength(0);
   const menu = tree.root.findByType('BUIActionMenu' as any);
   expect(menu.props.items).toEqual(
     expect.arrayContaining([
+      expect.objectContaining({ id: 'qr', title: 'Mint QR code' }),
       expect.objectContaining({ id: 'share', title: 'Share mint' }),
       expect.objectContaining({ id: 'remove', title: 'Remove mint', destructive: true }),
     ]),
@@ -333,7 +336,8 @@ it('keeps the balance, replaces payment actions with QR and Restore, and shows m
     tree.root
       .findAllByType('AppPressable' as any)
       .find((node) => node.props.accessibilityLabel === label)!;
-  expect(quickAction('Show mint QR code')).toBeDefined();
+  expect(quickAction('Show mint QR code')).toBeUndefined();
+  expect(quickAction('Transfer funds')).toBeDefined();
   expect(tree.root.findByType('MintOverview' as any).props).toMatchObject({
     url,
     connection: 'online',
@@ -376,8 +380,8 @@ it('opens Transfer with this mint preselected without changing the global select
   useWalletStore.setState({ balances: { [url]: 4200 } });
   await render();
   const transfer = tree.root
-    .findAllByType('AppButton' as any)
-    .find((node) => node.props.children === 'Transfer funds')!;
+    .findAllByType('AppPressable' as any)
+    .find((node) => node.props.accessibilityLabel === 'Transfer funds')!;
   await act(async () => transfer.props.onPress());
   expect(mockPush).toHaveBeenCalledWith({
     pathname: '/(modals)/swap',

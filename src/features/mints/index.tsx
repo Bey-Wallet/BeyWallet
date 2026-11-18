@@ -8,10 +8,10 @@ import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useMemo } from 'react';
 import { YStack } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
-import { Share2, Plus } from '@tamagui/lucide-icons';
+import { Share2, Plus, QrCode } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useWalletStore } from '~/state/walletStore';
@@ -73,7 +73,7 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
   }, [url]);
   const handleAction = async () => {
     if (connectionLock.current) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     setConnectionError(null);
     if (hideDisclaimer) {
       await handleConfirmConnection(true);
@@ -103,7 +103,6 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
     }
   };
   const handleShare = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await RNShare.share({ message: url });
     } catch (error) {
@@ -129,7 +128,7 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
   const info = fetchedInfo || {};
   const handleCopy = async (text: string, label: string) => {
     if (!(await copyWithFeedback(text, toast))) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    hapticService.acknowledge();
     toast.showFeedback(interactionCopy.copiedToClipboard);
   };
   if (isLoading || (isAlreadyAdded && !isConnecting && !connectionError)) {
@@ -177,15 +176,20 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
       <Stack.Screen
         options={{
           title: name,
+          headerTitleStyle: { fontFamily: 'AlloTextSemiBold', fontSize: 18 },
           gestureEnabled: !isConnecting,
           headerRight: () => (
             <BUIActionMenu
               label="Mint actions"
               headerTrigger
               items={[
+                { id: 'qr', title: 'Mint QR code', icon: <QrCode size={20} color="$color" /> },
                 { id: 'share', title: 'Share mint', icon: <Share2 size={20} color="$color" /> },
               ]}
-              onAction={() => void handleShare()}
+              onAction={(id) => {
+                if (id === 'qr') setShowQr(true);
+                if (id === 'share') void handleShare();
+              }}
             />
           ),
         }}
@@ -204,7 +208,6 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
         onCopyUrl={() => {
           void handleCopy(url, 'URL');
         }}
-        onQr={() => setShowQr(true)}
       />
 
       <YStack p="$4" pb={insets.bottom || '$4'} bg="$background" gap="$3">
@@ -214,6 +217,7 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
           </Text>
         )}
         <AppButton
+          haptic
           variant="default"
           emphasis="primary"
           size="large"

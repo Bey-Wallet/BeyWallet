@@ -50,7 +50,6 @@ jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
 jest.mock('~/shared/ui/PaymentStatusIcon', () => ({ PaymentStatusIcon: 'Status' }));
 jest.mock('~/shared/ui/PaymentStatusRow', () => ({ PaymentStatusRow: 'StatusRow' }));
 jest.mock('~/shared/ui/PaymentReceipt', () => ({ PaymentReceipt: 'Receipt' }));
-jest.mock('~/shared/hooks/useResultHaptic', () => ({ useResultHaptic: jest.fn() }));
 jest.mock('~/features/history/components/ReceiptImageShare', () => ({
   ReceiptImageShare: 'ReceiptShare',
 }));

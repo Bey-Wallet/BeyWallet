@@ -7,7 +7,8 @@ import { initService } from '~/services/wallet';
 import { useWalletStore } from '~/state/walletStore';
 import { useOnboardingStore } from '~/state/onboardingStore';
 import { useSettingsStore } from '~/state/settingsStore';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '~/shared/utils/queryClient';
 import { OnboardingScreen } from '~/features/onboarding';
 import { NostrPaymentReceived } from '~/features/nostr/components/NostrPaymentReceived';
 import { NostrClaimSheet } from '~/features/nostr/components/NostrClaimSheet';
@@ -26,7 +27,6 @@ import {
   WalletDeletionPendingError,
 } from '~/storage/sqlite/encryptedDatabase';
 
-const queryClient = new QueryClient();
 hydrateBitcoinPriceCache(queryClient);
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -98,7 +98,10 @@ export function RootLayout() {
 
   // A wallet can be created while onboarding is open, after the startup check has completed.
   useEffect(() => {
-    if (!isOnboarded) return;
+    if (!isOnboarded) {
+      setManager(null);
+      return;
+    }
     initService.walletExists().then(setWalletExists);
   }, [isOnboarded]);
 

@@ -8,7 +8,6 @@ import { AppPressable } from '~/shared/ui/AppPressable';
 import { appDimensions, appIconSizes, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { Spinner } from '~/shared/ui/Spinner';
 import { currencyService } from '~/services/wallet/currencyService';
-import * as Haptics from 'expo-haptics';
 
 interface MintBalanceRowProps {
   activeMint?: {
@@ -62,7 +61,6 @@ export function MintBalanceRow({
 
   const handlePress = () => {
     if (isSelector && onPress) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
       onPress();
     }
   };
@@ -119,6 +117,7 @@ export function MintBalanceRow({
         </AppPressable>
         {showBalance && showMax && (
           <AppButton
+            haptic
             variant="default"
             emphasis="secondary"
             size="xxsmall"

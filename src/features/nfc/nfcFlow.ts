@@ -173,6 +173,37 @@ export class NfcFlow {
     };
   };
   getSnapshot = () => this.state;
+  /** Drop every old-wallet controller; never interrupt an executing NFC payment. */
+  resetForWalletDeletion = async () => {
+    if (this.busy || this.state.locked)
+      throw new Error('Wait for the NFC payment to finish before deleting the wallet.');
+    this.ready = false;
+    this.queued = undefined;
+    this.requestBroadcast = undefined;
+    this.interruptedLightning = undefined;
+    this.hide();
+    await this.stopSession();
+    await Promise.all(
+      [...new Set([...this.invoices.values(), ...(this.lightning ? [this.lightning] : [])])].map(
+        (payment) => payment.dispose(),
+      ),
+    );
+    this.requests.clear();
+    this.invoices.clear();
+    this.payment = undefined;
+    this.lightning = undefined;
+    this.send = undefined;
+    this.state = {
+      visible: false,
+      status: 'ready',
+      direction: 'receive',
+      message: 'Hold the phones together',
+      locked: false,
+      hasPayment: false,
+      canRetryDelivery: false,
+    };
+    this.update({});
+  };
   private update(change: Partial<NfcPresentation>) {
     const previous = this.state;
     if ('requestStatus' in change && change.requestStatus !== 'paused')

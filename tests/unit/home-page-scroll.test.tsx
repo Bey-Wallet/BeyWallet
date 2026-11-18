@@ -1,16 +1,20 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { useHomePageScroll } from '~/features/home/hooks/useHomePageScroll';
 
-jest.mock('expo-haptics', () => ({ selectionAsync: jest.fn(async () => {}) }));
+jest.mock('~/services/platform/hapticService', () => ({
+  hapticService: { selection: jest.fn(), epoch: jest.fn(() => 1) },
+}));
 function Probe({ enabled }: { enabled: boolean }) {
   return React.createElement('Paging', useHomePageScroll(enabled));
 }
 let tree: ReactTestRenderer;
 const props = () => tree.root.findByType('Paging' as any).props;
-const event = (y: number) => ({ nativeEvent: { contentOffset: { y } } });
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest.mocked(hapticService.epoch).mockReturnValue(1);
+});
 afterEach(async () => {
   await act(async () => tree?.unmount());
 });
@@ -31,28 +35,65 @@ it('keeps normal Home scrolling free and only enables snapping after expansion',
     disableIntervalMomentum: true,
     decelerationRate: 'fast',
   });
-  expect(Haptics.selectionAsync).not.toHaveBeenCalled();
+  expect(hapticService.selection).not.toHaveBeenCalled();
 });
 
-it('gives one haptic per settled page change despite duplicate scroll events', async () => {
+const scroll = (y: number, velocity = 0) => ({
+  nativeEvent: { contentOffset: { y }, velocity: { y: velocity } },
+});
+
+it('ticks once when a user swipe settles on the other section in either direction', async () => {
   await render(true);
-  props().scrollProps.onScrollEndDrag(event(200));
-  expect(Haptics.selectionAsync).not.toHaveBeenCalled();
-  props().scrollProps.onMomentumScrollEnd(event(584));
-  props().scrollProps.onScrollEndDrag(event(584));
-  expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
-  props().scrollProps.onMomentumScrollEnd(event(0));
-  expect(Haptics.selectionAsync).toHaveBeenCalledTimes(2);
+  props().scrollProps.onScrollBeginDrag(scroll(0));
+  props().scrollProps.onScrollEndDrag(scroll(300, 1));
+  expect(hapticService.selection).not.toHaveBeenCalled();
+  props().scrollProps.onMomentumScrollEnd(scroll(584));
+  expect(hapticService.selection).toHaveBeenCalledTimes(1);
+  props().scrollProps.onMomentumScrollEnd(scroll(584));
+  expect(hapticService.selection).toHaveBeenCalledTimes(1);
+  props().scrollProps.onScrollBeginDrag(scroll(584));
+  props().scrollProps.onScrollEndDrag(scroll(0));
+  props().scrollProps.onMomentumScrollEnd(scroll(0));
+  expect(hapticService.selection).toHaveBeenCalledTimes(2);
 });
 
 it('does not vibrate while scrolling a long mint list and disables paging on collapse', async () => {
   await render(true);
-  props().scrollProps.onMomentumScrollEnd(event(900));
-  expect(Haptics.selectionAsync).not.toHaveBeenCalled();
+  props().scrollProps.onScrollBeginDrag(scroll(584));
+  props().scrollProps.onMomentumScrollEnd(scroll(900));
+  props().scrollProps.onScrollBeginDrag(scroll(900));
+  props().scrollProps.onMomentumScrollEnd(scroll(584));
+  props().scrollProps.onMomentumScrollEnd(scroll(0));
+  expect(hapticService.selection).not.toHaveBeenCalled();
   await act(async () => tree.update(<Probe enabled={false} />));
   expect(props().scrollProps.snapToOffsets).toBeUndefined();
-  props().scrollProps.onMomentumScrollEnd(event(584));
-  expect(Haptics.selectionAsync).not.toHaveBeenCalled();
+  expect(props().scrollProps.onScrollBeginDrag).toBeUndefined();
+  expect(hapticService.selection).not.toHaveBeenCalled();
+});
+
+it('keeps snap-back, layout changes and programmatic scrolling quiet', async () => {
+  await render(true);
+  props().scrollProps.onMomentumScrollEnd(scroll(584));
+  props().scrollProps.onScrollBeginDrag(scroll(0));
+  props().scrollProps.onScrollEndDrag(scroll(200));
+  props().scrollProps.onMomentumScrollEnd(scroll(0));
+  props().scrollProps.onScrollBeginDrag(scroll(0));
+  await act(async () => props().onMintLayout({ nativeEvent: { layout: { y: 500 } } }));
+  props().scrollProps.onMomentumScrollEnd(scroll(484));
+  expect(hapticService.selection).not.toHaveBeenCalled();
+});
+
+it('does not replay a swipe after its feedback eligibility changes', async () => {
+  await render(true);
+  props().scrollProps.onScrollBeginDrag(scroll(0));
+  jest.mocked(hapticService.epoch).mockReturnValue(2);
+  props().scrollProps.onMomentumScrollEnd(scroll(584));
+  expect(hapticService.selection).not.toHaveBeenCalled();
+  jest.mocked(hapticService.epoch).mockReturnValue(undefined);
+  props().scrollProps.onScrollBeginDrag(scroll(0));
+  jest.mocked(hapticService.epoch).mockReturnValue(3);
+  props().scrollProps.onMomentumScrollEnd(scroll(584));
+  expect(hapticService.selection).not.toHaveBeenCalled();
 });
 
 it('recalculates snap offsets from the measured mint position', async () => {

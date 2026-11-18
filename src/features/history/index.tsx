@@ -6,7 +6,7 @@ import { Store, Clock, Inbox, RotateCcw, Check, Search, X } from '@tamagui/lucid
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 import { initService, historyService, eventService } from '~/services/wallet';
 import { useWalletStore } from '~/state/walletStore';
 import { usePeopleStore } from '~/state/peopleStore';
@@ -261,7 +261,7 @@ export function HistoryScreen({
     void loadPendingRequests().catch(() => {});
   };
   const setQuickFilter = (quick: QuickFilter) => {
-    Haptics.selectionAsync();
+    hapticService.selection();
     setFilters((current) => ({ ...current, quick: current.quick === quick ? 'all' : quick }));
   };
   const handlePress = useCallback(
@@ -371,7 +371,7 @@ export function HistoryScreen({
                 selected={scope === 'pos'}
                 onPress={() => {
                   Keyboard.dismiss();
-                  Haptics.selectionAsync();
+                  hapticService.selection();
                   setScope((current) => (current === 'wallet' ? 'pos' : 'wallet'));
                 }}
               />

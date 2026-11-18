@@ -13,7 +13,7 @@ import { Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { networkService } from '~/services/platform/networkService';
 import { AtSign, CheckCircle, XCircle, Copy, Trash2, Edit3 } from '@tamagui/lucide-icons';
-import * as Haptics from 'expo-haptics';
+import { hapticService } from '~/services/platform/hapticService';
 
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -199,8 +199,6 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
     const offline = await networkService.checkOfflineAndAlert('claim username');
     if (offline) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
     const hexPub = npubToHex(npub);
     const hexSec = nsecToHex(nsec);
     if (!hexPub || !hexSec) {
@@ -225,7 +223,7 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
         }
 
         await setNip05(identifier);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        hapticService.completion();
         const copy = oldUsernameReleaseError
           ? interactionCopy.usernameNeedsReview
           : result.profilePublished
@@ -243,7 +241,6 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
           }, 1500);
       } else {
         toast.showFeedback(interactionCopy.couldNotRegisterThisUsernamePleaseTry);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } finally {
       setIsRegistering(false);
@@ -265,7 +262,6 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
             const offline = await networkService.checkOfflineAndAlert('delete username');
             if (offline) return;
 
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
             const hexPub = npubToHex(npub);
             const hexSec = nsecToHex(nsec);
             if (!hexPub || !hexSec) {
@@ -280,7 +276,7 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
 
               if (result.ok) {
                 await setNip05(null);
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                hapticService.completion();
                 toast.showFeedback(interactionCopy.usernameDeleted);
               } else {
                 // If the server returned an error (e.g. rate limit, or registry server issue),
@@ -323,7 +319,7 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
   const handleCopyIdentifier = async () => {
     if (!nip05) return;
     if (!(await copyWithFeedback(nip05, toast))) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    hapticService.acknowledge();
     toast.showFeedback(interactionCopy.copiedToClipboard);
   };
 
@@ -391,10 +387,11 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
           >
             Copy address
           </AppButton>
-          <AppButton icon={Edit3} disabled={isDeleting} onPress={handleEditStart}>
+          <AppButton haptic icon={Edit3} disabled={isDeleting} onPress={handleEditStart}>
             Change username
           </AppButton>
           <AppButton
+            haptic
             icon={Trash2}
             variant="critical"
             emphasis="secondary"
@@ -435,6 +432,7 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
             )}
           </YStack>
           <AppButton
+            haptic
             icon={AtSign}
             loading={isRegistering}
             loadingText={isEditing ? 'Updating username…' : 'Claiming username…'}

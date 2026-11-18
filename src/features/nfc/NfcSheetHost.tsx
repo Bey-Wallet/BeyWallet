@@ -23,7 +23,6 @@ import { useWalletStore } from '~/state/walletStore';
 import { nfcService } from '~/services/platform/nfcService';
 import { nfcFlow } from './nfcFlow';
 import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
-import { useResultHaptic } from '~/shared/hooks/useResultHaptic';
 
 const stateIcons = {
   starting: Spinner,
@@ -51,16 +50,6 @@ function NfcWindowOverlay({ children }: React.PropsWithChildren) {
 
 export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
   const state = useNfcPresentation();
-  useResultHaptic(
-    state.visible
-      ? state.status === 'confirmed'
-        ? 'success'
-        : state.status === 'error'
-          ? 'error'
-          : undefined
-      : undefined,
-    state.status === 'confirmed' ? state.eventTime : undefined,
-  );
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const theme = useTheme();
   const authenticated = useAuthStore((store) => store.isAuthenticated);

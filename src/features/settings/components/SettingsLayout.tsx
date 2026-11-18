@@ -1,3 +1,4 @@
+import { hapticService } from '~/services/platform/hapticService';
 import React from 'react';
 import { Linking } from 'react-native';
 import { ScrollView, Text, XStack, YStack } from 'tamagui';
@@ -89,7 +90,16 @@ export function SettingsRow({
   const color = destructive ? '$red10' : external ? '$blue10' : '$color';
   return (
     <AppPressable
-      onPress={onPress}
+      onPress={
+        onPress
+          ? () => {
+              if (disabled) return;
+              if (selected !== undefined && (selectionRole === 'checkbox' || !selected))
+                hapticService.selection();
+              onPress();
+            }
+          : undefined
+      }
       disabled={disabled}
       accessibilityRole={
         selected !== undefined ? selectionRole : external ? 'link' : onPress ? 'button' : 'text'

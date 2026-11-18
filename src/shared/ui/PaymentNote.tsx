@@ -34,7 +34,13 @@ export function PaymentNote({
             disabled={disabled}
             placeholder="Add a note (optional)"
           />
-          <AppButton size="small" emphasis="text" disabled={disabled} onPress={() => onChange('')}>
+          <AppButton
+            haptic
+            size="small"
+            emphasis="text"
+            disabled={disabled}
+            onPress={() => onChange('')}
+          >
             Clear note
           </AppButton>
         </YStack>
