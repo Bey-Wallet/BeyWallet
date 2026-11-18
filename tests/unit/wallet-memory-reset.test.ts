@@ -1,4 +1,8 @@
 import { resetWalletMemory } from '~/services/wallet/walletMemoryReset';
+import {
+  recordDiagnosticFailure,
+  getDiagnosticFailures,
+} from '~/services/feedback/diagnosticFailures';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useWalletStore } from '~/state/walletStore';
 import { useOnboardingStore } from '~/state/onboardingStore';
@@ -99,7 +103,9 @@ it('removes old private identity, balances, scan results and auth while returnin
     currentStep: 'complete',
     generatedMnemonic: 'fixture-setup-material',
   });
+  recordDiagnosticFailure('mint_quote', { code: 20006 });
   resetWalletMemory();
+  expect(getDiagnosticFailures()).toHaveLength(0);
   expect(useSettingsStore.getState()).toMatchObject({
     nsec: null,
     npub: null,

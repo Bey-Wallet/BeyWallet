@@ -1,4 +1,5 @@
 import type { Logger } from 'coco-cashu-core';
+import { recordDiagnosticFailure } from '~/services/feedback/diagnosticFailures';
 
 /** Read only a plain numeric protocol code; never evaluate error getters or messages. */
 export function safeMintErrorCode(value: unknown): number | undefined {
@@ -99,6 +100,7 @@ function traceMeltPreparation(message: string) {
 export const walletLogger: Logger = {
   error: (message: string, metadata?: unknown) => {
     if (message === 'Mint operation error, not retrying') {
+      recordDiagnosticFailure('mint_redeem', metadata);
       console.error('[Coco] Mint rejected issuance; automatic retries stopped.', {
         code: safeMintErrorCode(metadata) ?? 'unavailable',
       });
@@ -117,9 +119,11 @@ export const walletLogger: Logger = {
     )
       return;
     if (message.includes('Failed to fetch mint info')) {
+      recordDiagnosticFailure('mint_connection', metadata);
       console.warn('[Coco] Mint info refresh unavailable.');
       return;
     }
+    recordDiagnosticFailure('wallet_sdk', metadata);
     console.error('[Coco] Wallet operation failed.');
   },
   warn: (message: string) => {

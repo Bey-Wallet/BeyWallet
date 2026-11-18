@@ -1,6 +1,10 @@
 import { useRef, useState } from 'react';
 import { useSettingsBusy } from './useSettingsBusy';
 import { useAppToast } from '~/shared/hooks/useAppToast';
+import {
+  recordDiagnosticFailure,
+  diagnosticFailureGeneration,
+} from '~/services/feedback/diagnosticFailures';
 
 export function useSettingsOperation() {
   const toast = useAppToast();
@@ -18,9 +22,12 @@ export function useSettingsOperation() {
     setBusy(true);
     setMessage(null);
     setError(false);
+    const diagnosticStart = Date.now();
+    const diagnosticGeneration = diagnosticFailureGeneration();
     try {
       setMessage(await operation());
-    } catch {
+    } catch (failure) {
+      recordDiagnosticFailure('settings_action', failure, diagnosticStart, diagnosticGeneration);
       setError(true);
       setMessage(errorMessage);
     } finally {
