@@ -4,10 +4,11 @@ import { MintImage } from '~/shared/ui/RemoteImage';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { Check, ChevronDown, Sprout, Plus, Landmark } from '@tamagui/lucide-icons';
-import { Text, YStack, XStack, View, Square } from 'tamagui';
+import { Text, YStack, View } from 'tamagui';
 
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import React, {
@@ -74,58 +75,49 @@ const MintChoiceRow = React.memo(function MintChoiceRow({
   disabled: boolean;
   onSelect: (url: string) => void;
 }) {
+  const MintIcon = useCallback(
+    ({ size }: { size: number }) =>
+      url === 'all' ? (
+        <Landmark size={size} color="$iconSecondary" />
+      ) : (
+        <MintImage
+          mintUrl={url}
+          src={icon}
+          width={size}
+          height={size}
+          borderRadius={appRadii.small}
+          fallback={<Landmark size={22} color="$iconSecondary" />}
+        />
+      ),
+    [url, icon],
+  );
   return (
     <AppPressable
       accessibilityRole="button"
       accessibilityLabel={`${name}, ${balance}`}
       accessibilityState={{ selected, busy: pending, disabled }}
       disabled={disabled}
-      minHeight={76}
-      px="$4"
-      py="$3"
-      flexDirection="row"
-      items="center"
-      gap="$3"
+      minHeight={48}
       pressStyle={{ bg: '$gray3' }}
       onPress={() => onSelect(url)}
     >
-      {url === 'all' ? (
-        <View
-          width={48}
-          height={48}
-          rounded={appRadii.control}
-          bg="$gray4"
-          items="center"
-          justify="center"
-        >
-          <Landmark size={22} color="$gray10" />
-        </View>
-      ) : (
-        <MintImage
-          mintUrl={url}
-          src={icon}
-          width={48}
-          height={48}
-          borderRadius={appRadii.control}
-          flexShrink={0}
-          fallback={<Landmark size={22} color="$gray10" />}
-        />
-      )}
-      <YStack flex={1} minWidth={0} gap="$1">
-        <Text fontSize="$5" fontWeight="500" color="$color" numberOfLines={1}>
-          {name}
-        </Text>
-        <Text fontSize="$3" color="$gray10" numberOfLines={1}>
-          {balance}
-        </Text>
-      </YStack>
-      <View width={24} height={24} items="center" justify="center" flexShrink={0}>
-        {pending ? (
-          <Spinner size={22} color="$buttonDefaultPrimary" />
-        ) : selected ? (
-          <Check size={22} color="$buttonDefaultPrimary" strokeWidth={3.5} />
-        ) : null}
-      </View>
+      <ListTableRow
+        label={name}
+        labelColor="$color"
+        labelNumberOfLines={1}
+        description={balance}
+        icon={MintIcon}
+        iconSize={40}
+        rightContent={
+          <View width={24} height={24} items="center" justify="center" flexShrink={0}>
+            {pending ? (
+              <Spinner size={22} color="$buttonDefaultPrimary" />
+            ) : selected ? (
+              <Check size={22} color="$buttonDefaultPrimary" strokeWidth={2} />
+            ) : null}
+          </View>
+        }
+      />
     </AppPressable>
   );
 });
@@ -358,20 +350,18 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
       router.push('/(modals)/add-mint');
     }, [router]);
     const checkingMethods = !!method && candidates.length > 0 && capabilities.isPending;
-    const renderItem = useCallback(
-      ({ item }: { item: MintChoice }) => (
-        <MintChoiceRow
-          url={item.url}
-          name={item.name}
-          icon={item.icon}
-          balance={formatBalance(item.balance)}
-          selected={mintUrlKey(completedUrl ?? activeMintUrl ?? '') === mintUrlKey(item.url)}
-          pending={switchingUrl === item.url}
-          disabled={locked}
-          onSelect={handleSelectMint}
-        />
-      ),
-      [formatBalance, completedUrl, activeMintUrl, switchingUrl, locked, handleSelectMint],
+    const renderItem = (item: MintChoice) => (
+      <MintChoiceRow
+        key={item.url}
+        url={item.url}
+        name={item.name}
+        icon={item.icon}
+        balance={formatBalance(item.balance)}
+        selected={mintUrlKey(completedUrl ?? activeMintUrl ?? '') === mintUrlKey(item.url)}
+        pending={switchingUrl === item.url}
+        disabled={locked}
+        onSelect={handleSelectMint}
+      />
     );
 
     return (
@@ -381,41 +371,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
         canDismiss={switchingUrl === null}
         onOpenChange={handleOpenChange}
       >
-        <BottomSheetFlatList
-          ListHeaderComponent={
-            <>
-              <BUIHeader
-                title="Choose mint"
-                divider
-                navigation="close"
-                navigationLabel="Close mint selector"
-                navigationDisabled={locked}
-                onNavigate={handleClose}
-                actions={
-                  <HeaderIconButton
-                    accessibilityLabel="Add mint"
-                    disabled={locked}
-                    icon={Plus}
-                    onPress={handleAddMint}
-                  />
-                }
-              />
-              {selectionError && (
-                <Text accessibilityRole="alert" color="$red11" fontSize="$3" px="$4" pb="$2">
-                  {selectionError}
-                </Text>
-              )}
-              <YStack height={appSpacing.gap} />
-            </>
-          }
-          style={{ flex: 1 }}
-          data={choices}
-          keyExtractor={(item: MintChoice) => item.url}
-          renderItem={renderItem}
-          extraData={`${switchingUrl}:${completedUrl}:${activeMintUrl}:${hideBalance}`}
-          initialNumToRender={8}
-          maxToRenderPerBatch={8}
-          windowSize={5}
+        <BottomSheetScrollView
           showsVerticalScrollIndicator={false}
           bounces={false}
           keyboardShouldPersistTaps="handled"
@@ -425,31 +381,59 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
             paddingRight: insets.right,
             paddingBottom: insets.bottom + appSpacing.page,
           }}
-          ListEmptyComponent={
-            <YStack px="$5" py="$6" gap="$3" items="center">
-              {checkingMethods ? <Spinner size={22} /> : <Sprout size={32} color="$gray10" />}
-              <Text textAlign="center" color="$gray10">
-                {checkingMethods
-                  ? 'Checking available mints…'
-                  : capabilities.isError && method
-                    ? 'Could not check available mints.'
-                    : storedMints.length
-                      ? 'No mints match this selection.'
-                      : 'No connected mints yet.'}
+        >
+          <>
+            <BUIHeader
+              title="Choose mint"
+              divider
+              navigation="close"
+              navigationLabel="Close mint selector"
+              navigationDisabled={locked}
+              onNavigate={handleClose}
+              actions={
+                <HeaderIconButton
+                  accessibilityLabel="Add mint"
+                  disabled={locked}
+                  icon={Plus}
+                  onPress={handleAddMint}
+                />
+              }
+            />
+            {selectionError && (
+              <Text accessibilityRole="alert" color="$red11" fontSize="$3" px="$4" pb="$2">
+                {selectionError}
               </Text>
-              {method && capabilities.isError && (
-                <AppButton
-                  variant="default"
-                  emphasis="secondary"
-                  size="small"
-                  onPress={() => void capabilities.refetch()}
-                >
-                  Try again
-                </AppButton>
-              )}
-            </YStack>
-          }
-        />
+            )}
+          </>
+          <YStack px={appSpacing.page} pt={appSpacing.gap}>
+            {choices.length ? (
+              <ListTable>{choices.map(renderItem)}</ListTable>
+            ) : (
+              <YStack px="$5" py="$6" gap="$3" items="center">
+                {checkingMethods ? <Spinner size={22} /> : <Sprout size={32} color="$gray10" />}
+                <Text textAlign="center" color="$gray10">
+                  {checkingMethods
+                    ? 'Checking available mints…'
+                    : capabilities.isError && method
+                      ? 'Could not check available mints.'
+                      : storedMints.length
+                        ? 'No mints match this selection.'
+                        : 'No connected mints yet.'}
+                </Text>
+                {method && capabilities.isError && (
+                  <AppButton
+                    variant="default"
+                    emphasis="secondary"
+                    size="small"
+                    onPress={() => void capabilities.refetch()}
+                  >
+                    Try again
+                  </AppButton>
+                )}
+              </YStack>
+            )}
+          </YStack>
+        </BottomSheetScrollView>
       </AppBottomSheet>
     );
   },

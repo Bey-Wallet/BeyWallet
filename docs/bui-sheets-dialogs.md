@@ -56,8 +56,8 @@ For actions that must stay visible while content scrolls, pass `footer` to
 `AppBottomSheet`. The host uses Gorhom's measured footer, reserves its height in
 the scroll content and applies bottom and side safe-area padding. Onboarding mint
 discovery uses this for its Add button.
-The mint selector keeps a virtualized Gorhom list with its header inside the measured
-list content. Active transaction layouts keep their own scrolling and footer.
+The mint selector uses a measured Gorhom scroll view with its header followed by a
+single ListTable group. Active transaction layouts keep their own scrolling and footer.
 
 This does not recreate the native reference container: its View sheet has16-point
 top corners and different parent-scale/entry/predictive-back behavior; its Material

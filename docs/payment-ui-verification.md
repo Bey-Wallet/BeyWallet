@@ -72,8 +72,9 @@ Device checks for this change:
   Dismiss each explanation, restart, and verify it stays dismissed without hiding
   required security warnings or changing authentication, mint trust, or payment checks.
 
-- The mint selector uses flat, virtualized rows with icon, name, primary-currency
-  balance and a bold branded check. Opening it uses the saved mint list and does
+- The mint selector uses a rounded ListTable group with full-width separators,
+  40-point mint icons, single-line names above primary-currency balances, and selection
+  checks on the right. Opening it uses the saved mint list and does
   not trigger a full refresh. Payment-method filtering reads SDK metadata locally;
   trust and allowed-URL restrictions still apply offline. Saved exchange rates are
   available immediately; without a rate, nonzero amounts retain an explicit sat unit.
