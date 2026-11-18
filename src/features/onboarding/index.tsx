@@ -47,14 +47,8 @@ function chooseUsernameFailureAction(message: string): Promise<'retry' | 'contin
 }
 
 export function OnboardingScreen() {
-  const {
-    currentStep,
-    setStep,
-    setGeneratedMnemonic,
-    generatedMnemonic,
-    completeOnboarding,
-    resetOnboarding,
-  } = useOnboardingStore();
+  const { currentStep, setStep, setGeneratedMnemonic, generatedMnemonic, completeOnboarding } =
+    useOnboardingStore();
   const initialize = useWalletStore((state) => state.initialize);
 
   const [isImporting, setIsImporting] = useState(false);
@@ -156,7 +150,6 @@ export function OnboardingScreen() {
     try {
       console.log('[Onboarding] Deleting existing wallet to start over...');
       await initService.destroyWallet();
-      await resetOnboarding();
       setHasSavedWallet(false);
       setStep('welcome');
       toast.showFeedback(interactionCopy.walletDeleted);

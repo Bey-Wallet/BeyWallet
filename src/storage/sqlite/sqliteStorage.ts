@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import type { StateStorage } from 'zustand/middleware';
+import { invalidateWalletStorageGeneration } from './walletStorageLifecycle';
 import {
   openEncryptedDatabase,
   prepareRecoveryDatabaseEncryption,
@@ -15,6 +16,20 @@ type SynchronousStateStorage = Omit<StateStorage, 'getItem' | 'setItem' | 'remov
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 // Only wallet-storage is cached: progress updates repeatedly serialize the same snapshot.
 let lastWalletSnapshot: string | undefined;
+let suspendedWrites = 0;
+/** Reset persisted stores in memory without recreating the database being deleted. */
+export function suspendWalletStorageWrites(): () => void {
+  suspendedWrites++;
+  invalidateWalletStorageGeneration();
+  invalidateWalletSnapshot();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    suspendedWrites--;
+    invalidateWalletStorageGeneration();
+  };
+}
 export function invalidateWalletSnapshot(): void {
   lastWalletSnapshot = undefined;
 }
@@ -89,6 +104,7 @@ export const sqliteStorage: SynchronousStateStorage = {
     }
   },
   setItem: (name: string, value: string): void => {
+    if (suspendedWrites) return;
     try {
       const db = getDb();
       if (name === 'wallet-storage' && lastWalletSnapshot === value) return;
@@ -104,6 +120,7 @@ export const sqliteStorage: SynchronousStateStorage = {
     }
   },
   removeItem: (name: string): void => {
+    if (suspendedWrites) return;
     if (name === 'wallet-storage') invalidateWalletSnapshot();
     try {
       const db = getDb();

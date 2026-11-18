@@ -244,6 +244,20 @@ const isStringSafeForNFC = function (str: string): boolean {
 };
 
 export const nfcService = {
+  /** Explicit wallet deletion only: erase saved payloads, without publishing payment success. */
+  clearWalletData: async () => {
+    if (Platform.OS !== 'android' || !NativeModules.Hce) return;
+    const native = NativeModules.Hce;
+    await native.setEnabled(false);
+    await native.setContent({ type: 'text', content: '', writable: false });
+    // This native commit also waits for the preceding asynchronous content write.
+    await native.setRequestSession?.('');
+    const pending = await native.getPendingPayment?.();
+    if (pending && !(await native.acknowledgePayment(pending.id)))
+      throw new Error('Saved NFC data could not be deleted. Retry deleting the wallet.');
+    if (await native.getPendingPayment?.())
+      throw new Error('Saved NFC data could not be deleted. Retry deleting the wallet.');
+  },
   pauseRequestSession: async () => {
     if (Platform.OS === 'android') await NativeModules.Hce.setEnabled(false);
   },

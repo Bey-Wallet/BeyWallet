@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Alert, DevSettings } from 'react-native';
+import { Alert } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
 import { Copy, EyeOff, FileDown, FileUp, Trash2 } from '@tamagui/lucide-icons';
 import { seedService } from '~/services/platform/seedService';
@@ -7,7 +7,6 @@ import { biometricService } from '~/services/platform/biometricService';
 import { walletFileService } from '~/services/platform/walletFileService';
 import { initService } from '~/services/wallet';
 import { useSettingsStore } from '~/state/settingsStore';
-import { useOnboardingStore } from '~/state/onboardingStore';
 import { AppButton } from '~/shared/ui/AppButton';
 import { SettingsDescription, SettingsMessage, SettingsPage } from './components/SettingsLayout';
 import { useProtectedValue } from './hooks/useProtectedValue';
@@ -210,8 +209,8 @@ export function DeleteWalletSettingsScreen() {
   return (
     <SettingsPage>
       <SettingsMessage error>
-        This permanently deletes all wallet data on this device, including proofs, mints, and
-        history. Back up your recovery phrase and wallet data before proceeding.
+        This permanently deletes the recovery phrase, ecash, pending payments, mints, history and
+        settings on this device. Save a backup first. Files saved outside Bey are kept.
       </SettingsMessage>
       {secret.value ? (
         <>
@@ -255,12 +254,9 @@ export function DeleteWalletSettingsScreen() {
             onPress={() =>
               void task.run(async () => {
                 await initService.destroyWallet();
-                await useOnboardingStore.getState().resetOnboarding();
                 secret.hide();
-                if (__DEV__ && DevSettings?.reload) DevSettings.reload();
-                else Alert.alert('Wallet deleted', 'Please restart the app to complete the reset.');
-                return 'Wallet deleted. Restart the app to complete the reset.';
-              })
+                return 'Wallet deleted.';
+              }, 'Wallet deletion did not finish. Retry deleting the wallet, or restart Bey to finish the reset.')
             }
           >
             I’ve backed up, delete everything

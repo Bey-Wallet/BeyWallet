@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { initService } from '~/services/wallet';
 import { seedService } from '~/services/platform/seedService';
+import { walletStorageGeneration } from '~/storage/sqlite/walletStorageLifecycle';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 export const notificationDefaults = {
@@ -73,10 +74,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   initialize: async (force = false) => {
     if (get().initialized && !force) return;
+    const generation = walletStorageGeneration();
 
     try {
       // Fast path: if no wallet exists, bail immediately with defaults
       const exists = await initService.walletExists();
+      if (generation !== walletStorageGeneration()) return;
       if (!exists) {
         // Onboarding can create a wallet later in this same process. Defaults are
         // not hydrated wallet settings and must not prevent that later load.
@@ -87,6 +90,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
       // Load all settings in parallel for speed
       const savedPreferences = await repo.settingsRepository.getSetting('notificationPreferences');
+      if (generation !== walletStorageGeneration()) return;
       try {
         const parsed = savedPreferences ? JSON.parse(savedPreferences) : {};
         set({
@@ -135,6 +139,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         repo.settingsRepository.getSetting('hideMintConnectionDisclaimer'),
         repo.settingsRepository.getSetting('hapticsEnabled'),
       ]);
+      if (generation !== walletStorageGeneration()) return;
 
       if (storedTheme) set({ theme: storedTheme as ThemePreference });
       set({ hapticsEnabled: storedHaptics == null || storedHaptics === 'true' });
@@ -178,10 +183,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         set({ npub: storedNpub || null, nsec: storedNsec || null });
         try {
           const mnemonic = await seedService.getMnemonic();
+          if (generation !== walletStorageGeneration()) return;
           if (mnemonic) {
             const keys = await seedService.getNostrKeys(mnemonic);
+            if (generation !== walletStorageGeneration()) return;
             await repo.settingsRepository.setSetting('npub', keys.npub);
+            if (generation !== walletStorageGeneration()) return;
             await repo.settingsRepository.setSetting('nsec', keys.nsec);
+            if (generation !== walletStorageGeneration()) return;
             set({ npub: keys.npub, nsec: keys.nsec });
           } else {
             throw new Error('Wallet identity unavailable');
@@ -193,6 +202,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         }
       }
 
+      if (generation !== walletStorageGeneration()) return;
       set({ initialized: true });
       return;
     } catch {

@@ -98,6 +98,27 @@ let deliver: jest.Mock;
 let refresh: jest.Mock;
 let events: Record<string, () => void>;
 let diagnostics: jest.SpyInstance;
+it('drops old wallet payment caches and queued sessions without reopening NFC', async () => {
+  const dispose = jest.fn(async () => {});
+  (flow as any).invoices.set('old-invoice', { dispose });
+  (flow as any).requests.set('old-request', { encoded: 'fixture-old-token' });
+  (flow as any).send = { token: 'fixture-old-token' };
+  await flow.resetForWalletDeletion();
+  expect(dispose).toHaveBeenCalledTimes(1);
+  expect((flow as any).invoices.size).toBe(0);
+  expect((flow as any).requests.size).toBe(0);
+  expect((flow as any).send).toBeUndefined();
+  expect(flow.getSnapshot()).toMatchObject({ visible: false, status: 'ready', hasPayment: false });
+  flow.setReady(true);
+  await flush();
+  expect(nfcService.openPaymentSession).not.toHaveBeenCalled();
+});
+
+it('refuses wallet deletion while NFC payment processing is locked', async () => {
+  (flow as any).state.locked = true;
+  await expect(flow.resetForWalletDeletion()).rejects.toThrow('Wait for the NFC payment');
+  expect(nfcService.openPaymentSession).not.toHaveBeenCalled();
+});
 it('keeps reader and send sessions closed while a saved request payment is processing', () => {
   const snapshot = jest
     .spyOn(nfcReceiveCoordinator, 'getSnapshot')

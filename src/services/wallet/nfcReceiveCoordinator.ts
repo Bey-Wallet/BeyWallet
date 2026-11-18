@@ -105,6 +105,14 @@ export class NfcReceiveCoordinator {
     };
   };
   getSnapshot = () => this.state;
+  async resetForWalletDeletion() {
+    this.ready = false;
+    this.again = false;
+    this.forceAgain = false;
+    await this.running;
+    this.attempted.clear();
+    this.update({ status: 'idle' });
+  }
   private update(state: ReceiveState) {
     this.state = state;
     this.listeners.forEach((listener) => listener());
