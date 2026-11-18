@@ -1,19 +1,14 @@
-import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
-import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState } from 'react';
-import { YStack, XStack, Text, View, ScrollView, Separator } from 'tamagui';
-import {
-  Lock,
-  Key,
-  AlertTriangle,
-  FileText,
-  ChevronRight,
-  Check,
-  Landmark,
-  Sprout,
-} from '@tamagui/lucide-icons';
+import { ScrollView, XStack, YStack } from 'tamagui';
+import { ExternalLink, FileText, Key, Landmark, Lock, Sprout } from '@tamagui/lucide-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
+import { BUISelectionRow } from '~/shared/ui/BUI/BUISelectionControl';
+import { AppButton } from '~/shared/ui/AppButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
+import { AppText } from '~/shared/ui/AppText';
 import { useAppToast } from '~/shared/hooks/useAppToast';
+import { appBorders, appSpacing } from '~/shared/theme/appearance';
 
 interface ConsentStepProps {
   onComplete: () => void;
@@ -21,224 +16,126 @@ interface ConsentStepProps {
   isBusy?: boolean;
 }
 
+const risks = [
+  {
+    icon: Lock,
+    title: 'You hold the ecash',
+    description:
+      'Your wallet stores ecash tokens and keys on this device. Bey does not hold the backing Bitcoin.',
+  },
+  {
+    icon: Landmark,
+    title: 'Your mint holds the Bitcoin',
+    description:
+      'You rely on your mint to redeem ecash. If it shuts down or refuses redemption, you could lose your funds.',
+  },
+  {
+    icon: Key,
+    title: 'Backups have limits',
+    description:
+      'Keep your 12 words and a current backup file private. Seed recovery depends on mint support and availability and may not restore every token. Backups cannot recover funds from a failed mint.',
+  },
+  {
+    icon: Sprout,
+    title: 'Keep small balances',
+    description: 'Cashu is experimental. Avoid storing large balances in ecash.',
+  },
+];
+
 export function ConsentStep({ onComplete, onBack, isBusy = false }: ConsentStepProps) {
   const toast = useAppToast();
   const insets = useSafeAreaInsets();
   const [checked, setChecked] = useState(false);
-
-  const handleContinue = () => {
-    if (!checked || isBusy) return;
-
-    onComplete();
-  };
 
   const handleOpenTerms = () => {
     void toast.openExternal('http://bey.cash/privacy-policy');
   };
 
   return (
-    <YStack flex={1} bg="$background" style={{ paddingBottom: insets.bottom }}>
+    <YStack flex={1} bg="$background" pb={insets.bottom}>
       <BUIHeader
-        title="Risk Acknowledgment"
+        title="Risk acknowledgment"
         navigation="back"
         topInset={insets.top}
         navigationDisabled={isBusy}
         onNavigate={() => {
-          if (isBusy) return;
-
-          onBack();
+          if (!isBusy) onBack();
         }}
       />
-
       <ScrollView
         flex={1}
-        px="$4"
+        minHeight={0}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end', paddingBottom: 20 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'flex-end',
+          padding: appSpacing.page,
+          paddingBottom: appSpacing.small,
+        }}
       >
-        <YStack gap="$6" flexShrink={0}>
-          {/* Single unified list card container */}
-          <YStack
-            bg="$gray2"
-            rounded="$6"
-            overflow="hidden"
-            borderWidth={0}
-            separator={<Separator borderColor="$borderColor" opacity={0.4} />}
+        <YStack bg="$gray2" rounded="$6" overflow="hidden" flexShrink={0}>
+          {risks.map(({ icon: Icon, title, description }, index) => (
+            <React.Fragment key={title}>
+              {index > 0 && <YStack height={appBorders.separator} bg="$background" />}
+              <XStack p={appSpacing.page} gap={appSpacing.gap} minHeight={48} items="flex-start">
+                <XStack width={22} flexShrink={0} items="center" justify="center">
+                  <Icon size={22} color="$iconSecondary" />
+                </XStack>
+                <YStack flex={1} minWidth={0} gap="$1">
+                  <AppText variant="label1">{title}</AppText>
+                  <AppText variant="body2" tone="secondary">
+                    {description}
+                  </AppText>
+                </YStack>
+              </XStack>
+            </React.Fragment>
+          ))}
+          <YStack height={appBorders.separator} bg="$background" />
+          <AppPressable
+            accessibilityRole="link"
+            accessibilityLabel="Read Terms and Privacy"
+            disabled={isBusy}
+            minHeight={48}
+            p={appSpacing.page}
+            flexDirection="row"
+            items="center"
+            gap={appSpacing.gap}
+            pressStyle={{ bg: '$gray3' }}
+            onPress={handleOpenTerms}
           >
-            {/* Row 1: Only you control your funds */}
-            <XStack gap="$3" p="$3" items="center">
-              <View width={42} height={42} rounded="$3" bg="$blue3" items="center" justify="center">
-                <Lock size={20} color="$blue10" />
-              </View>
-              <YStack flex={1} gap="$1">
-                <Text fontWeight="800" fontSize="$4" color="$color">
-                  Only you control your funds
-                </Text>
-                <Text fontSize="$2" color="$gray10" lineHeight={14}>
-                  Bey Wallet can't hold, freeze, or touch it.
-                </Text>
-              </YStack>
-            </XStack>
-
-            {/* Row 2: Your recovery phrase is the key */}
-            <XStack gap="$3" p="$3" items="center">
-              <View
-                width={42}
-                height={42}
-                rounded="$3"
-                bg="$purple3"
-                items="center"
-                justify="center"
-              >
-                <Key size={20} color="$purple10" />
-              </View>
-              <YStack flex={1} gap="$1">
-                <Text fontWeight="800" fontSize="$4" color="$color">
-                  Your recovery phrase is the key
-                </Text>
-                <Text fontSize="$2" color="$gray10" lineHeight={14}>
-                  12 words secure your wallet.
-                </Text>
-              </YStack>
-            </XStack>
-
-            {/* Row 3: Lose the phrase, lose access */}
-            <XStack gap="$3" p="$3" items="center">
-              <View width={42} height={42} rounded="$3" bg="$red3" items="center" justify="center">
-                <AlertTriangle size={20} color="$red10" />
-              </View>
-              <YStack flex={1} gap="$1">
-                <Text fontWeight="800" fontSize="$4" color="$color">
-                  Lose the phrase, lose access
-                </Text>
-                <Text fontSize="$2" color="$gray10" lineHeight={14}>
-                  No one can recover your wallet for you.
-                </Text>
-              </YStack>
-            </XStack>
-
-            {/* Row 4: Mints hold the backing Bitcoin */}
-            <XStack gap="$3" p="$3" items="center">
-              <View
-                width={42}
-                height={42}
-                rounded="$3"
-                bg="$orange3"
-                items="center"
-                justify="center"
-              >
-                <Landmark size={20} color="$orange10" />
-              </View>
-              <YStack flex={1} gap="$1">
-                <Text fontWeight="800" fontSize="$4" color="$color">
-                  Mints hold the backing Bitcoin
-                </Text>
-                <Text fontSize="$2" color="$gray10" lineHeight={14}>
-                  If a mint shuts down, its tokens are lost.
-                </Text>
-              </YStack>
-            </XStack>
-
-            {/* Row 5: Experimental protocol */}
-            <XStack gap="$3" p="$3" items="center">
-              <View
-                width={42}
-                height={42}
-                rounded="$3"
-                bg="$green3"
-                items="center"
-                justify="center"
-              >
-                <Sprout size={20} color="$green10" />
-              </View>
-              <YStack flex={1} gap="$1">
-                <Text fontWeight="800" fontSize="$4" color="$color">
-                  Experimental protocol
-                </Text>
-                <Text fontSize="$2" color="$gray10" lineHeight={14}>
-                  Avoid storing large balances in ecash.
-                </Text>
-              </YStack>
-            </XStack>
-
-            {/* Row 6: Read full Terms & Privacy */}
-            <XStack
-              gap="$3"
-              p="$3"
-              items="center"
-              pressStyle={{ bg: '$gray3' }}
-              onPress={handleOpenTerms}
-            >
-              <View width={42} height={42} rounded="$3" bg="$gray4" items="center" justify="center">
-                <FileText size={20} color="$gray10" />
-              </View>
-              <Text flex={1} fontWeight="800" fontSize="$4" color="$color">
-                Read full Terms & Privacy
-              </Text>
-              <ChevronRight size={18} color="$gray10" />
-            </XStack>
-          </YStack>
+            <FileText size={22} color="$iconSecondary" />
+            <AppText variant="label1" flex={1}>
+              Terms & Privacy
+            </AppText>
+            <ExternalLink size={18} color="$gray10" />
+          </AppPressable>
         </YStack>
       </ScrollView>
-
-      {/* Footer with Checkbox & CTA */}
-      <YStack gap="$4" py="$3" px="$4" bg="$background">
-        {/* Checkbox row */}
-        <XStack
-          gap="$3"
-          p="$3.5"
-          items="flex-start"
-          minHeight={48}
-          accessibilityRole="checkbox"
-          accessibilityLabel="I understand the risks and agree to the Terms"
-          accessibilityState={{ checked, disabled: isBusy }}
+      <YStack
+        flexShrink={0}
+        gap={appSpacing.small}
+        px={appSpacing.page}
+        py={appSpacing.gap}
+        bg="$background"
+      >
+        <BUISelectionRow
+          compact
+          kind="checkbox"
+          label="I accept the risks and Terms."
+          checked={checked}
           disabled={isBusy}
-          onPress={() => {
-            if (isBusy) return;
-
-            setChecked(!checked);
-          }}
-        >
-          <View
-            width={22}
-            height={22}
-            rounded="$2"
-            borderWidth={2}
-            borderColor={checked ? '$accent9' : '$gray8'}
-            bg={checked ? '$accent9' : 'transparent'}
-            items="center"
-            justify="center"
-            mt="$0.5"
-          >
-            {checked && <Check size={14} color="$onAccent" strokeWidth={4} />}
-          </View>
-          <Text fontSize="$3" color={checked ? '$accent5' : '$gray10'} flex={1} lineHeight={16}>
-            I understand I'm solely responsible for my recovery phrase, and I agree to the{' '}
-            <Text
-              color="$accent9"
-              fontWeight="700"
-              style={{ textDecorationLine: 'underline' }}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleOpenTerms();
-              }}
-            >
-              Terms
-            </Text>
-            .
-          </Text>
-        </XStack>
-
+          onCheckedChange={setChecked}
+        />
         <AppButton
           haptic
-          variant="default"
-          emphasis="primary"
           size="large"
-          width="100%"
-          onPress={handleContinue}
+          fullWidth
           disabled={!checked || isBusy}
           loading={isBusy}
-          loadingText="Importing wallet…"
+          loadingText="Continuing…"
+          onPress={() => {
+            if (checked && !isBusy) onComplete();
+          }}
         >
           Agree & Continue
         </AppButton>

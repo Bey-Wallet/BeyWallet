@@ -441,7 +441,13 @@ export function OnboardingScreen() {
         );
 
       case 'consent':
-        return <ConsentStep onComplete={handleConsentComplete} onBack={() => setStep('welcome')} />;
+        return (
+          <ConsentStep
+            isBusy={busy}
+            onComplete={handleConsentComplete}
+            onBack={() => setStep('welcome')}
+          />
+        );
 
       case 'permissions':
         return (
