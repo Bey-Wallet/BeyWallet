@@ -16,6 +16,7 @@ import { NfcSheetHost } from '~/features/nfc/NfcSheetHost';
 import { useAutomaticMintBackup } from '~/shared/hooks/useAutomaticMintBackup';
 import { hydrateBitcoinPriceCache } from '~/shared/utils/bitcoinPriceQueryCache';
 import { AppButton } from '~/shared/ui/AppButton';
+import { Spinner } from '~/shared/ui/Spinner';
 import { Text, YStack } from 'tamagui';
 import { useFileRestoreStore } from '~/state/fileRestoreStore';
 import { fileRestoreService } from '~/services/wallet/fileRestoreService';
@@ -102,8 +103,23 @@ export function RootLayout() {
       setManager(null);
       return;
     }
-    initService.walletExists().then(setWalletExists);
-  }, [isOnboarded]);
+    let active = true;
+    void (async () => {
+      try {
+        const exists = await initService.walletExists();
+        if (!active) return;
+        setWalletExists(exists);
+        if (!exists) {
+          setStorageError('Your saved wallet could not be found. Retry opening it.');
+        }
+      } catch {
+        if (active) setStorageError('Your wallet could not be checked. Retry opening it.');
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [isOnboarded, startupAttempt]);
 
   // Initialize wallet only if onboarded and wallet exists
   useEffect(() => {
@@ -196,8 +212,8 @@ export function RootLayout() {
     return null;
   }
 
-  // Show onboarding if not completed or no wallet exists
-  if (!isOnboarded || !walletExists) {
+  // Completion owns the handoff even while wallet existence is being refreshed.
+  if (!isOnboarded) {
     return (
       <Providers cocoManager={null}>
         <OnboardingScreen />
@@ -223,7 +239,14 @@ export function RootLayout() {
             Retry opening wallet
           </AppButton>
         </YStack>
-      ) : null}
+      ) : (
+        <YStack flex={1} bg="$background" justify="center" items="center" gap="$3">
+          <Spinner />
+          <Text color="$gray10" accessibilityLiveRegion="polite">
+            Opening wallet…
+          </Text>
+        </YStack>
+      )}
     </Providers>
   );
 }

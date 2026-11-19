@@ -14,7 +14,7 @@ import { WalletCreationTask } from '~/features/onboarding/WalletCreationTask';
 import { networkService } from '~/services/platform/networkService';
 import { ImportSeedStep } from '~/features/onboarding/ImportSeedStep';
 import { ConsentStep } from '~/features/onboarding/ConsentStep';
-import { PermissionsStep } from '~/features/onboarding/PermissionsStep';
+import { PermissionsStep, type SetupProgressStep } from '~/features/onboarding/PermissionsStep';
 import { useOnboardingStore } from '~/state/onboardingStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { seedService } from '~/services/platform/seedService';
@@ -62,6 +62,16 @@ export function OnboardingScreen() {
   const [isImportingFlow, setIsImportingFlow] = useState(false);
   const [tempBackupState, setTempBackupState] = useState<any>(null);
   const [finishingStatus, setFinishingStatus] = useState('Setting up wallet…');
+  const [setupProgress, setSetupProgress] = useState<SetupProgressStep[]>([]);
+  const startSetupStep = (id: string) => {
+    setSetupProgress((steps) => {
+      const activeIndex = steps.findIndex((step) => step.id === id);
+      return steps.map((step, index) => ({
+        ...step,
+        status: index < activeIndex ? 'done' : index === activeIndex ? 'running' : 'pending',
+      }));
+    });
+  };
   // Extra mints from a backup file
   const [extraRestoreMints, setExtraRestoreMints] = useState<string[]>([]);
   const [nostrRestoreMints, setNostrRestoreMints] = useState<string[]>([]);
@@ -212,7 +222,32 @@ export function OnboardingScreen() {
     const resumeRecoveryWork = isImportingFlow ? recoveryCoordinator.pause() : undefined;
     setIsFinishing(true);
     setSetupError(null);
+    const selectedUrls = [...new Map(mintUrls.map((url) => [mintUrlKey(url), url])).values()];
+    setSetupProgress([
+      {
+        id: 'wallet',
+        label: isImportingFlow ? 'Restore wallet' : 'Create wallet',
+        status: 'running',
+      },
+      { id: 'security', label: 'Save security preferences', status: 'pending' },
+      {
+        id: 'data',
+        label: isImportingFlow ? 'Prepare recovery review' : 'Load wallet',
+        status: 'pending',
+      },
+      ...(!skipUsername
+        ? [{ id: 'profile', label: 'Set up username', status: 'pending' as const }]
+        : []),
+      ...selectedUrls.map((url, index) => ({
+        id: `mint-${index}`,
+        label: `Connect ${url.replace(/^https?:\/\//, '').replace(/\/$/, '')}`,
+        status: 'pending' as const,
+      })),
+      { id: 'finish', label: 'Open wallet', status: 'pending' },
+    ]);
     try {
+      // Yield to the progress view before starting key/storage work; no timed delay.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const keys = await seedService.getNostrKeys(generatedMnemonic);
       const pubkeyHex = keys.pubkey;
       const privkeyHex = keys.privkey;
@@ -225,11 +260,16 @@ export function OnboardingScreen() {
         if (isImportingFlow) {
           const candidates = importRecoveryCandidates(extraRestoreMints, nostrRestoreMints);
           setFinishingStatus('Initializing wallet…');
-          await initService.restoreWallet(generatedMnemonic, { quiet: !!tempBackupState });
+          await initService.restoreWallet(generatedMnemonic, {
+            quiet: !!tempBackupState,
+            preserveSetup: true,
+          });
 
+          startSetupStep('security');
           await useSettingsStore.getState().setBiometricEnabled(isBiometricEnabled);
           await useSettingsStore.getState().initialize(true);
 
+          startSetupStep('data');
           if (tempBackupState) {
             setFinishingStatus('Restoring balance and history…');
             const { backupService } = require('~/services/wallet/backupService');
@@ -255,22 +295,26 @@ export function OnboardingScreen() {
             },
           });
 
+          if (!skipUsername) startSetupStep('profile');
           await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
         } else {
           setFinishingStatus('Creating secure keypair…');
           await initService.createWallet(generatedMnemonic);
+          startSetupStep('security');
           await useSettingsStore.getState().setBiometricEnabled(isBiometricEnabled);
           await useSettingsStore.getState().initialize(true);
+          startSetupStep('data');
           await initialize();
 
+          if (!skipUsername) startSetupStep('profile');
           await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
         }
         setupPrepared.current = true;
       }
 
       // Keep successful connections on retry; never recreate a prepared wallet.
-      const selectedUrls = [...new Map(mintUrls.map((url) => [mintUrlKey(url), url])).values()];
       for (const [index, url] of selectedUrls.entries()) {
+        startSetupStep(`mint-${index}`);
         setFinishingStatus(`Connecting mint ${index + 1} of ${selectedUrls.length}…`);
         const connected = useWalletStore
           .getState()
@@ -279,9 +323,16 @@ export function OnboardingScreen() {
       }
       if (isImportingFlow) holdRecoveryPause();
       setFinishingStatus('Finalizing setup…');
+      startSetupStep('finish');
       await completeOnboarding();
       useAuthStore.getState().setAuthenticated(true);
     } catch (err) {
+      setSetupProgress((steps) =>
+        steps.map((step) => ({
+          ...step,
+          status: step.status === 'running' ? 'error' : step.status,
+        })),
+      );
       releaseRecoveryPause();
       console.error('[Onboarding] Onboarding completion failed:');
       setSetupError('Setup could not finish. Check your connection and try again.');
@@ -453,6 +504,7 @@ export function OnboardingScreen() {
         return (
           <PermissionsStep
             isFinishing={isFinishing}
+            setupProgress={setupProgress}
             initialUsername={tempUsername}
             npub={tempNpub}
             onComplete={handlePermissionsComplete}

@@ -58,8 +58,9 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
         currentStep: 'complete',
         generatedMnemonic: null, // Clear mnemonic from memory
       });
-    } catch (err) {
-      console.error('[OnboardingStore] Error completing onboarding:', err);
+    } catch {
+      console.error('[OnboardingStore] Could not save onboarding completion.');
+      throw new Error('Could not save wallet setup. Please retry.');
     }
   },
 

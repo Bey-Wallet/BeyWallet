@@ -1,13 +1,14 @@
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useEffect } from 'react';
-import { YStack, XStack, Text, H1, View, Separator } from 'tamagui';
+import { YStack, XStack, Text, H1, View, Separator, ScrollView } from 'tamagui';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
 import {
   ChevronRight,
   Fingerprint,
-  Sprout,
+  Check,
+  Circle,
+  AlertCircle,
   WifiOff,
-  Globe,
   User,
   Landmark,
 } from '@tamagui/lucide-icons';
@@ -19,9 +20,19 @@ import Blockies from '~/shared/ui/Blockies';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintDiscoverySheet, type OnboardingMint } from './MintDiscoverySheet';
 import { AppPressable } from '~/shared/ui/AppPressable';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { Spinner } from '~/shared/ui/Spinner';
+import { AppText } from '~/shared/ui/AppText';
+
+export type SetupProgressStep = {
+  id: string;
+  label: string;
+  status: 'pending' | 'running' | 'done' | 'error';
+};
 
 interface PermissionsStepProps {
   isFinishing?: boolean;
+  setupProgress?: SetupProgressStep[];
   initialUsername: string;
   npub: string;
   onComplete: (
@@ -37,6 +48,7 @@ export function PermissionsStep({
   npub,
   onComplete,
   isFinishing = false,
+  setupProgress = [],
 }: PermissionsStepProps) {
   const insets = useSafeAreaInsets();
   const [biometricEnabled, setBiometricEnabled] = useState(false);
@@ -123,6 +135,55 @@ export function PermissionsStep({
 
   // Truncate npub for display
   const shortNpub = npub ? `${npub.slice(0, 10)}...${npub.slice(-6)}` : 'npub...';
+
+  if (setupProgress.length > 0) {
+    const failed = setupProgress.some((step) => step.status === 'error');
+    return (
+      <YStack
+        flex={1}
+        bg="$background"
+        px="$4"
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom || 16 }}
+      >
+        <AppText variant="title2" text="center" mt="$3">
+          {failed ? 'Setup paused' : 'Opening your wallet'}
+        </AppText>
+        <ScrollView flex={1} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+          <YStack py="$5" accessibilityLiveRegion="polite">
+            <ListTable>
+              {setupProgress.map((step) => (
+                <ListTableRow
+                  key={step.id}
+                  label={step.label}
+                  labelColor={step.status === 'pending' ? '$gray10' : '$color'}
+                  rightContent={
+                    step.status === 'running' ? (
+                      <Spinner size={20} />
+                    ) : step.status === 'done' ? (
+                      <Check size={20} color="$color" />
+                    ) : step.status === 'error' ? (
+                      <AlertCircle size={20} color="$red10" />
+                    ) : (
+                      <Circle size={16} color="$gray10" />
+                    )
+                  }
+                />
+              ))}
+            </ListTable>
+          </YStack>
+        </ScrollView>
+        {failed && (
+          <AppButton
+            size="large"
+            disabled={isFinishing}
+            onPress={() => onComplete(initialUsername, biometricEnabled, skipUsername, mintUrls())}
+          >
+            Retry setup
+          </AppButton>
+        )}
+      </YStack>
+    );
+  }
 
   return (
     <YStack

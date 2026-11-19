@@ -670,16 +670,19 @@ export const initService = {
     }
   },
 
-  restoreWallet: async (mnemonic: string, options: { quiet?: boolean } = {}): Promise<Manager> => {
+  restoreWallet: async (
+    mnemonic: string,
+    options: { quiet?: boolean; preserveSetup?: boolean } = {},
+  ): Promise<Manager> => {
     await requireNoFileRestore();
     console.log('[InitService] Restoring wallet, destroying existing wallet first...');
-    await initService.destroyWallet();
+    await initService.destroyWallet({ preserveSetup: options.preserveSetup });
 
     await seedService.saveMnemonic(mnemonic);
 
     // Just initialize normally — deep recovery happens asynchronously in the background queue
     const m = await initializeWithMnemonic(mnemonic, {
-      ...options,
+      quiet: options.quiet,
       nostrRestoredAt: Math.floor(Date.now() / 1000),
     });
 

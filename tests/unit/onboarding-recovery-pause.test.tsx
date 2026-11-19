@@ -24,7 +24,7 @@ jest.mock('~/features/mints/connectMint', () => ({ connectMint: jest.fn() }));
 jest.mock('~/features/onboarding/WelcomeStep', () => ({ WelcomeStep: 'Welcome' }));
 jest.mock('~/features/onboarding/ImportSeedStep', () => ({ ImportSeedStep: 'Import' }));
 jest.mock('~/features/onboarding/PermissionsStep', () => ({ PermissionsStep: 'Permissions' }));
-jest.mock('~/features/onboarding/WalletCreationTask', () => ({ WalletCreationTask: () => null }));
+jest.mock('~/features/onboarding/WalletCreationTask', () => ({ WalletCreationTask: 'Creation' }));
 jest.mock('~/features/onboarding/ConsentStep', () => ({ ConsentStep: 'Consent' }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('~/shared/ui/OperationFeedback', () => ({ usePendingOperationToast: jest.fn() }));
@@ -59,7 +59,12 @@ jest.mock('~/shared/utils/username', () => ({
 }));
 jest.mock('~/services/wallet/nostrIdentityService', () => ({ nostrIdentityService: {} }));
 jest.mock('~/services/wallet', () => ({
-  initService: { walletExists: async () => false, restoreWallet: jest.fn(), reinitFast: jest.fn() },
+  initService: {
+    walletExists: async () => false,
+    restoreWallet: jest.fn(),
+    createWallet: jest.fn(),
+    reinitFast: jest.fn(),
+  },
   mintManager: { addMint: jest.fn() },
   nostrService: { fetchMintsFromNostr: async () => [] },
 }));
@@ -83,9 +88,21 @@ jest.mock('~/state/authStore', () => ({
 let tree: ReactTestRenderer;
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(initService.restoreWallet).mockImplementation(async (_mnemonic, options) => {
+    // Match lifecycle cleanup: a normal replacement also clears onboarding's draft.
+    if (!options?.preserveSetup) {
+      useOnboardingStore.setState({ currentStep: 'welcome', generatedMnemonic: null });
+    }
+    return {} as any;
+  });
   jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  jest.spyOn(global, 'requestAnimationFrame').mockImplementation((callback) => {
+    callback(0);
+    return 0;
+  });
   jest.spyOn(global, 'fetch').mockResolvedValue({ ok: false } as Response);
   useOnboardingStore.setState({
+    isOnboarded: false,
     currentStep: 'welcome',
     generatedMnemonic: null,
     setStep: (currentStep: string) => useOnboardingStore.setState({ currentStep } as any),
@@ -208,6 +225,12 @@ it('pauses before import initialization and hands off to review without scanning
       setup = tree.root.findByType('Permissions' as any).props.onComplete('', false, true);
     });
     expect(initService.restoreWallet).toHaveBeenCalledTimes(1);
+    expect(tree.root.findByType('Permissions' as any).props.setupProgress).toEqual([
+      { id: 'wallet', label: 'Restore wallet', status: 'running' },
+      { id: 'security', label: 'Save security preferences', status: 'pending' },
+      { id: 'data', label: 'Prepare recovery review', status: 'pending' },
+      { id: 'finish', label: 'Open wallet', status: 'pending' },
+    ]);
     expect(recoveryCoordinator.paused).toBe(true);
     await act(async () => {
       finishInit();
@@ -238,6 +261,58 @@ it('releases the import pause if wallet initialization fails', async () => {
   );
   expect(recoveryCoordinator.paused).toBe(false);
   expect(useWalletStore.getState().recoverSelectedMints).not.toHaveBeenCalled();
+});
+
+it('keeps seed setup intact through restore and retry, then saves the recovery handoff', async () => {
+  await importSeed();
+  const complete = jest
+    .fn()
+    .mockRejectedValueOnce(new Error('Synthetic setup storage failure'))
+    .mockImplementation(async () => {
+      expect(useRecoverySessionStore.getState().session?.needsReview).toBe(true);
+      useOnboardingStore.setState({
+        currentStep: 'complete',
+        isOnboarded: true,
+        generatedMnemonic: null,
+      });
+    });
+  await act(async () => {
+    useOnboardingStore.setState({ completeOnboarding: complete });
+  });
+  const finish = () => tree.root.findByType('Permissions' as any).props.onComplete('', false, true);
+  await act(async () => finish());
+  expect(useOnboardingStore.getState().currentStep).toBe('permissions');
+  expect(useOnboardingStore.getState().generatedMnemonic).toBe('synthetic-seed-fixture');
+  expect(tree.root.findAllByType('Welcome' as any)).toHaveLength(0);
+  await act(async () => finish());
+  expect(initService.restoreWallet).toHaveBeenCalledTimes(1);
+  expect(initService.restoreWallet).toHaveBeenCalledWith('synthetic-seed-fixture', {
+    quiet: false,
+    preserveSetup: true,
+  });
+  expect(complete).toHaveBeenCalledTimes(2);
+  expect(useRecoverySessionStore.getState().session).toMatchObject({
+    phase: 'review',
+    needsReview: true,
+  });
+});
+
+it('completes new-wallet setup without creating an import recovery session', async () => {
+  await act(async () => {
+    tree = create(<OnboardingScreen />);
+  });
+  await act(async () => tree.root.findByType('Welcome' as any).props.onCreateWallet());
+  await act(async () => tree.root.findByType('Consent' as any).props.onComplete());
+  await act(async () =>
+    tree.root.findByType('Creation' as any).props.onComplete('synthetic-new-seed'),
+  );
+  await act(async () =>
+    tree.root.findByType('Permissions' as any).props.onComplete('', false, true),
+  );
+  expect(initService.createWallet).toHaveBeenCalledWith('synthetic-new-seed');
+  expect(initService.restoreWallet).not.toHaveBeenCalled();
+  expect(useRecoverySessionStore.getState().session).toBeNull();
+  expect(useOnboardingStore.getState().completeOnboarding).toHaveBeenCalledTimes(1);
 });
 
 it('restores file records and opens the wallet without an additional scan or setup step', async () => {
