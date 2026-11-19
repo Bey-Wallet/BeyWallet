@@ -165,7 +165,13 @@ export function BUISelectionRow({
   onCheckedChange,
   disabled = false,
   onInfo,
-}: BUISelectionProps & { kind: BUISelectionKind; description?: string; onInfo?: () => void }) {
+  compact = false,
+}: BUISelectionProps & {
+  kind: BUISelectionKind;
+  description?: string;
+  onInfo?: () => void;
+  compact?: boolean;
+}) {
   const c = useBUITheme();
   const Visual =
     kind === 'switch' ? SwitchVisual : kind === 'checkbox' ? CheckboxVisual : RadioVisual;
@@ -175,8 +181,8 @@ export function BUISelectionRow({
       <AppPressable
         flex={1}
         minHeight={48}
-        px={16}
-        py={kind === 'checkbox' ? 12 : 8}
+        px={compact ? 0 : 16}
+        py={compact ? 4 : kind === 'checkbox' ? 12 : 8}
         flexDirection="row"
         items="center"
         gap={8}
@@ -195,7 +201,7 @@ export function BUISelectionRow({
         {kind !== 'switch' && visual}
         <YStack flex={1} gap={2}>
           <BUIText
-            kind="body1"
+            kind={compact ? 'body2' : 'body1'}
             color={disabled ? c.tertiaryText : kind === 'checkbox' ? c.muted : c.text}
           >
             {label}

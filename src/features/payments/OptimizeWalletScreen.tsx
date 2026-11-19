@@ -76,8 +76,15 @@ export default function OptimizeWalletScreen() {
   }, [selectedMint, selectedMintUrl]);
 
   // Fetch unspent proofs for Selected Mint
-  const { data: proofs = [], refetch: refetchProofs } = useQuery({
+  const {
+    data: proofs = [],
+    refetch: refetchProofs,
+    isPending: proofsLoading,
+    isError: proofsFailed,
+    isFetching: proofsFetching,
+  } = useQuery({
     queryKey: ['readyProofs', selectedMintUrl],
+    networkMode: 'always',
     queryFn: () => proofService.getReadyProofs(selectedMintUrl),
     enabled: !!selectedMintUrl,
   });
@@ -94,12 +101,21 @@ export default function OptimizeWalletScreen() {
   }, [proofs]);
 
   // Fetch fragmentation score & analysis
-  const { data: analysis, refetch: refetchAnalysis } = useQuery({
+  const {
+    data: analysis,
+    refetch: refetchAnalysis,
+    isPending: analysisLoading,
+    isError: analysisFailed,
+    isFetching: analysisFetching,
+  } = useQuery({
     queryKey: ['fragmentationAnalysis', selectedMintUrl],
+    networkMode: 'always',
     queryFn: () => consolidationService.getFragmentationAnalysis(selectedMintUrl),
     enabled: !!selectedMintUrl,
   });
 
+  const loadingAnalysis = !!selectedMintUrl && (proofsLoading || analysisLoading);
+  const failedAnalysis = proofsFailed || analysisFailed;
   const fragColor = useMemo(() => {
     if (!analysis) return '$green10';
     if (analysis.score > 60) return '$red10';
@@ -115,8 +131,8 @@ export default function OptimizeWalletScreen() {
   }, [analysis]);
 
   const canOptimize = useMemo(() => {
-    return proofs.length > 3;
-  }, [proofs]);
+    return !!selectedMintUrl && !loadingAnalysis && !failedAnalysis && proofs.length > 3;
+  }, [proofs, selectedMintUrl, loadingAnalysis, failedAnalysis]);
 
   const handleOptimize = async () => {
     if (!selectedMintUrl) return;
@@ -246,7 +262,28 @@ export default function OptimizeWalletScreen() {
           </XStack>
 
           {/* Fragmentation Summary Cards */}
-          {analysis && (
+          {loadingAnalysis && (
+            <YStack py="$5" items="center" gap="$3">
+              <Spinner size={20} />
+              <Text color="$gray10">Loading wallet analysis…</Text>
+            </YStack>
+          )}
+          {failedAnalysis && (
+            <YStack bg="$gray2" rounded="$6" p="$4" gap="$3">
+              <Text color="$gray10" accessibilityRole="alert">
+                Could not load the wallet analysis.
+              </Text>
+              <AppButton
+                emphasis="secondary"
+                size="small"
+                loading={proofsFetching || analysisFetching}
+                onPress={() => void Promise.all([refetchProofs(), refetchAnalysis()])}
+              >
+                Try again
+              </AppButton>
+            </YStack>
+          )}
+          {!loadingAnalysis && !failedAnalysis && analysis && (
             <XStack gap="$3" width="100%">
               <YStack
                 items="center"
@@ -326,7 +363,7 @@ export default function OptimizeWalletScreen() {
           )}
 
           {/* Fully Optimized Check Banner */}
-          {!canOptimize && proofs.length > 0 && (
+          {!loadingAnalysis && !failedAnalysis && !canOptimize && proofs.length > 0 && (
             <XStack
               bg="$green2"
               borderWidth={1}
@@ -356,30 +393,34 @@ export default function OptimizeWalletScreen() {
             Denomination Breakdown
           </Text>
 
-          {proofs.length === 0 ? (
-            <YStack items="center" justify="center" py="$8" gap="$2" bg="$gray2" rounded="$5">
-              <AlertCircle size={32} color="$gray8" />
-              <Text color="$gray10" fontSize="$3" fontWeight="600">
-                No ready proofs found at this mint
-              </Text>
-            </YStack>
-          ) : (
-            <ListTable>
-              {denominationCounts.map(({ amount, count }) => (
-                <ListTableRow
-                  key={amount}
-                  label={
-                    showBitcoinSymbol
-                      ? `₿${amount.toLocaleString()}`
-                      : `${amount.toLocaleString()} sat`
-                  }
-                  value={`${count} proof${count === 1 ? '' : 's'}`}
-                  icon={Zap}
-                  iconColor={amount >= 64 ? '$accent9' : '$gray10'}
-                />
-              ))}
-            </ListTable>
-          )}
+          {!loadingAnalysis &&
+            !failedAnalysis &&
+            (proofs.length === 0 ? (
+              <YStack items="center" justify="center" py="$8" gap="$2" bg="$gray2" rounded="$5">
+                <AlertCircle size={32} color="$gray8" />
+                <Text color="$gray10" fontSize="$3" fontWeight="600">
+                  {selectedMintUrl
+                    ? 'No ready proofs found at this mint'
+                    : 'Choose a mint to view its proofs'}
+                </Text>
+              </YStack>
+            ) : (
+              <ListTable>
+                {denominationCounts.map(({ amount, count }) => (
+                  <ListTableRow
+                    key={amount}
+                    label={
+                      showBitcoinSymbol
+                        ? `₿${amount.toLocaleString()}`
+                        : `${amount.toLocaleString()} sat`
+                    }
+                    value={`${count} proof${count === 1 ? '' : 's'}`}
+                    icon={Zap}
+                    iconColor={amount >= 64 ? '$accent9' : '$gray10'}
+                  />
+                ))}
+              </ListTable>
+            ))}
         </YStack>
       </ScrollView>
 
@@ -414,7 +455,13 @@ export default function OptimizeWalletScreen() {
             onPress={handleOptimize}
             disabled={!canOptimize}
           >
-            {canOptimize ? 'Optimize Wallet' : 'Already Optimal'}
+            {loadingAnalysis
+              ? 'Loading analysis…'
+              : failedAnalysis || !selectedMintUrl
+                ? 'Optimize Wallet'
+                : canOptimize
+                  ? 'Optimize Wallet'
+                  : 'Already Optimal'}
           </AppButton>
         )}
       </YStack>

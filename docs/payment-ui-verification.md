@@ -4,6 +4,19 @@ Automated tests cover currency formatting, local mint selection, confirmation no
 optional authentication, SDK-prepared creation fees, P2PK refund conditions, and reclaim races.
 Native acceptance below has not been performed in this workspace.
 
+## Outgoing Lightning receipt lifecycle
+
+Pending or unresolved outgoing Lightning receipts check the original payment while
+the receipt is visible, focused, online and foregrounded. Checks resume immediately
+on foreground/focus/network return and stop after settlement. Manual and automatic
+checks share one in-flight request; they never submit the invoice again. A late
+result after the receipt closes does not update its UI, balance or history queries.
+
+On Android, switch apps or lock the phone during a small Lightning payment, then
+return and unlock. Confirm that the original receipt updates to its settled state,
+History contains one payment and the balance changes once. Repeat with a network
+interruption; an unverified outcome must remain pending/unresolved until reconciled.
+
 ## Mint quote redemption coordination
 
 The pinned Coco patch coordinates foreground and background redemption by mint and quote.
@@ -72,8 +85,9 @@ Device checks for this change:
   Dismiss each explanation, restart, and verify it stays dismissed without hiding
   required security warnings or changing authentication, mint trust, or payment checks.
 
-- The mint selector uses flat, virtualized rows with icon, name, primary-currency
-  balance and a bold branded check. Opening it uses the saved mint list and does
+- The mint selector uses a rounded ListTable group with full-width separators,
+  40-point mint icons, single-line names above primary-currency balances, and selection
+  checks on the right. Opening it uses the saved mint list and does
   not trigger a full refresh. Payment-method filtering reads SDK metadata locally;
   trust and allowed-URL restrictions still apply offline. Saved exchange rates are
   available immediately; without a rate, nonzero amounts retain an explicit sat unit.

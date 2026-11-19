@@ -3,7 +3,11 @@ jest.mock('@tamagui/toast', () => ({
 }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { VerifyProofsSettingsScreen } from '~/features/settings/WalletSettingsScreens';
+import {
+  OptimizeSettingsScreen,
+  VerifyProofsSettingsScreen,
+} from '~/features/settings/WalletSettingsScreens';
+import { useQuery } from '@tanstack/react-query';
 
 const mockVerify = jest.fn();
 jest.mock('~/services/wallet/proofService', () => ({
@@ -30,6 +34,7 @@ jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn(), useQueryClient: jest.fn() }));
 jest.mock('@tamagui/lucide-icons', () => ({ ShieldCheck: 'Shield', Landmark: 'Mint' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
+jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/features/settings/components/SettingsLayout', () => ({
   SettingsPage: 'Page',
   SettingsDescription: 'Description',
@@ -88,3 +93,40 @@ it('explains when no proofs have DLEQ data without claiming verification success
   await act(async () => tree.root.findByType('AppButton' as any).props.onPress());
   expect(tree.root.findByType('Message' as any).props.children).toContain('No DLEQ data');
 });
+
+it.each(['loading', 'failed', 'empty'] as const)(
+  'distinguishes %s wallet analysis without premature success',
+  async (state) => {
+    const refetch = jest.fn();
+    jest.mocked(useQuery).mockReturnValue({
+      isPending: state === 'loading',
+      isError: state === 'failed',
+      isFetching: state === 'loading',
+      data: state === 'empty' ? [] : undefined,
+      refetch,
+    } as any);
+    await act(async () => {
+      tree = create(<OptimizeSettingsScreen />);
+    });
+    const json = JSON.stringify(tree.toJSON());
+    if (state === 'loading') {
+      expect(tree.root.findAllByType('Spinner' as any)).toHaveLength(1);
+      expect(json).not.toContain('already has a small number');
+      expect(json).not.toContain('Could not load');
+    } else if (state === 'failed') {
+      expect(json).toContain('Could not load the wallet analysis');
+      expect(json).not.toContain('already has a small number');
+      const retry = tree.root
+        .findAllByType('AppButton' as any)
+        .find((button) => button.props.children === 'Try again')!;
+      await act(async () => retry.props.onPress());
+      expect(refetch).toHaveBeenCalledTimes(2);
+    } else {
+      expect(json).toContain('already has a small number');
+    }
+    const optimize = tree.root
+      .findAllByType('AppButton' as any)
+      .find((button) => button.props.children === 'Optimize wallet')!;
+    expect(optimize.props.disabled).toBe(true);
+  },
+);

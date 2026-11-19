@@ -10,6 +10,7 @@ import { biometricService } from '~/services/platform/biometricService';
 
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { AppButton } from '~/shared/ui/AppButton';
+import { Spinner } from '~/shared/ui/Spinner';
 import ProofManagerScreen from './ProofManagerScreen';
 import { useProtectedValue } from './hooks/useProtectedValue';
 import { useSettingsOperation } from './hooks/useSettingsOperation';
@@ -59,15 +60,19 @@ export function OptimizeSettingsScreen() {
   const queryClient = useQueryClient();
   const proofs = useQuery({
     queryKey: ['readyProofs', mintUrl],
+    networkMode: 'always',
     queryFn: () => proofService.getReadyProofs(mintUrl),
     enabled: !!mintUrl,
   });
   const analysis = useQuery({
     queryKey: ['fragmentationAnalysis', mintUrl],
+    networkMode: 'always',
     queryFn: () => consolidationService.getFragmentationAnalysis(mintUrl),
     enabled: !!mintUrl,
   });
   const count = proofs.data?.length ?? 0;
+  const loading = !!mintUrl && (proofs.isPending || analysis.isPending);
+  const failed = proofs.isError || analysis.isError;
   return (
     <SettingsPage>
       <SettingsDescription>
@@ -82,13 +87,24 @@ export function OptimizeSettingsScreen() {
         }}
         disabled={task.busy}
       />
-      {analysis.data && (
+      {loading && <Spinner size={20} accessibilityLabel="Loading wallet analysis" />}
+      {!loading && !failed && analysis.data && (
         <SettingsMessage>{`${count} ready proofs · fragmentation score ${analysis.data.score} · estimated ${analysis.data.estimatedAfterCount} proofs after optimization`}</SettingsMessage>
       )}
-      {proofs.isError || analysis.isError ? (
-        <SettingsMessage error>Could not load the wallet analysis.</SettingsMessage>
-      ) : null}
-      {!!mintUrl && !proofs.isPending && count <= 3 && (
+      {failed && (
+        <>
+          <SettingsMessage error>Could not load the wallet analysis.</SettingsMessage>
+          <AppButton
+            emphasis="secondary"
+            size="small"
+            loading={proofs.isFetching || analysis.isFetching}
+            onPress={() => void Promise.all([proofs.refetch(), analysis.refetch()])}
+          >
+            Try again
+          </AppButton>
+        </>
+      )}
+      {!!mintUrl && !loading && !failed && count <= 3 && (
         <SettingsMessage>This mint already has a small number of ready proofs.</SettingsMessage>
       )}
       {offline && <SettingsMessage>Go online to optimize your wallet.</SettingsMessage>}
@@ -97,7 +113,7 @@ export function OptimizeSettingsScreen() {
         icon={Sparkles}
         loading={task.busy}
         loadingText="Optimizing wallet…"
-        disabled={offline || !mintUrl || proofs.isPending || proofs.isError || count <= 3}
+        disabled={offline || !mintUrl || loading || failed || count <= 3}
         onPress={() =>
           void task.run(async () => {
             if (!(await biometricService.authenticateAsync('Authorize wallet optimization')))

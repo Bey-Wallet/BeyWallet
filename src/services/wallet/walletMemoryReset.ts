@@ -1,9 +1,11 @@
 import { queryClient } from '~/shared/utils/queryClient';
+import { clearDiagnosticFailures } from '~/services/feedback/diagnosticFailures';
 
 /** Deferred store imports keep this lifecycle leaf out of the stores' initialization cycle.
  * Call with SQLite writes suspended, after wallet services and queries have stopped.
  */
 export function resetWalletMemory(preserveSetup = false) {
+  clearDiagnosticFailures();
   const { useWalletStore } = require('~/state/walletStore') as typeof import('~/state/walletStore');
   const { usePeopleStore } = require('~/state/peopleStore') as typeof import('~/state/peopleStore');
   const { useNostrInboxStore } =

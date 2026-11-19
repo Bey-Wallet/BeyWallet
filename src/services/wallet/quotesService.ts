@@ -7,6 +7,11 @@
 
 import { initService } from '~/services/wallet/initService';
 import { safeMintErrorCode } from '~/services/wallet/walletLogger';
+import {
+  recordDiagnosticFailure,
+  diagnosticFailureGeneration,
+  observeDiagnosticOperation,
+} from '~/services/feedback/diagnosticFailures';
 import { publishWalletFeedback, quoteFeedbackId } from '~/services/feedback/feedbackCoordinator';
 
 const feedbackStartedAt = Date.now();
@@ -80,41 +85,47 @@ export const quotesService = {
     description?: string,
   ): Promise<MintQuoteResponse> => {
     console.log(`[QuotesService] Creating mint quote: ${amount} sat from ${mintUrl}`);
-    return withKeysetRecovery(mintUrl, async () => {
-      const note = description?.trim();
-      if (note) {
-        if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Invalid amount');
-        const manager = mgr();
-        if (!(await manager.mint.isTrustedMint(mintUrl))) throw new Error('Mint is not trusted');
-        // Coco's creation API has no description argument. Create the public invoice with
-        // cashu-ts, then register it with Coco so storage, watchers and issuance stay owned there.
-        const mintInfo = new MintInfo(await manager.mint.getMintInfo(mintUrl));
-        if (!mintInfo.supportsNut04Description('bolt11', 'sat')) {
-          return manager.quotes.createMintQuote(mintUrl, amount);
+    return observeDiagnosticOperation('mint_quote', () =>
+      withKeysetRecovery(mintUrl, async () => {
+        const note = description?.trim();
+        if (note) {
+          if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Invalid amount');
+          const manager = mgr();
+          if (!(await manager.mint.isTrustedMint(mintUrl))) throw new Error('Mint is not trusted');
+          // Coco's creation API has no description argument. Create the public invoice with
+          // cashu-ts, then register it with Coco so storage, watchers and issuance stay owned there.
+          const mintInfo = new MintInfo(await manager.mint.getMintInfo(mintUrl));
+          if (!mintInfo.supportsNut04Description('bolt11', 'sat')) {
+            return manager.quotes.createMintQuote(mintUrl, amount);
+          }
+          // Invoice creation needs no proof/keyset wallet. A Wallet seeded with only mintInfo
+          // is uninitialized in cashu-ts 3.x; use its public Mint API and response validation.
+          const created = await new CashuMint(mintUrl).createMintQuoteBolt11({
+            amount,
+            unit: 'sat',
+            description: note,
+          });
+          // Older mint responses omit these fields; retain Wallet's request-value fallback
+          // so Coco always has the amount and unit needed for later issuance.
+          const quote = {
+            ...created,
+            amount: created.amount ?? amount,
+            unit: created.unit ?? 'sat',
+          };
+          const saved = await manager.quotes.addMintQuote(mintUrl, [quote]);
+          if (
+            !saved.added.includes(quote.quote) &&
+            !(await initService.getRepo().mintQuoteRepository.getMintQuote(mintUrl, quote.quote))
+          ) {
+            throw new Error('Could not save the invoice');
+          }
+          return quote;
         }
-        // Invoice creation needs no proof/keyset wallet. A Wallet seeded with only mintInfo
-        // is uninitialized in cashu-ts 3.x; use its public Mint API and response validation.
-        const created = await new CashuMint(mintUrl).createMintQuoteBolt11({
-          amount,
-          unit: 'sat',
-          description: note,
-        });
-        // Older mint responses omit these fields; retain Wallet's request-value fallback
-        // so Coco always has the amount and unit needed for later issuance.
-        const quote = { ...created, amount: created.amount ?? amount, unit: created.unit ?? 'sat' };
-        const saved = await manager.quotes.addMintQuote(mintUrl, [quote]);
-        if (
-          !saved.added.includes(quote.quote) &&
-          !(await initService.getRepo().mintQuoteRepository.getMintQuote(mintUrl, quote.quote))
-        ) {
-          throw new Error('Could not save the invoice');
-        }
+        const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
+        console.log(`[QuotesService] ✅ Mint quote created: ${quote.quote}`);
         return quote;
-      }
-      const quote = await mgr().quotes.createMintQuote(mintUrl, amount);
-      console.log(`[QuotesService] ✅ Mint quote created: ${quote.quote}`);
-      return quote;
-    });
+      }),
+    );
   },
 
   /**
@@ -124,10 +135,12 @@ export const quotesService = {
   redeemMintQuote: async (mintUrl: string, quoteId: string): Promise<void> => {
     console.log(`[QuotesService] Redeeming mint quote: ${quoteId}`);
     const startedAt = Date.now();
+    const diagnosticGeneration = diagnosticFailureGeneration();
     try {
       await mgr().quotes.redeemMintQuote(mintUrl, quoteId);
       console.log('[QuotesService] Mint quote redeemed', { elapsedMs: Date.now() - startedAt });
     } catch (error) {
+      recordDiagnosticFailure('mint_redeem', error, startedAt, diagnosticGeneration);
       console.warn('[QuotesService] Mint quote redemption failed', {
         code: safeMintErrorCode(error) ?? 'unavailable',
         elapsedMs: Date.now() - startedAt,

@@ -147,6 +147,8 @@ balances use `$gray10`; hidden balances retain a uniform color. The header mint 
 uses a white pill with black text and chevron in dark mode, and black with white text
 and chevron in light mode, with a subtle theme border
 and a clipped circular 32-point mint icon. Its semantic offline treatment is preserved.
+The selector sheet uses ListTable rows with 40-point mint artwork, single-line names
+above muted balances, 2-point-stroke selection checks on the right, and full-width separators.
 Long mint names truncate while the active check and amount remain visible. Home header
 side controls occupy matching 64-point slots with 48-point touch targets. Tapping or holding
 the main balance toggles privacy with a light haptic. Refresh feedback shares the status area

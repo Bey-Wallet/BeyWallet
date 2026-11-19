@@ -5,6 +5,10 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 import { walletStorageGeneration } from '~/storage/sqlite/walletStorageLifecycle';
+import {
+  recordDiagnosticFailure,
+  diagnosticFailureGeneration,
+} from '~/services/feedback/diagnosticFailures';
 import { initService, walletService, mintManager, quotesService } from '~/services/wallet';
 import type { MintInfo } from '~/services/wallet';
 import {
@@ -101,6 +105,8 @@ export const useWalletStore = create<WalletState>()(
 
       initialize: async () => {
         const generation = walletStorageGeneration();
+        const diagnosticStart = Date.now();
+        const diagnosticGeneration = diagnosticFailureGeneration();
         set({ isInitializing: true, error: null });
         console.log('[WalletStore] Starting initialization...');
         try {
@@ -160,6 +166,7 @@ export const useWalletStore = create<WalletState>()(
         } catch (err: any) {
           if (generation !== walletStorageGeneration()) return;
           console.error('[WalletStore] Initialization failed:');
+          recordDiagnosticFailure('wallet_start', err, diagnosticStart, diagnosticGeneration);
           set({ error: err.message, isInitializing: false });
         }
       },
@@ -227,6 +234,8 @@ export const useWalletStore = create<WalletState>()(
 
       refreshBalance: async () => {
         const generation = walletStorageGeneration();
+        const diagnosticStart = Date.now();
+        const diagnosticGeneration = diagnosticFailureGeneration();
         try {
           set({ isRefreshing: true, error: null });
           if (!initService.isInitialized()) {
@@ -259,6 +268,7 @@ export const useWalletStore = create<WalletState>()(
         } catch (err: any) {
           if (generation !== walletStorageGeneration()) return;
           console.error('[WalletStore] Error refreshing balance:');
+          recordDiagnosticFailure('wallet_refresh', err, diagnosticStart, diagnosticGeneration);
           set({ error: err.message, isRefreshing: false });
         }
       },

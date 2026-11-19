@@ -57,14 +57,17 @@ export function ListTable({
 
 export function ListTableRow({
   label,
+  description,
   value,
   isCopyable,
   copyValue,
   onCopy,
   onPress,
   icon: Icon,
+  iconSize = 20,
   iconColor,
   labelColor,
+  labelNumberOfLines,
   valueColor,
   iconAfter,
   rightContent,
@@ -75,14 +78,17 @@ export function ListTableRow({
   expanded,
 }: {
   label: string;
+  description?: string;
   value?: React.ReactNode;
   isCopyable?: boolean;
   copyValue?: string;
   onCopy?: () => void;
   onPress?: () => void;
   icon?: any;
+  iconSize?: number;
   iconColor?: string;
   labelColor?: string;
+  labelNumberOfLines?: number;
   valueColor?: string;
   iconAfter?: React.ReactNode;
   rightContent?: React.ReactNode;
@@ -139,20 +145,33 @@ export function ListTableRow({
       >
         <XStack items="center" gap="$2" flex={1} flexShrink={1} minWidth={0}>
           {Icon && (
-            <XStack width={22} items="center" justify="center">
-              <Icon size={20} color={iconColor || '$iconSecondary'} />
+            <XStack width={Math.max(22, iconSize)} flexShrink={0} items="center" justify="center">
+              <Icon size={iconSize} color={iconColor || '$iconSecondary'} />
             </XStack>
           )}
-          <Text
-            fontFamily="$body"
-            {...appTypography.body1}
-            color={labelColor || '$gray10'}
-            flex={1}
-            flexShrink={1}
-            numberOfLines={wrap ? undefined : 1}
-          >
-            {label}
-          </Text>
+          <YStack flex={1} flexShrink={1} minWidth={0}>
+            <Text
+              fontFamily="$body"
+              {...appTypography.body1}
+              color={labelColor || '$gray10'}
+              flexShrink={1}
+              numberOfLines={labelNumberOfLines ?? (wrap ? undefined : 1)}
+              ellipsizeMode="tail"
+            >
+              {label}
+            </Text>
+            {description != null && (
+              <Text
+                fontFamily="$body"
+                {...appTypography.body2}
+                color="$gray10"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {description}
+              </Text>
+            )}
+          </YStack>
         </XStack>
 
         {hasTrailing && (

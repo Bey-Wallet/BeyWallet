@@ -12,6 +12,10 @@ import { Buffer } from 'buffer';
 import { usePeopleStore } from '~/state/peopleStore';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { hasVerifiedNip05 } from '~/features/people/nip05';
+import { useBeyDirectory } from '~/shared/hooks/useBeyDirectory';
+import { SearchDirectoryFeedback } from '~/shared/ui/SearchDirectoryFeedback';
+
+const EMPTY_DIRECTORY: Record<string, string> = {};
 
 function getPersonLabel(person: any): string {
   return person.displayName || person.username || person.nip05 || 'Unknown User';
@@ -24,24 +28,9 @@ export default function PeopleSearchScreen() {
   );
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<any[]>([]);
-  const [directory, setDirectory] = useState<Record<string, string>>({});
+  const directoryQuery = useBeyDirectory();
+  const directory = directoryQuery.data ?? EMPTY_DIRECTORY;
   const router = useRouter();
-
-  useEffect(() => {
-    // Fetch bey.cash directory
-    const fetchDirectory = async () => {
-      try {
-        const res = await fetch(`https://bey.cash/.well-known/nostr.json?_t=${Date.now()}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.names) setDirectory(data.names);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchDirectory();
-  }, []);
 
   const [pasteError, setPasteError] = React.useState<string | null>(null);
   const handlePaste = async () => {
@@ -130,6 +119,10 @@ export default function PeopleSearchScreen() {
     doSearch(text);
   };
 
+  useEffect(() => {
+    doSearch(search, directory);
+  }, [directory, people]);
+
   const onSelectPerson = (person: any) => {
     router.push({
       pathname: '/(modals)/conversation',
@@ -202,6 +195,12 @@ export default function PeopleSearchScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <YStack gap="$2">
+          <SearchDirectoryFeedback
+            loading={directoryQuery.isPending}
+            failed={directoryQuery.isError}
+            refreshing={directoryQuery.isFetching}
+            onRetry={() => void directoryQuery.refetch()}
+          />
           {results.map((person, i) => (
             <XStack
               key={i}
@@ -232,7 +231,7 @@ export default function PeopleSearchScreen() {
               </YStack>
             </XStack>
           ))}
-          {search.length > 0 && results.length === 0 && (
+          {search.length > 0 && results.length === 0 && directoryQuery.isSuccess && (
             <Text color="$gray10" mt="$4" style={{ textAlign: 'center' }}>
               No people found
             </Text>

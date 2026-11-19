@@ -21,6 +21,7 @@ const mockOffline = jest.fn();
 const mockCheckHistory = jest.fn();
 const mockRedeemQuote = jest.fn();
 let mockEntry: any;
+let mockEntryFailed = false;
 let mockMintQuote: any = null;
 let mockSnapshotPending = false;
 let mockTransferRecord: any = null;
@@ -83,6 +84,8 @@ jest.mock('@tanstack/react-query', () => ({
     refetch: mockRefetch,
     isPending: queryKey[0] === 'receiptSnapshot' ? mockSnapshotPending : undefined,
     isRefetching: false,
+    isError: queryKey[0] === 'transaction' && mockEntryFailed,
+    isFetching: false,
   }),
   useQueryClient: () => ({
     setQueryData: mockSetQuery,
@@ -164,6 +167,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 beforeEach(() => {
+  mockEntryFailed = false;
   AppState.currentState = 'active';
   mockMintQuote = null;
   mockSnapshotPending = false;
@@ -202,6 +206,21 @@ async function render() {
   // The token is loaded in an effect. Let the first interval check that loaded token.
   await act(async () => jest.advanceTimersByTime(3000));
 }
+
+it('offers retry for a failed receipt read without presenting it as missing history', async () => {
+  mockEntry = undefined;
+  mockEntryFailed = true;
+  await render();
+  expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
+    'Could not load this transaction.',
+  );
+  const retry = tree.root
+    .findAllByType('Button' as any)
+    .find((button) => button.props.children === 'Try again')!;
+  await act(async () => retry.props.onPress());
+  expect(mockRefetch).toHaveBeenCalled();
+  expect(mockReclaim).not.toHaveBeenCalled();
+});
 const pending = () => tree.root.findByType('PendingToken' as any);
 
 it.each([

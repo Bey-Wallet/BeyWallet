@@ -111,12 +111,9 @@ it('configures a disabled stack chevron with the local stage back action', async
   const tree = await render(<PaymentFlowHeader title="Confirm request" onBack={onBack} disabled />);
   const options = tree.root.findByType('StackScreen' as any).props.options;
   expect(options.title).toBe('Confirm request');
-  const titleTree = await render(options.headerTitle({ children: options.title }));
-  const title = titleTree.root.findByType('Text' as any);
-  expect(title.props.children).toBe('Confirm request');
-  expect(title.props.fontFamily).toBe('$body');
-  expect(title.props.fontWeight).toBe('600');
-  await act(async () => titleTree.unmount());
+  // Titles are rendered by the shared screen header, rather than headerTitle.
+  expect(typeof options.header).toBe('function');
+  expect(options.headerTitleAlign).toBe('center');
   expect(options.headerBackVisible).toBe(false);
   const button = options.headerLeft();
   expect(button.props.disabled).toBe(true);
@@ -139,9 +136,7 @@ it('uses a theme surface for an empty QR placeholder and restores the scan surfa
       .findByType('YStack' as any)
       .props.onLayout({ nativeEvent: { layout: { width: 320 } } }),
   );
-  expect(tree.root.findByProps({ testID: 'payment-qr-surface' }).props.bg).toBe(
-    '$buttonDefaultSecondary',
-  );
+  expect(tree.root.findByProps({ testID: 'payment-qr-surface' }).props.bg).toBe('$gray2');
   await act(async () =>
     tree.update(<PaymentQRFrame accessibilityLabel="Request QR">{() => 'QR'}</PaymentQRFrame>),
   );

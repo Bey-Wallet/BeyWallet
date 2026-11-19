@@ -78,8 +78,15 @@ export default function TokenDetailsModal() {
   const [copied, setCopied] = useState(false);
 
   // Fetch transaction if ID is provided
-  const { data: entry, isLoading } = useQuery({
+  const {
+    data: entry,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ['transaction', id],
+    networkMode: 'always',
     queryFn: async () => {
       if (!id) return null;
       const history = await historyService.getHistory(100, 0);
@@ -270,6 +277,27 @@ export default function TokenDetailsModal() {
     return (
       <YStack flex={1} justify="center" items="center" bg="$background">
         <Spinner size="large" />
+      </YStack>
+    );
+  }
+
+  if (isError && !paramToken) {
+    return (
+      <YStack flex={1} justify="center" items="center" gap="$4" p="$4" bg="$background">
+        <Text color="$gray10" accessibilityRole="alert">
+          Could not load this token.
+        </Text>
+        <AppButton
+          emphasis="secondary"
+          size="small"
+          loading={isFetching}
+          onPress={() => void refetch()}
+        >
+          Try again
+        </AppButton>
+        <AppButton emphasis="ghost" size="small" onPress={() => router.back()}>
+          Go back
+        </AppButton>
       </YStack>
     );
   }

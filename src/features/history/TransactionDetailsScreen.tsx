@@ -146,8 +146,11 @@ function TransactionDetailsContent() {
     refetch,
     isRefetching,
     isPending: entryLoading,
+    isError: entryFailed,
+    isFetching: entryFetching,
   } = useQuery({
     queryKey: ['transaction', id],
+    networkMode: 'always',
     queryFn: async () => {
       if (!id) return null;
       // 1. Try to load from historyRepository by ID (autoincrement ID)
@@ -824,11 +827,24 @@ function TransactionDetailsContent() {
         <PaymentFlowHeader title="Transaction" />
         <YStack flex={1} bg="$background" items="center" justify="center" p="$4">
           {!!id && entryLoading !== false && <Spinner size="large" />}
-          <Text mt="$4" color="$gray10">
-            {entryLoading === false || !id
-              ? 'This transaction is unavailable. Close this receipt to return to History.'
-              : 'Loading transaction details…'}
+          <Text mt="$4" color="$gray10" accessibilityRole={entryFailed ? 'alert' : undefined}>
+            {entryFailed
+              ? 'Could not load this transaction.'
+              : entryLoading === false || !id
+                ? 'This transaction is unavailable. Close this receipt to return to History.'
+                : 'Loading transaction details…'}
           </Text>
+          {entryFailed && (
+            <AppButton
+              emphasis="secondary"
+              size="small"
+              mt="$3"
+              loading={entryFetching}
+              onPress={() => void refetch()}
+            >
+              Try again
+            </AppButton>
+          )}
         </YStack>
       </SafeAreaView>,
       false,

@@ -25,6 +25,7 @@ import {
   receiveWithDuplicateOutputRecovery,
 } from '~/services/wallet/cashuReceiveRecovery';
 import { refreshReceiveKeysets } from '~/services/wallet/cashuReceiveKeysets';
+import { observeDiagnosticOperation } from '~/services/feedback/diagnosticFailures';
 
 // Helper to generate a unique ID for operations since the crypto util import is broken
 const generateSubId = (): string => {
@@ -508,84 +509,86 @@ export const walletService = {
    * @param token - Encoded cashu token string
    */
   receive: async (token: string): Promise<void> => {
-    const cleaned = cleanToken(token);
-    console.log('[WalletService] Receiving ecash token');
+    return observeDiagnosticOperation('ecash_receive', async () => {
+      const cleaned = cleanToken(token);
+      console.log('[WalletService] Receiving ecash token');
 
-    // V4 (cashuB) tokens store SHORT keyset ID prefixes (8 bytes).
-    // The Manager's internal wallet.decodeToken() needs FULL known keyset IDs
-    // in its cache to map the short IDs back. We must pre-sync keysets first.
-    const unsafeManager = mgr() as any;
+      // V4 (cashuB) tokens store SHORT keyset ID prefixes (8 bytes).
+      // The Manager's internal wallet.decodeToken() needs FULL known keyset IDs
+      // in its cache to map the short IDs back. We must pre-sync keysets first.
+      const unsafeManager = mgr() as any;
 
-    // Extract mint URL from the token (works for V3 and V4)
-    // For V4 CBOR tokens: read the 'm' field directly WITHOUT keyset mapping
-    // (getDecodedToken would throw for V4 when short keyset IDs aren't cached yet)
-    const mintUrl: string | null = extractMintUrlFromToken(cleaned);
+      // Extract mint URL from the token (works for V3 and V4)
+      // For V4 CBOR tokens: read the 'm' field directly WITHOUT keyset mapping
+      // (getDecodedToken would throw for V4 when short keyset IDs aren't cached yet)
+      const mintUrl: string | null = extractMintUrlFromToken(cleaned);
 
-    // Reconcile removed active keysets and refresh the wallet before decoding compact IDs.
-    try {
-      if (mintUrl)
-        await refreshReceiveKeysets(
-          mgr(),
-          initService.getRepo().keysetRepository,
-          mintUrl,
-          cleaned,
-        );
-      await receiveWithDuplicateOutputRecovery(() => mgr().wallet.receive(cleaned));
-      console.log('[WalletService] ✅ Token received successfully');
-    } catch (err: any) {
-      const msg: string = err?.message ?? '';
-      console.error('[WalletService] Receive failed:');
+      // Reconcile removed active keysets and refresh the wallet before decoding compact IDs.
+      try {
+        if (mintUrl)
+          await refreshReceiveKeysets(
+            mgr(),
+            initService.getRepo().keysetRepository,
+            mintUrl,
+            cleaned,
+          );
+        await receiveWithDuplicateOutputRecovery(() => mgr().wallet.receive(cleaned));
+        console.log('[WalletService] ✅ Token received successfully');
+      } catch (err: any) {
+        const msg: string = err?.message ?? '';
+        console.error('[WalletService] Receive failed:');
 
-      if (msg.includes('not trusted') || err?.name === 'UnknownMintError') {
-        throw new Error('Mint is not trusted. Please add and trust the mint first.');
-      }
-
-      if (/unknown keyset/i.test(msg)) {
-        throw new Error(
-          'The mint does not recognize a keyset used by this token. Its mint may have reset or rotated keys. Keep the token and contact its sender or mint operator.',
-        );
-      }
-
-      // V4 short keyset ID mapping failed — clear wallet cache and retry once
-      if (msg.includes("Couldn't map") || msg.includes('short keyset')) {
-        console.warn(
-          '[WalletService] Short keyset ID mapping failed — clearing wallet cache and retrying...',
-        );
-        try {
-          if (typeof unsafeManager.walletService?.clearCache === 'function') {
-            unsafeManager.walletService.clearCache(mintUrl ?? '');
-          } else {
-            unsafeManager.walletService?.clearAllCaches?.();
-          }
-          await receiveWithDuplicateOutputRecovery(() => mgr().wallet.receive(cleaned));
-          console.log('[WalletService] ✅ Token received (after cache clear)');
-          return;
-        } catch (retryErr: any) {
-          if (isNetworkError(retryErr)) {
-            await handleOfflineReceive(cleaned, mintUrl, retryErr);
-          }
-          throw retryErr;
+        if (msg.includes('not trusted') || err?.name === 'UnknownMintError') {
+          throw new Error('Mint is not trusted. Please add and trust the mint first.');
         }
+
+        if (/unknown keyset/i.test(msg)) {
+          throw new Error(
+            'The mint does not recognize a keyset used by this token. Its mint may have reset or rotated keys. Keep the token and contact its sender or mint operator.',
+          );
+        }
+
+        // V4 short keyset ID mapping failed — clear wallet cache and retry once
+        if (msg.includes("Couldn't map") || msg.includes('short keyset')) {
+          console.warn(
+            '[WalletService] Short keyset ID mapping failed — clearing wallet cache and retrying...',
+          );
+          try {
+            if (typeof unsafeManager.walletService?.clearCache === 'function') {
+              unsafeManager.walletService.clearCache(mintUrl ?? '');
+            } else {
+              unsafeManager.walletService?.clearAllCaches?.();
+            }
+            await receiveWithDuplicateOutputRecovery(() => mgr().wallet.receive(cleaned));
+            console.log('[WalletService] ✅ Token received (after cache clear)');
+            return;
+          } catch (retryErr: any) {
+            if (isNetworkError(retryErr)) {
+              await handleOfflineReceive(cleaned, mintUrl, retryErr);
+            }
+            throw retryErr;
+          }
+        }
+
+        if (msg.includes('Invalid token') || err?.name === 'ProofValidationError') {
+          throw new Error('Invalid token format. Please check the token and try again.');
+        }
+
+        if (isDuplicateOutputsError(err)) throw err;
+
+        if (msg.includes('could not be verified') || msg.includes('outputs')) {
+          throw new Error(
+            'Token proofs could not be verified. The token may have already been redeemed.',
+          );
+        }
+
+        if (isNetworkError(err)) {
+          await handleOfflineReceive(cleaned, mintUrl, err);
+        }
+
+        throw err;
       }
-
-      if (msg.includes('Invalid token') || err?.name === 'ProofValidationError') {
-        throw new Error('Invalid token format. Please check the token and try again.');
-      }
-
-      if (isDuplicateOutputsError(err)) throw err;
-
-      if (msg.includes('could not be verified') || msg.includes('outputs')) {
-        throw new Error(
-          'Token proofs could not be verified. The token may have already been redeemed.',
-        );
-      }
-
-      if (isNetworkError(err)) {
-        await handleOfflineReceive(cleaned, mintUrl, err);
-      }
-
-      throw err;
-    }
+    });
   },
 
   /**

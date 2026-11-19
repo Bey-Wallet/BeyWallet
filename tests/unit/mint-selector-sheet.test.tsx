@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal } from 'react-native';
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import HomeHeaderMintSelector, {
@@ -70,22 +71,9 @@ jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
+jest.mock('~/shared/hooks/useAppToast', () => ({ useAppToast: () => ({}) }));
 jest.mock('@gorhom/bottom-sheet', () => ({
-  BottomSheetFlatList: (props: any) =>
-    require('react').createElement(
-      'MintList',
-      props,
-      props.ListHeaderComponent,
-      props.data.length
-        ? props.data.map((item: any) =>
-            require('react').createElement(
-              require('react').Fragment,
-              { key: item.url },
-              props.renderItem({ item }),
-            ),
-          )
-        : props.ListEmptyComponent,
-    ),
+  BottomSheetScrollView: 'MintScrollView',
 }));
 jest.mock('~/shared/ui/AppBottomSheet', () => ({
   __esModule: true,
@@ -131,9 +119,10 @@ const row = (url: string) =>
     .find(
       (node) =>
         typeof node.props.accessibilityLabel === 'string' &&
+        node.props.accessibilityState?.expanded === undefined &&
         node.findAllByType('MintImage' as any).some((icon) => icon.props.mintUrl === url),
     )!;
-const list = () => tree.root.findByType(BottomSheetFlatList);
+const rows = () => tree.root.findAllByType(ListTableRow);
 const sheet = () => tree.root.findByType('Sheet' as any);
 const press = async (url: string) => {
   await act(async () => {
@@ -226,7 +215,7 @@ it('opens cached mints offline without refreshing the list or waiting for networ
   expect(mockRefresh).not.toHaveBeenCalled();
   expect(mockGetMintInfo).not.toHaveBeenCalled();
   expect(mockFetchPrice).not.toHaveBeenCalled();
-  expect(list().props.data).toHaveLength(3);
+  expect(rows()).toHaveLength(3);
   expect(row(c)).toBeUndefined();
   expect(row(a).props.accessibilityLabel).toBe('Alpha, 10,000 sat');
   expect(row(b).props.accessibilityLabel).toBe('Beta, 0 sat');
@@ -238,13 +227,11 @@ it('uses a simple bottom-sheet mint list without search controls', async () => {
   expect(sheet().props.open).toBe(true);
   expect(sheet().props.snapPoints).toBeUndefined();
   expect(sheet().props.scrollable).toBe(true);
-  const headerChildren = React.Children.toArray(list().props.ListHeaderComponent.props.children);
-  expect(
-    headerChildren.some((child) => typeof child === 'string' || typeof child === 'number'),
-  ).toBe(false);
+  expect(tree.root.findAllByType(BottomSheetScrollView)).toHaveLength(1);
+  expect(tree.root.findByType(ListTable).props.separators).not.toBe(false);
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Search mints' })).toHaveLength(0);
   expect(tree.root.findAllByProps({ accessibilityLabel: 'Clear mint search' })).toHaveLength(0);
-  expect(list().props.data).toHaveLength(3);
+  expect(rows()).toHaveLength(3);
   expect(mockRefresh).not.toHaveBeenCalled();
   expect(mockGetMintInfo).not.toHaveBeenCalled();
 });
@@ -269,7 +256,7 @@ it('dismisses an unchanged Home selection without starting another refresh', asy
   expect(tree.root.findAllByType('Spinner' as any)).toHaveLength(0);
 });
 
-it('shows the row spinner until the switch commits, then a bold branded check before closing', async () => {
+it('shows the row spinner until the switch commits, then a selection check before closing', async () => {
   onlineManager.setOnline(false);
   const operation = deferred();
   const switchMint = jest.fn(async (url: string) => {
@@ -299,7 +286,7 @@ it('shows the row spinner until the switch commits, then a bold branded check be
   expect(row(b).findAllByType('Spinner' as any)).toHaveLength(0);
   expect(row(b).findByType('Check' as any).props).toMatchObject({
     color: '$buttonDefaultPrimary',
-    strokeWidth: 3.5,
+    strokeWidth: 2,
   });
   expect(mockDismiss).not.toHaveBeenCalled();
   await advance();
@@ -355,7 +342,11 @@ it('enforces trust, allowed URLs and payment methods using SDK metadata while of
   });
   expect(mockGetAllMints).toHaveBeenCalledTimes(1);
   expect(mockGetMintInfo).not.toHaveBeenCalled();
-  expect(list().props.data.map((item: any) => item.url)).toEqual([b]);
+  expect(rows().map((item) => item.props.label)).toEqual(['Beta']);
+  expect(row(b)).toBeDefined();
+  expect(row(a)).toBeUndefined();
+  expect(row(c)).toBeUndefined();
+  expect(row(d)).toBeUndefined();
   await act(async () => {
     ref.current?.present();
   });

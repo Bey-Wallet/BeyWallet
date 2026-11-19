@@ -22,6 +22,18 @@ jest.mock('~/shared/ui/BUI/BUIHeader', () => ({
 }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/AppInput', () => ({ AppInput: 'Input' }));
+jest.mock('~/shared/ui/AppText', () => ({ AppText: 'Text' }));
+jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
+jest.mock('~/shared/ui/BUI/BUISelectionControl', () => ({
+  BUISelectionRow: ({ onCheckedChange, ...props }: any) =>
+    require('react').createElement('Checkbox', {
+      ...props,
+      accessibilityRole: 'checkbox',
+      onPress: () => {
+        if (!props.disabled) onCheckedChange(!props.checked);
+      },
+    }),
+}));
 jest.mock('~/shared/hooks/useAppToast', () => ({
   useAppToast: () => ({ openExternal: jest.fn() }),
 }));
@@ -46,6 +58,7 @@ jest.mock('@tamagui/lucide-icons', () =>
       'Check',
       'Landmark',
       'Sprout',
+      'ExternalLink',
     ].map((name) => [name, name]),
   ),
 );
@@ -116,7 +129,7 @@ it('uses a top-left BUI back action, opens help on demand, and has no inline con
 it('requires the separate risk acknowledgment before starting import', async () => {
   await render();
   await enterPhrase();
-  expect(header().props.title).toBe('Risk Acknowledgment');
+  expect(header().props.title).toBe('Risk acknowledgment');
   expect(onImport).not.toHaveBeenCalled();
   expect(button('Agree & Continue').props.disabled).toBe(true);
   await act(async () => button('Agree & Continue').props.onPress());
@@ -182,7 +195,7 @@ it('routes Android back to seed entry and blocks navigation and resubmission whi
   });
   expect(onImport).toHaveBeenCalledTimes(1);
   expect(onBack).not.toHaveBeenCalled();
-  expect(header().props.title).toBe('Risk Acknowledgment');
+  expect(header().props.title).toBe('Risk acknowledgment');
 });
 
 it('selects a backup without processing it until risk acceptance', async () => {
@@ -190,7 +203,7 @@ it('selects a backup without processing it until risk acceptance', async () => {
   expect(button('Import backup file').props).toMatchObject({ size: 'small', emphasis: 'text' });
   await act(async () => button('Import backup file').props.onPress());
   expect(walletFileService.selectWalletBackupFile).toHaveBeenCalledTimes(1);
-  expect(header().props.title).toBe('Risk Acknowledgment');
+  expect(header().props.title).toBe('Risk acknowledgment');
   expect(onImportFromFile).not.toHaveBeenCalled();
   await act(async () => button('Agree & Continue').props.onPress());
   expect(onImportFromFile).not.toHaveBeenCalled();

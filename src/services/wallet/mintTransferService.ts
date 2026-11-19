@@ -8,6 +8,11 @@ import {
 } from '~/storage/sqlite/repositories/MintTransferRepository';
 import { supportsPaymentMethod } from './paymentMintPolicy';
 import { recoveryCoordinator } from './recoveryCoordinator';
+import {
+  observeDiagnosticOperation,
+  recordDiagnosticFailure,
+  diagnosticFailureGeneration,
+} from '~/services/feedback/diagnosticFailures';
 
 export type { MintTransferRecord } from '~/storage/sqlite/repositories/MintTransferRepository';
 export const TRANSFER_WAIT_MS = 20_000;
@@ -175,7 +180,7 @@ export class MintTransferService {
   execute(id: string): Promise<MintTransferRecord> {
     const existing = this.submissions.get(id);
     if (existing) return observeTransfer(existing, () => this.requireRecord(id));
-    const task = this.executeOnce(id);
+    const task = observeDiagnosticOperation('mint_transfer', () => this.executeOnce(id));
     this.submissions.set(id, task);
     void task.finally(() => this.submissions.delete(id)).catch(() => {});
     return observeTransfer(task, () => this.requireRecord(id));
@@ -201,9 +206,12 @@ export class MintTransferService {
     record.state = 'committed';
     changed();
     this.reviews.delete(id);
+    const diagnosticStart = Date.now();
+    const diagnosticGeneration = diagnosticFailureGeneration();
     try {
       await this.manager.quotes.executeMelt(record.operationId);
-    } catch {
+    } catch (error) {
+      recordDiagnosticFailure('mint_transfer', error, diagnosticStart, diagnosticGeneration);
       // A lost response is not evidence of failure. Check the original operation.
     }
     return this.reconcile(id).catch(() => record);

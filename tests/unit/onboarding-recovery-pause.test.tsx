@@ -25,7 +25,7 @@ jest.mock('~/features/onboarding/WelcomeStep', () => ({ WelcomeStep: 'Welcome' }
 jest.mock('~/features/onboarding/ImportSeedStep', () => ({ ImportSeedStep: 'Import' }));
 jest.mock('~/features/onboarding/PermissionsStep', () => ({ PermissionsStep: 'Permissions' }));
 jest.mock('~/features/onboarding/WalletCreationTask', () => ({ WalletCreationTask: () => null }));
-jest.mock('~/features/onboarding/ConsentStep', () => ({ ConsentStep: () => null }));
+jest.mock('~/features/onboarding/ConsentStep', () => ({ ConsentStep: 'Consent' }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('~/shared/ui/OperationFeedback', () => ({ usePendingOperationToast: jest.fn() }));
 jest.mock('~/shared/ui/Flex', () => ({ Flex: 'Flex' }));
@@ -155,11 +155,37 @@ afterEach(async () => {
   jest.restoreAllMocks();
 });
 
+async function openImport() {
+  await act(async () => tree.root.findByType('Welcome' as any).props.onImportWallet());
+  expect(useOnboardingStore.getState().currentStep).toBe('import');
+  expect(tree.root.findAllByType('Consent' as any)).toHaveLength(0);
+  expect(initService.restoreWallet).not.toHaveBeenCalled();
+  expect(walletFileService.readWalletBackupFile).not.toHaveBeenCalled();
+}
+
+it.each([['onCreateWallet', 'creating']] as const)(
+  'requires risk acknowledgment for %s and continues to %s',
+  async (action, nextStep) => {
+    await act(async () => {
+      tree = create(<OnboardingScreen />);
+    });
+    await act(async () => tree.root.findByType('Welcome' as any).props[action]());
+    expect(useOnboardingStore.getState().currentStep).toBe('consent');
+    expect(initService.restoreWallet).not.toHaveBeenCalled();
+    expect(walletFileService.readWalletBackupFile).not.toHaveBeenCalled();
+    await act(async () => tree.root.findByType('Consent' as any).props.onBack());
+    expect(useOnboardingStore.getState().currentStep).toBe('welcome');
+    await act(async () => tree.root.findByType('Welcome' as any).props[action]());
+    await act(async () => tree.root.findByType('Consent' as any).props.onComplete());
+    expect(useOnboardingStore.getState().currentStep).toBe(nextStep);
+  },
+);
+
 async function importSeed() {
   await act(async () => {
     tree = create(<OnboardingScreen />);
   });
-  await act(async () => tree.root.findByType('Welcome' as any).props.onImportWallet());
+  await openImport();
   await act(async () =>
     tree.root.findByType('Import' as any).props.onImport('synthetic-seed-fixture'),
   );
@@ -227,7 +253,7 @@ it('restores file records and opens the wallet without an additional scan or set
   await act(async () => {
     tree = create(<OnboardingScreen />);
   });
-  await act(async () => tree.root.findByType('Welcome' as any).props.onImportWallet());
+  await openImport();
   expect(walletFileService.readWalletBackupFile).not.toHaveBeenCalled();
   mockPrepareFileRestore.mockImplementationOnce(async (data: any) => {
     expect(recoveryCoordinator.paused).toBe(true);
@@ -257,7 +283,7 @@ it('does not initialize or complete onboarding when the selected backup is inval
   await act(async () => {
     tree = create(<OnboardingScreen />);
   });
-  await act(async () => tree.root.findByType('Welcome' as any).props.onImportWallet());
+  await openImport();
   await act(async () =>
     tree.root.findByType('Import' as any).props.onImportFromFile('file:///invalid.json'),
   );
@@ -275,7 +301,7 @@ it('keeps onboarding open and releases its pause if restoring file records fails
   await act(async () => {
     tree = create(<OnboardingScreen />);
   });
-  await act(async () => tree.root.findByType('Welcome' as any).props.onImportWallet());
+  await openImport();
   await act(async () =>
     tree.root.findByType('Import' as any).props.onImportFromFile('file:///backup.json'),
   );

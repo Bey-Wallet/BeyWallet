@@ -1,4 +1,8 @@
 import type { MeltOperation } from 'coco-cashu-core';
+import {
+  recordDiagnosticFailure,
+  diagnosticFailureGeneration,
+} from '~/services/feedback/diagnosticFailures';
 import { getChangeServices } from './plugins/ChangePreparationPlugin';
 import { safeWalletErrorDiagnostic } from './walletLogger';
 
@@ -64,9 +68,13 @@ export class LightningPayment {
   }
 
   private async prepare() {
+    const diagnosticStart = Date.now();
+    const diagnosticGeneration = diagnosticFailureGeneration();
     try {
       return await this.preparePreview();
     } catch (error) {
+      if (!this.disposed)
+        recordDiagnosticFailure('lightning_prepare', error, diagnosticStart, diagnosticGeneration);
       this.preparationError = safeWalletErrorDiagnostic(error);
       const message = error instanceof Error ? error.message : '';
       this.preparationFailure = this.disposed
@@ -127,9 +135,12 @@ export class LightningPayment {
     const manager = await this.manager();
     if (this.disposed) throw new Error('Invoice or mint changed');
     this.submitted = true;
+    const diagnosticStart = Date.now();
+    const diagnosticGeneration = diagnosticFailureGeneration();
     try {
       this.operation = await manager.quotes.executeMelt(preview.operationId);
-    } catch {
+    } catch (error) {
+      recordDiagnosticFailure('lightning_pay', error, diagnosticStart, diagnosticGeneration);
       // Includes "already paid or pending". Reconcile the original operation only.
       return this.refresh();
     }
@@ -137,6 +148,8 @@ export class LightningPayment {
   }
 
   async refresh(): Promise<LightningPaymentState> {
+    const diagnosticStart = Date.now();
+    const diagnosticGeneration = diagnosticFailureGeneration();
     if (this.disposed && !this.submitted && !this.cancelled) {
       // A failed rollback can be retried by Refresh, without submitting funds.
       try {
@@ -156,7 +169,8 @@ export class LightningPayment {
       if (updated) this.operation = updated;
       if (updated?.state === 'finalized') return 'paid';
       if (updated?.state === 'pending' || updated?.state === 'executing') return 'pending';
-    } catch {
+    } catch (error) {
+      recordDiagnosticFailure('lightning_status', error, diagnosticStart, diagnosticGeneration);
       /* Preserve ambiguity and reserved proofs. */
     }
     return 'unresolved';
