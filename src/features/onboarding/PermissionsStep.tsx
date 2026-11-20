@@ -33,6 +33,7 @@ export type SetupProgressStep = {
 interface PermissionsStepProps {
   isFinishing?: boolean;
   setupProgress?: SetupProgressStep[];
+  canSkipOptional?: boolean;
   initialUsername: string;
   npub: string;
   onComplete: (
@@ -49,6 +50,7 @@ export function PermissionsStep({
   onComplete,
   isFinishing = false,
   setupProgress = [],
+  canSkipOptional = false,
 }: PermissionsStepProps) {
   const insets = useSafeAreaInsets();
   const [biometricEnabled, setBiometricEnabled] = useState(false);
@@ -173,13 +175,27 @@ export function PermissionsStep({
           </YStack>
         </ScrollView>
         {failed && (
-          <AppButton
-            size="large"
-            disabled={isFinishing}
-            onPress={() => onComplete(initialUsername, biometricEnabled, skipUsername, mintUrls())}
-          >
-            Retry setup
-          </AppButton>
+          <YStack gap="$3">
+            <AppButton
+              size="large"
+              disabled={isFinishing}
+              onPress={() =>
+                onComplete(initialUsername, biometricEnabled, skipUsername, mintUrls())
+              }
+            >
+              Retry setup
+            </AppButton>
+            {canSkipOptional && (
+              <AppButton
+                size="large"
+                emphasis="secondary"
+                disabled={isFinishing}
+                onPress={() => onComplete(initialUsername, biometricEnabled, true, [])}
+              >
+                Skip & Open Wallet
+              </AppButton>
+            )}
+          </YStack>
         )}
       </YStack>
     );

@@ -186,3 +186,31 @@ it('replaces profile controls with actual step progress and retains choices for 
   await act(async () => button('Retry setup').props.onPress());
   expect(onComplete).toHaveBeenCalledWith('test-user', false, true, ['https://mint.test']);
 });
+
+it('offers skipping only after local setup succeeds and optional setup fails', async () => {
+  const onComplete = jest.fn();
+  await act(async () => {
+    tree = create(
+      <PermissionsStep
+        initialUsername="test-user"
+        npub="test-npub"
+        onComplete={onComplete}
+        canSkipOptional
+        setupProgress={[{ id: 'mint-0', label: 'Connect mint', status: 'error' }]}
+      />,
+    );
+  });
+  await act(async () => button('Skip & Open Wallet').props.onPress());
+  expect(onComplete).toHaveBeenCalledWith('test-user', false, true, []);
+  await act(async () => {
+    tree.update(
+      <PermissionsStep
+        initialUsername="test-user"
+        npub="test-npub"
+        onComplete={onComplete}
+        setupProgress={[{ id: 'wallet', label: 'Create wallet', status: 'error' }]}
+      />,
+    );
+  });
+  expect(button('Skip & Open Wallet')).toBeUndefined();
+});

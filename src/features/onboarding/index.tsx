@@ -25,26 +25,12 @@ import { useWalletStore } from '~/state/walletStore';
 import { useAuthStore } from '~/state/authStore';
 import { walletFileService } from '~/services/platform/walletFileService';
 import { fileRestoreService } from '~/services/wallet/fileRestoreService';
-import { Alert } from 'react-native';
+import { withTimeout } from '~/shared/utils/withTimeout';
 import { Text, YStack } from 'tamagui';
 import { generateDeterministicUsername } from '~/shared/utils/username';
 import { nostrIdentityService } from '~/services/wallet/nostrIdentityService';
 import { Flex } from '~/shared/ui/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-function chooseUsernameFailureAction(message: string): Promise<'retry' | 'continue'> {
-  return new Promise((resolve) => {
-    Alert.alert(
-      'Username registration failed',
-      `${message}\n\nYou can retry, or continue using your npub and add a username later in Settings.`,
-      [
-        { text: 'Continue with npub', onPress: () => resolve('continue') },
-        { text: 'Retry', onPress: () => resolve('retry') },
-      ],
-      { cancelable: false },
-    );
-  });
-}
 
 export function OnboardingScreen() {
   const { currentStep, setStep, setGeneratedMnemonic, generatedMnemonic, completeOnboarding } =
@@ -55,6 +41,12 @@ export function OnboardingScreen() {
   const [isFinishing, setIsFinishing] = useState(false);
   const finishLock = useRef(false);
   const setupPrepared = useRef(false);
+  const usernamePrepared = useRef(false);
+  const pendingUsername = useRef<ReturnType<typeof nostrIdentityService.registerUsername> | null>(
+    null,
+  );
+  const [canSkipOptional, setCanSkipOptional] = useState(false);
+  const pendingMintConnections = useRef(new Map<string, Promise<void>>());
   const [setupError, setSetupError] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState('');
   const [tempUsername, setTempUsername] = useState('anon');
@@ -105,21 +97,24 @@ export function OnboardingScreen() {
       return;
     }
 
-    while (true) {
-      setFinishingStatus('Registering username…');
-      const result = await nostrIdentityService.registerUsername(username, pubkeyHex, privkeyHex);
-      if (result.ok && result.nip05) {
-        await useSettingsStore.getState().setNip05(result.nip05);
-        return;
-      }
-
-      // Never persist an identity until the public NIP-05 mapping is verified.
-      await useSettingsStore.getState().setNip05(null);
-      const action = await chooseUsernameFailureAction(
-        result.error || 'The public NIP-05 record could not be verified.',
-      );
-      if (action === 'continue') return;
+    setFinishingStatus('Registering username…');
+    if (!pendingUsername.current) {
+      const registration = nostrIdentityService.registerUsername(username, pubkeyHex, privkeyHex);
+      pendingUsername.current = registration;
+      const clear = () => {
+        pendingUsername.current = null;
+      };
+      void registration.then(clear, clear);
     }
+    const result = await withTimeout(pendingUsername.current, 15_000);
+    if (result.ok && result.nip05) {
+      await useSettingsStore.getState().setNip05(result.nip05);
+      return;
+    }
+
+    // Never persist an identity until the public NIP-05 mapping is verified.
+    await useSettingsStore.getState().setNip05(null);
+    throw new Error(result.error || 'The public NIP-05 record could not be verified.');
   };
 
   // Check on mount if a wallet exists but onboarding was not completed
@@ -252,8 +247,10 @@ export function OnboardingScreen() {
       const pubkeyHex = keys.pubkey;
       const privkeyHex = keys.privkey;
       const offline = await networkService.isOffline();
-      if (offline && mintUrls.length) {
-        throw new Error('Reconnect before adding the selected mints.');
+      if (offline) {
+        setSetupProgress((steps) =>
+          steps.filter((step) => step.id !== 'profile' && !step.id.startsWith('mint-')),
+        );
       }
 
       if (!setupPrepared.current) {
@@ -294,9 +291,6 @@ export function OnboardingScreen() {
               discoveryMessage,
             },
           });
-
-          if (!skipUsername) startSetupStep('profile');
-          await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
         } else {
           setFinishingStatus('Creating secure keypair…');
           await initService.createWallet(generatedMnemonic);
@@ -305,21 +299,35 @@ export function OnboardingScreen() {
           await useSettingsStore.getState().initialize(true);
           startSetupStep('data');
           await initialize();
-
-          if (!skipUsername) startSetupStep('profile');
-          await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
         }
         setupPrepared.current = true;
+      }
+      setCanSkipOptional(true);
+      if (!usernamePrepared.current) {
+        if (!skipUsername && !offline) startSetupStep('profile');
+        await registerOnboardingUsername(username, pubkeyHex, privkeyHex, offline, skipUsername);
+        usernamePrepared.current = true;
       }
 
       // Keep successful connections on retry; never recreate a prepared wallet.
       for (const [index, url] of selectedUrls.entries()) {
+        if (offline) break;
         startSetupStep(`mint-${index}`);
         setFinishingStatus(`Connecting mint ${index + 1} of ${selectedUrls.length}…`);
         const connected = useWalletStore
           .getState()
           .mints.some((mint) => mintUrlKey(mint.mintUrl) === mintUrlKey(url) && mint.trusted);
-        if (!connected) await connectMint(url);
+        if (!connected) {
+          const key = mintUrlKey(url);
+          let connection = pendingMintConnections.current.get(key);
+          if (!connection) {
+            connection = connectMint(url);
+            pendingMintConnections.current.set(key, connection);
+            const clear = () => pendingMintConnections.current.delete(key);
+            void connection.then(clear, clear);
+          }
+          await withTimeout(connection, 12_000);
+        }
       }
       if (isImportingFlow) holdRecoveryPause();
       setFinishingStatus('Finalizing setup…');
@@ -335,7 +343,11 @@ export function OnboardingScreen() {
       );
       releaseRecoveryPause();
       console.error('[Onboarding] Onboarding completion failed:');
-      setSetupError('Setup could not finish. Check your connection and try again.');
+      setSetupError(
+        setupPrepared.current
+          ? 'Your wallet is saved. Retry connecting, or skip username and mints to open it now.'
+          : 'Setup could not finish. Please try again.',
+      );
     } finally {
       resumeRecoveryWork?.();
       finishLock.current = false;
@@ -505,6 +517,7 @@ export function OnboardingScreen() {
           <PermissionsStep
             isFinishing={isFinishing}
             setupProgress={setupProgress}
+            canSkipOptional={canSkipOptional}
             initialUsername={tempUsername}
             npub={tempNpub}
             onComplete={handlePermissionsComplete}

@@ -8,6 +8,8 @@ import { initService } from '~/services/wallet';
 import { walletFileService } from '~/services/platform/walletFileService';
 import { recoveryCoordinator } from '~/services/wallet/recoveryCoordinator';
 import { connectMint } from '~/features/mints/connectMint';
+import { networkService } from '~/services/platform/networkService';
+import { nostrIdentityService } from '~/services/wallet/nostrIdentityService';
 import {
   useRecoverySessionStore,
   acknowledgeRecovery,
@@ -32,7 +34,7 @@ jest.mock('~/shared/ui/Flex', () => ({ Flex: 'Flex' }));
 jest.mock('tamagui', () => ({ YStack: 'YStack', Text: 'Text' }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
 jest.mock('~/services/platform/networkService', () => ({
-  networkService: { isOffline: async () => false },
+  networkService: { isOffline: jest.fn(async () => false) },
 }));
 jest.mock('~/services/platform/walletFileService', () => ({
   walletFileService: { readWalletBackupFile: jest.fn() },
@@ -57,7 +59,9 @@ jest.mock('~/services/platform/seedService', () => ({
 jest.mock('~/shared/utils/username', () => ({
   generateDeterministicUsername: () => 'synthetic-user',
 }));
-jest.mock('~/services/wallet/nostrIdentityService', () => ({ nostrIdentityService: {} }));
+jest.mock('~/services/wallet/nostrIdentityService', () => ({
+  nostrIdentityService: { registerUsername: jest.fn() },
+}));
 jest.mock('~/services/wallet', () => ({
   initService: {
     walletExists: async () => false,
@@ -88,6 +92,8 @@ jest.mock('~/state/authStore', () => ({
 let tree: ReactTestRenderer;
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(connectMint).mockReset().mockResolvedValue(undefined);
+  jest.mocked(networkService.isOffline).mockResolvedValue(false);
   jest.mocked(initService.restoreWallet).mockImplementation(async (_mnemonic, options) => {
     // Match lifecycle cleanup: a normal replacement also clears onboarding's draft.
     if (!options?.preserveSetup) {
@@ -164,6 +170,121 @@ it('retries a failed mint without recreating the wallet or reconnecting successf
   ]);
   expect(useOnboardingStore.getState().completeOnboarding).toHaveBeenCalledTimes(1);
   expect(recoveryCoordinator.paused).toBe(true);
+});
+
+it('opens a new wallet offline even with previously selected mints and username enabled', async () => {
+  useOnboardingStore.setState({
+    currentStep: 'permissions',
+    generatedMnemonic: 'synthetic-seed-fixture',
+  });
+  jest.mocked(networkService.isOffline).mockResolvedValue(true);
+  await act(async () => {
+    tree = create(<OnboardingScreen />);
+  });
+  await act(async () =>
+    tree.root
+      .findByType('Permissions' as any)
+      .props.onComplete('synthetic-user', false, false, ['https://offline.test']),
+  );
+  expect(initService.createWallet).toHaveBeenCalledTimes(1);
+  expect(connectMint).not.toHaveBeenCalled();
+  expect(useOnboardingStore.getState().completeOnboarding).toHaveBeenCalledTimes(1);
+});
+
+it('can skip failed mint setup without recreating the saved wallet', async () => {
+  await importSeed();
+  jest.mocked(connectMint).mockRejectedValueOnce(new Error('Offline'));
+  await act(async () =>
+    tree.root
+      .findByType('Permissions' as any)
+      .props.onComplete('', false, true, ['https://offline.test']),
+  );
+  expect(useOnboardingStore.getState().completeOnboarding).not.toHaveBeenCalled();
+  expect(tree.root.findByType('Permissions' as any).props.canSkipOptional).toBe(true);
+  await act(async () =>
+    tree.root.findByType('Permissions' as any).props.onComplete('', false, true, []),
+  );
+  expect(initService.restoreWallet).toHaveBeenCalledTimes(1);
+  expect(useOnboardingStore.getState().completeOnboarding).toHaveBeenCalledTimes(1);
+});
+
+it('bounds a stalled mint and reuses its pending connection on retry', async () => {
+  await importSeed();
+  jest.useFakeTimers();
+  try {
+    jest.mocked(connectMint).mockImplementation(() => new Promise(() => {}));
+    const finish = () =>
+      tree.root
+        .findByType('Permissions' as any)
+        .props.onComplete('', false, true, ['https://slow.test']);
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = finish();
+    });
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(12_000);
+      await pending;
+    });
+    expect(useOnboardingStore.getState().completeOnboarding).not.toHaveBeenCalled();
+    await act(async () => {
+      pending = finish();
+    });
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(12_000);
+      await pending;
+    });
+    expect(connectMint).toHaveBeenCalledTimes(1);
+    await act(async () =>
+      tree.root.findByType('Permissions' as any).props.onComplete('', false, true, []),
+    );
+    expect(useOnboardingStore.getState().completeOnboarding).toHaveBeenCalledTimes(1);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+it('lets a stalled username time out and ignores late results after skipping', async () => {
+  await importSeed();
+  jest.useFakeTimers();
+  try {
+    let resolveRegistration!: (value: any) => void;
+    jest.mocked(nostrIdentityService.registerUsername).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRegistration = resolve;
+        }),
+    );
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = tree.root
+        .findByType('Permissions' as any)
+        .props.onComplete('user', false, false, []);
+    });
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(15_000);
+      await pending;
+    });
+    expect(useOnboardingStore.getState().completeOnboarding).not.toHaveBeenCalled();
+    await act(async () => {
+      pending = tree.root
+        .findByType('Permissions' as any)
+        .props.onComplete('user', false, false, []);
+    });
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(15_000);
+      await pending;
+    });
+    expect(nostrIdentityService.registerUsername).toHaveBeenCalledTimes(1);
+    await act(async () =>
+      tree.root.findByType('Permissions' as any).props.onComplete('user', false, true, []),
+    );
+    await act(async () => resolveRegistration({ ok: true, nip05: 'user@bey.cash' }));
+    expect(initService.restoreWallet).toHaveBeenCalledTimes(1);
+    expect(useOnboardingStore.getState().completeOnboarding).toHaveBeenCalledTimes(1);
+    expect(nostrIdentityService.registerUsername).toHaveBeenCalledTimes(1);
+  } finally {
+    jest.useRealTimers();
+  }
 });
 afterEach(async () => {
   releaseRecoveryPause();
