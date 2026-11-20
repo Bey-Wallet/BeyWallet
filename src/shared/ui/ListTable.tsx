@@ -72,6 +72,8 @@ export function ListTableRow({
   iconAfter,
   rightContent,
   multiline,
+  expandValue = false,
+  hideLabel = false,
   compact: compactProp,
   disabled = false,
   selected,
@@ -93,6 +95,9 @@ export function ListTableRow({
   iconAfter?: React.ReactNode;
   rightContent?: React.ReactNode;
   multiline?: boolean;
+  /** Let long values use all remaining width after the label. */
+  expandValue?: boolean;
+  hideLabel?: boolean;
   compact?: boolean;
   disabled?: boolean;
   selected?: boolean;
@@ -143,43 +148,53 @@ export function ListTableRow({
         px={appSpacing.page}
         gap={appSpacing.compact}
       >
-        <XStack items="center" gap="$2" flex={1} flexShrink={1} minWidth={0}>
-          {Icon && (
-            <XStack width={Math.max(22, iconSize)} flexShrink={0} items="center" justify="center">
-              <Icon size={iconSize} color={iconColor || '$iconSecondary'} />
-            </XStack>
-          )}
-          <YStack flex={1} flexShrink={1} minWidth={0}>
-            <Text
-              fontFamily="$body"
-              {...appTypography.body1}
-              color={labelColor || '$gray10'}
-              flexShrink={1}
-              numberOfLines={labelNumberOfLines ?? (wrap ? undefined : 1)}
-              ellipsizeMode="tail"
-            >
-              {label}
-            </Text>
-            {description != null && (
+        {!hideLabel && (
+          <XStack
+            items="center"
+            gap="$2"
+            flex={expandValue ? undefined : 1}
+            flexShrink={expandValue ? 0 : 1}
+            minWidth={0}
+          >
+            {Icon && (
+              <XStack width={Math.max(22, iconSize)} flexShrink={0} items="center" justify="center">
+                <Icon size={iconSize} color={iconColor || '$iconSecondary'} />
+              </XStack>
+            )}
+            <YStack flex={expandValue ? undefined : 1} flexShrink={1} minWidth={0}>
               <Text
                 fontFamily="$body"
-                {...appTypography.body2}
-                color="$gray10"
-                numberOfLines={1}
+                {...appTypography.body1}
+                color={labelColor || '$gray10'}
+                flexShrink={1}
+                numberOfLines={labelNumberOfLines ?? (wrap ? undefined : 1)}
                 ellipsizeMode="tail"
               >
-                {description}
+                {label}
               </Text>
-            )}
-          </YStack>
-        </XStack>
+              {description != null && (
+                <Text
+                  fontFamily="$body"
+                  {...appTypography.body2}
+                  color="$gray10"
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {description}
+                </Text>
+              )}
+            </YStack>
+          </XStack>
+        )}
 
         {hasTrailing && (
           <XStack
             gap="$2"
             items="center"
             minWidth={wrap ? 0 : undefined}
-            maxWidth={wrap ? '60%' : undefined}
+            maxWidth={expandValue ? '100%' : wrap ? '60%' : undefined}
+            width={hideLabel ? '100%' : undefined}
+            flex={expandValue ? 1 : undefined}
             flexShrink={wrap ? 1 : 0}
             justify="flex-end"
           >

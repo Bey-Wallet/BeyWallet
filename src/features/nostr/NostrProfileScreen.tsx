@@ -10,7 +10,6 @@ import {
   Share2,
   Settings2,
   Zap,
-  Plus,
   Landmark,
   Clock,
 } from '@tamagui/lucide-icons';
@@ -23,7 +22,6 @@ import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useNip05Lookup } from '~/shared/hooks/useNip05Lookup';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
-import Blockies from '~/shared/ui/Blockies';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -36,6 +34,19 @@ import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { appColors, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { useLightningAddressStore } from '~/state/lightningAddressStore';
 import { lightningAddress, lightningAddressQr } from '~/services/api/npubCashClient';
+
+function highlightAddressDomain(value: string) {
+  const at = value.lastIndexOf('@');
+  if (at < 0) return value;
+  return (
+    <>
+      <Text color="$gray10">{value.slice(0, at)}</Text>
+      <Text fontWeight="600" color="$color">
+        {value.slice(at)}
+      </Text>
+    </>
+  );
+}
 
 export default function NostrProfileScreen({ settingsMode = false }: { settingsMode?: boolean }) {
   const router = useRouter();
@@ -139,41 +150,6 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
         variant="qr"
         hero={
           <YStack width="100%" maxWidth={440} gap={appSpacing.page} items="center">
-            {!isLightning && !verified && (
-              <YStack gap={appSpacing.compact} items="center" width="100%">
-                {!isLightning &&
-                  !verified &&
-                  (loading ? (
-                    <Spinner size="small" />
-                  ) : status === 'not_found' ? (
-                    <AppButton
-                      emphasis="secondary"
-                      size="small"
-                      fullWidth={false}
-                      onPress={openUsername}
-                    >
-                      Claim username
-                    </AppButton>
-                  ) : (
-                    status === 'error' && (
-                      <XStack gap={appSpacing.compact} items="center">
-                        <Text {...appTypography.body3} color="$gray10">
-                          Could not check your username
-                        </Text>
-                        <AppIconButton
-                          variant="default"
-                          emphasis="ghost"
-                          size="small"
-                          shape="circular"
-                          accessibilityLabel="Retry NIP-05 lookup"
-                          icon={RefreshCw}
-                          onPress={refresh}
-                        />
-                      </XStack>
-                    )
-                  ))}
-              </YStack>
-            )}
             {waitingForLightning || needsLightningSetup ? (
               <YStack
                 minHeight={qrSize}
@@ -252,97 +228,120 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
                     )}
                   </View>
                 </View>
-                <Text {...appTypography.body3} color="$gray10" textAlign="center">
-                  {isLightning ? 'Scan with a Lightning wallet' : 'Scan with an ecash wallet'}
-                </Text>
               </>
             )}
-          </YStack>
-        }
-        footer={
-          <YStack testID="my-addresses-actions" pb={insets.bottom} items="center">
-            {npub && (
-              <AppButton
-                emphasis="secondary"
-                size="small"
-                fullWidth={false}
-                icon={Plus}
-                onPress={() =>
-                  router.push(isLightning ? '/(modals)/mint' : '/(modals)/receive?mode=request')
-                }
-              >
-                {isLightning ? 'Create Lightning invoice' : 'Create payment request'}
-              </AppButton>
+            {!isLightning && !verified && (
+              <YStack testID="username-status" gap={appSpacing.compact} items="center" width="100%">
+                {loading ? (
+                  <Spinner size="small" />
+                ) : status === 'not_found' ? (
+                  <AppButton
+                    emphasis="secondary"
+                    size="small"
+                    fullWidth={false}
+                    onPress={openUsername}
+                  >
+                    Claim username
+                  </AppButton>
+                ) : status === 'error' ? (
+                  <XStack gap={appSpacing.compact} items="center">
+                    <Text {...appTypography.body3} color="$gray10">
+                      Could not check your username
+                    </Text>
+                    <AppIconButton
+                      variant="default"
+                      emphasis="ghost"
+                      size="small"
+                      shape="circular"
+                      accessibilityLabel="Retry NIP-05 lookup"
+                      icon={RefreshCw}
+                      onPress={refresh}
+                    />
+                  </XStack>
+                ) : null}
+              </YStack>
             )}
           </YStack>
         }
       >
         <YStack width="100%" maxWidth={440} self="center" gap={appSpacing.gap}>
-          {!isLightning && verified && npub && (
-            <YStack bg="$gray2" rounded="$6" p={appSpacing.gap} pt={appSpacing.small}>
-              <XStack items="center" justify="space-between" gap={appSpacing.gap}>
-                <Text {...appTypography.body3} color="$gray10" flex={1}>
-                  Address
-                </Text>
-                <AppIconButton
-                  emphasis="text"
-                  size="small"
-                  iconSize={appTypography.body3.fontSize}
-                  icon={copied === nip05 ? Check : Copy}
-                  accessibilityLabel="Copy Nostr address"
-                  onPress={() => copy(nip05!)}
+          {((copyValue && canShare) ||
+            (isLightning && lightning.loaded && lightning.pending.length > 0)) && (
+            <ListTable testID="address-copy-card">
+              {!isLightning && verified && (
+                <ListTableRow
+                  label="Address"
+                  multiline
+                  expandValue
+                  value={
+                    <XStack gap="$1" items="center" flexShrink={1}>
+                      <Text
+                        {...appTypography.label1}
+                        color="$color"
+                        selectable
+                        textAlign="right"
+                        flexShrink={1}
+                      >
+                        {highlightAddressDomain(nip05!)}
+                      </Text>
+                      <Nip05VerifiedBadge size={14} />
+                    </XStack>
+                  }
+                  rightContent={
+                    <AppIconButton
+                      emphasis="text"
+                      size="small"
+                      iconSize={16}
+                      icon={copied === nip05 ? Check : Copy}
+                      accessibilityLabel="Copy Nostr address"
+                      onPress={() => copy(nip05!)}
+                    />
+                  }
                 />
-              </XStack>
-              <XStack items="center" gap={appSpacing.compact}>
-                <Blockies seed={npub} size={8} scale={3} style={{ borderRadius: 4 }} />
-                <Text {...appTypography.body2} color="$color" selectable flexShrink={1}>
-                  {nip05}
-                </Text>
-                <Nip05VerifiedBadge size={14} />
-              </XStack>
-            </YStack>
-          )}
-          {copyValue && canShare && (
-            <YStack
-              testID="address-copy-card"
-              bg="$gray2"
-              rounded="$6"
-              p={appSpacing.gap}
-              pt={appSpacing.small}
-            >
-              <XStack items="center" justify="space-between" gap={appSpacing.gap}>
-                <Text {...appTypography.body3} color="$gray10" flex={1}>
-                  {isLightning ? 'Lightning address' : 'Nostr public key'}
-                </Text>
-                <AppIconButton
-                  emphasis="text"
-                  size="small"
-                  iconSize={appTypography.body3.fontSize}
-                  icon={copied === copyValue ? Check : Copy}
-                  accessibilityLabel={isLightning ? 'Copy Lightning address' : 'Copy public key'}
-                  onPress={() => copy(copyValue)}
+              )}
+              {copyValue && canShare && (
+                <ListTableRow
+                  label={isLightning ? 'Lightning address' : 'npub'}
+                  hideLabel
+                  multiline
+                  expandValue
+                  value={
+                    <Text
+                      testID="full-receiving-address"
+                      {...appTypography.label1}
+                      color="$color"
+                      selectable
+                      textAlign="left"
+                      flex={1}
+                      minWidth={0}
+                      flexShrink={1}
+                      textBreakStrategy="simple"
+                      lineBreakStrategyIOS="none"
+                    >
+                      {highlightAddressDomain(copyValue)}
+                    </Text>
+                  }
+                  rightContent={
+                    <AppIconButton
+                      emphasis="text"
+                      size="small"
+                      iconSize={16}
+                      icon={copied === copyValue ? Check : Copy}
+                      accessibilityLabel={
+                        isLightning ? 'Copy Lightning address' : 'Copy public key'
+                      }
+                      onPress={() => copy(copyValue)}
+                    />
+                  }
                 />
-              </XStack>
-              <Text
-                testID="full-receiving-address"
-                fontFamily="$body"
-                {...appTypography.body2}
-                color="$color"
-                selectable
-              >
-                {copyValue}
-              </Text>
-            </YStack>
-          )}
-          {isLightning && lightning.loaded && (canShare || lightning.pending.length > 0) && (
-            <ListTable>
-              {canShare && (
+              )}
+              {isLightning && canShare && (
                 <>
                   <ListTableRow label="Receiving mint" value={receivingMintName} icon={Landmark} />
                   <ListTableRow label="Connection" value={lightning.connection} />
                 </>
               )}
-              {lightning.pending.length > 0 && (
+              {isLightning && lightning.loaded && lightning.pending.length > 0 && (
                 <ListTableRow
                   label={'Pending incoming payments (' + lightning.pending.length + ')'}
                   icon={Clock}

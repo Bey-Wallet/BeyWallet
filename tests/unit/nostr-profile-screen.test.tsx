@@ -12,6 +12,7 @@ let mockNavigationIndex = 1;
 let mockCanGoBack = true;
 let mockNpub = 'npub1full-public-key-fixture';
 let mockStatus = 'verified';
+let mockLookupLoading = false;
 let mockTab = 'ecash';
 let mockLightningEnabled = false;
 let mockLightningLoaded = true;
@@ -54,7 +55,7 @@ jest.mock('~/shared/hooks/useNip05Lookup', () => ({
   useNip05Lookup: () => ({
     nip05: 'alice@bey.cash',
     status: mockStatus,
-    loading: false,
+    loading: mockLookupLoading,
     refresh: mockRefresh,
   }),
 }));
@@ -122,15 +123,30 @@ jest.mock('~/shared/ui/BUI/BUIHeader', () => ({
     ),
 }));
 jest.mock('~/shared/ui/ListTable', () => ({
-  ListTable: ({ children }: any) => children,
+  ListTable: ({ children, ...props }: any) =>
+    require('react').createElement('Table', props, children),
   ListTableRow: ({ label, ...props }: any) =>
-    require('react').createElement('Row', { accessibilityLabel: label, ...props }),
+    require('react').createElement(
+      'Row',
+      { accessibilityLabel: label, ...props },
+      props.hideLabel ? null : require('react').createElement('Text', null, label),
+      props.value,
+      props.rightContent,
+    ),
 }));
 jest.mock('~/shared/ui/CustomQRCode', () => ({ CustomQRCode: 'QR' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/Blockies', () => ({ __esModule: true, default: 'Blockies' }));
 
 let tree: ReactTestRenderer;
+const textContent = (node: any): string =>
+  typeof node === 'string'
+    ? node
+    : Array.isArray(node)
+      ? node.map(textContent).join('')
+      : node?.props
+        ? textContent(node.props.children)
+        : '';
 const activePage = () =>
   tree.root
     .findAllByType('YStack' as any)
@@ -141,6 +157,7 @@ const activePage = () =>
 beforeEach(() => {
   mockNpub = 'npub1full-public-key-fixture';
   mockStatus = 'verified';
+  mockLookupLoading = false;
   mockNavigationIndex = 1;
   mockCanGoBack = true;
   mockTab = 'ecash';
@@ -158,7 +175,7 @@ afterEach(async () => {
   jest.clearAllMocks();
 });
 
-it('keeps the full QR and copy payload, removes the logo and respects the bottom inset', async () => {
+it('keeps the full QR and copy payload without extra request actions', async () => {
   await act(async () => {
     tree = create(<NostrProfileScreen settingsMode />);
   });
@@ -167,19 +184,23 @@ it('keeps the full QR and copy payload, removes the logo and respects the bottom
   expect(qr.props.logo).toBeUndefined();
   expect(qr.props.color).toBe('#000000');
   expect(qr.props.backgroundColor).toBe('#FFFFFF');
-  expect(activePage().findByType('Blockies' as any).props.seed).toBe(mockNpub);
+  expect(
+    activePage()
+      .findByType('Table' as any)
+      .findAllByType('Row' as any)
+      .map((row) => row.props.accessibilityLabel),
+  ).toEqual(['Address', 'npub']);
   const labels = activePage()
     .findAllByType('Text' as any)
     .map((node) => node.props.children);
-  expect(labels).toContain('alice@bey.cash');
+  expect(labels.map(textContent)).toContain('alice@bey.cash');
   expect(labels).toContain(mockNpub);
-  expect(labels).toContain('Nostr public key');
+  expect(labels).not.toContain('npub');
   expect(
     activePage()
       .findAllByType('Button' as any)
       .map((button) => button.props.children),
-  ).toEqual(['Create payment request']);
-  expect(activePage().findByProps({ testID: 'my-addresses-actions' }).props.pb).toBe(34);
+  ).toEqual([]);
   const address = activePage().findByProps({ testID: 'full-receiving-address' });
   expect(address.props.children).toBe(mockNpub);
   expect(address.props.selectable).toBe(true);
@@ -305,29 +326,38 @@ it('keeps username navigation in the originating settings stack', async () => {
   expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings/username');
 });
 
-it('opens an amount-specific ecash request from the identity tab', async () => {
-  await act(async () => {
-    tree = create(<NostrProfileScreen />);
-  });
-  const button = activePage()
-    .findAllByType('Button' as any)
-    .find((node) => node.props.children === 'Create payment request')!;
-  await act(async () => button.props.onPress());
-  expect(mockPush).toHaveBeenCalledWith('/(modals)/receive?mode=request');
-});
+it.each([false, true])(
+  'keeps the QR before username claim/loading (loading=%s)',
+  async (loading) => {
+    mockStatus = 'not_found';
+    mockLookupLoading = loading;
+    await act(async () => {
+      tree = create(<NostrProfileScreen />);
+    });
+    const page = activePage();
+    const qr = page.findByType('QR' as any);
+    const status = page.findByProps({ testID: 'username-status' });
+    const nodes = page.findAll(() => true);
+    expect(nodes.indexOf(qr)).toBeLessThan(nodes.indexOf(status));
+    expect(status.findAllByType('Spinner' as any)).toHaveLength(loading ? 1 : 0);
+    expect(page.findAllByType('Row' as any).map((row) => row.props.accessibilityLabel)).toContain(
+      'npub',
+    );
+  },
+);
 
-it('offers a one-time invoice separately from enabling a permanent Lightning address', async () => {
+it('copies a complete Lightning address from the details table', async () => {
   mockTab = 'lightning';
+  mockLightningEnabled = true;
   await act(async () => {
     tree = create(<NostrProfileScreen />);
   });
-  expect(activePage().findAllByType('QR' as any)).toHaveLength(0);
-  const button = activePage()
-    .findAllByType('Button' as any)
-    .find((node) => node.props.children === 'Create Lightning invoice')!;
-  await act(async () => button.props.onPress());
-  expect(mockPush).toHaveBeenCalledWith('/(modals)/mint');
-  expect(mockLightningEnabled).toBe(false);
+  const row = activePage().findByProps({ accessibilityLabel: 'Lightning address' });
+  expect(row.props.multiline).toBe(true);
+  await act(async () =>
+    row.findByProps({ accessibilityLabel: 'Copy Lightning address' }).props.onPress(),
+  );
+  expect(Clipboard.setStringAsync).toHaveBeenCalledWith(`${mockNpub}@npub.cash`);
 });
 
 it('shows loading before Lightning settings are available without prompting setup or exposing a QR', async () => {
@@ -442,9 +472,9 @@ it('syncs the header and sharing actions when swiping between address pages', as
   expect(
     tree.root.findByProps({ accessibilityLabel: 'Share Lightning address' }).props.disabled,
   ).toBe(false);
-  expect(activePage().findByProps({ testID: 'full-receiving-address' }).props.children).toBe(
-    `${mockNpub}@npub.cash`,
-  );
+  expect(
+    textContent(activePage().findByProps({ testID: 'full-receiving-address' }).props.children),
+  ).toBe(`${mockNpub}@npub.cash`);
   await act(async () =>
     pager.props.onMomentumScrollEnd({ nativeEvent: { contentOffset: { x: 0 } } }),
   );
