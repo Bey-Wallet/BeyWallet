@@ -10,7 +10,8 @@ The app uses **Allo 1.0**, approved after an Android device trial, with two opti
 Regular/Medium/SemiBold use weights 400/500/600. Lighter requests map to 400 and
 heavier requests map to 600. Only these six static faces are loaded and embedded.
 `$mono` is a compatibility alias to Allo Text, not a separately bundled font.
-Roundness is fixed at **`ROND=0`**. The upstream static OTFs use roundness 50 and
+Roundness is restored to **`ROND=0`**, keeping open 6 and 9.
+Sizes, weights and tracking remain unchanged. The upstream static OTFs use roundness 50 and
 are not the app's source; prepare the faces from `AlloVariable.ttf` instead.
 
 ## Number and character features
@@ -21,6 +22,7 @@ Both optical families enable these upstream features by default:
 - `cv01`: footed 1.
 - `cv03`: tailed lowercase l.
 - `cv04`: serifed uppercase I.
+- `ss03`: restricted to open 6 and 9 in this experiment; 4 keeps its original form.
 
 Zero remains normal and unslashed. `zero`, `ss02`, `cv02` and `cv05` are not
 enabled by default. The original Allo outlines are retained; no glyphs are redrawn.
@@ -93,7 +95,7 @@ bc26a56fd707fb463f99a51fba67bfb57ab66c341c710efb7419919de9b85330
 Reproduce with the downloaded variable TTF and its OFL file:
 
 ```sh
-uv run --no-project --with fonttools==4.67.0 --with uharfbuzz==0.57.0 python scripts/prepare-allo-fonts.py --source <AlloVariable.ttf> --license <OFL.txt>
+uv run --no-project --with fonttools==4.67.0 --with uharfbuzz==0.57.0 python scripts/prepare-allo-fonts.py --source <AlloVariable.ttf> --license <OFL.txt> --roundness 0 --open-six-nine
 ```
 
 The script instantiates Text and Display faces, fixes roundness, sets feature

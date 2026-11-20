@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { TextStyle, View, ViewStyle } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -39,6 +39,11 @@ const RollingDigit = ({
   opacity = 1,
 }: RollingDigitProps) => {
   const parsedDigit = parseInt(digit as string, 10);
+  const measurementKey = JSON.stringify([parsedDigit, fontFamily, fontWeight, fontSize, height]);
+  const currentMeasurementKey = useRef(measurementKey);
+  currentMeasurementKey.current = measurementKey;
+  const [measurement, setMeasurement] = useState<{ key: string; width: number }>();
+  const digitWidth = measurement?.key === measurementKey ? measurement.width : undefined;
   const translateY = useSharedValue(0);
 
   useEffect(() => {
@@ -62,7 +67,37 @@ const RollingDigit = ({
   });
 
   return (
-    <View style={{ height, overflow: 'hidden', marginRight: letterSpacing, opacity }}>
+    <View
+      style={{ height, width: digitWidth, overflow: 'hidden', marginRight: letterSpacing, opacity }}
+    >
+      {/* A proportional face must not inherit the widest numeral's column width. */}
+      <Text
+        testID="rolling-digit-measure"
+        accessible={false}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        pointerEvents="none"
+        fontWeight={fontWeight}
+        fontFamily={fontFamily}
+        fontSize={fontSize}
+        lineHeight={height}
+        letterSpacing={0}
+        fontVariant={['tabular-nums']}
+        numberOfLines={1}
+        style={{ position: 'absolute', opacity: 0, width: 10000 }}
+        onTextLayout={({ nativeEvent }) => {
+          if (currentMeasurementKey.current !== measurementKey) return;
+          const width = nativeEvent.lines[0]?.width;
+          if (typeof width !== 'number' || !Number.isFinite(width) || width <= 0) return;
+          setMeasurement((current) =>
+            current?.key === measurementKey && current.width === width
+              ? current
+              : { key: measurementKey, width },
+          );
+        }}
+      >
+        {parsedDigit}
+      </Text>
       <Animated.View style={animatedStyle}>
         {NUMBERS.map((num) => (
           <View
@@ -81,6 +116,7 @@ const RollingDigit = ({
               lineHeight={height}
               text="center"
               fontVariant={['tabular-nums']}
+              letterSpacing={0}
             >
               {num}
             </Text>
@@ -198,7 +234,7 @@ export const RollingNumber = ({
                 fontFamily={resolvedFamily}
                 fontSize={fontSize}
                 lineHeight={itemHeight}
-
+                letterSpacing={0}
                 fontVariant={['tabular-nums']}
               >
                 {char}

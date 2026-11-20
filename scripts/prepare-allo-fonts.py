@@ -39,26 +39,35 @@ def shape(data, text, features=None):
             for info, pos in zip(buffer.glyph_infos, buffer.glyph_positions)]
 
 
-def prepare(source_path, license_path):
+def prepare(source_path, license_path, roundness=0, open_six_nine=False):
     source = source_path.read_bytes()
     assert hashlib.sha256(source).hexdigest() == SOURCE_HASH, 'Unexpected Allo 1.0 source'
+    features = {**FEATURES, **({'ss03': 1} if open_six_nine else {})}
     manifest = {
         'source': 'Allo 1.0 / fonts/variable/AlloVariable.ttf',
         'sourceSha256': SOURCE_HASH,
-        'roundness': 0,
-        'features': list(FEATURES),
+        'roundness': roundness,
+        'openSixNine': open_six_nine,
+        'features': list(features),
         'fonts': {},
     }
     for optical, size in [('Text', 14), ('Display', 32)]:
         for style, weight in WEIGHTS.items():
             font = instantiateVariableFont(TTFont(io.BytesIO(source), recalcTimestamp=False),
-                                           {'opsz': size, 'wght': weight, 'ROND': 0}, inplace=True)
-            reference = serialize(font)
+                                           {'opsz': size, 'wght': weight, 'ROND': roundness}, inplace=True)
             records = font['GSUB'].table.FeatureList.FeatureRecord
+            if open_six_nine:
+                # Allo groups open 4/6/9 in ss03; keep 4 unchanged for this variant.
+                open_figures = next(r.Feature for r in records if r.FeatureTag == 'ss03')
+                for index in open_figures.LookupListIndex:
+                    for table in font['GSUB'].table.LookupList.Lookup[index].SubTable:
+                        table.mapping = {key: value for key, value in table.mapping.items()
+                                         if key in ('six', 'nine', 'six.tf', 'nine.tf')}
+            reference = serialize(font)
             defaults = next(r.Feature for r in records if r.FeatureTag == 'ccmp')
             indexes = set(defaults.LookupListIndex)
             for record in records:
-                if record.FeatureTag in FEATURES:
+                if record.FeatureTag in features:
                     indexes.update(record.Feature.LookupListIndex)
             defaults.LookupListIndex = sorted(indexes)
             defaults.LookupCount = len(indexes)
@@ -74,15 +83,20 @@ def prepare(source_path, license_path):
                 names.setName(value, name_id, 1, 0, 0)
             result = serialize(font)
             for sample in SAMPLES:
-                expected = shape(reference, sample, FEATURES)
+                expected = shape(reference, sample, features)
                 assert shape(result, sample) == expected, (runtime, sample, 'defaults differ')
-                assert shape(result, sample, FEATURES) == expected, (runtime, sample, 'not idempotent')
+                assert shape(result, sample, features) == expected, (runtime, sample, 'not idempotent')
             digits = shape(result, '0123456789')
             assert len({item[1] for item in digits}) == 1, 'Digits must be tabular'
             zero_name = font.getGlyphName(digits[0][0])
             one_name = font.getGlyphName(digits[1][0])
             assert zero_name == 'zero.tf', zero_name
             assert one_name == 'one.foot.tf', one_name
+            six_name = font.getGlyphName(digits[6][0])
+            nine_name = font.getGlyphName(digits[9][0])
+            assert font.getGlyphName(digits[4][0]) == 'four.tf', 'Keep the original 4'
+            assert six_name == ('six.tf.ss01' if open_six_nine else 'six.tf'), six_name
+            assert nine_name == ('nine.tf.ss01' if open_six_nine else 'nine.tf'), nine_name
             cmap = font.getBestCmap()
             for table in font['cmap'].tables:
                 if table.isUnicode():
@@ -93,10 +107,11 @@ def prepare(source_path, license_path):
             (ASSETS / filename).write_bytes(result)
             manifest['fonts'][filename] = {
                 'sha256': hashlib.sha256(result).hexdigest(), 'weight': weight,
-                'opticalSize': size, 'roundness': 0, 'digitAdvance': digits[0][1],
+                'opticalSize': size, 'roundness': roundness, 'digitAdvance': digits[0][1],
+                'sixGlyph': six_name, 'nineGlyph': nine_name,
                 'zeroGlyph': zero_name, 'oneGlyph': one_name, 'defaultLookups': sorted(indexes),
             }
-            print(f'{filename}: opsz={size}, weight={weight}, ROND=0, tabular/footed-1 verified')
+            print(f'{filename}: opsz={size}, weight={weight}, ROND={roundness}, tabular/footed-1/open-figures verified')
     (ASSETS / 'allo-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     (ASSETS / 'Allo-OFL.txt').write_bytes(license_path.read_bytes())
 
@@ -105,5 +120,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--license', type=Path, required=True)
+    parser.add_argument('--roundness', type=int, choices=range(101), default=0)
+    parser.add_argument('--open-six-nine', action='store_true')
     args = parser.parse_args()
-    prepare(args.source, args.license)
+    prepare(args.source, args.license, args.roundness, args.open_six_nine)
