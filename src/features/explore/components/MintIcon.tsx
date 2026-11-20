@@ -3,7 +3,7 @@ import { RemoteImage } from '~/shared/ui/RemoteImage';
 import React from 'react';
 import { View } from 'tamagui';
 
-import { Sprout } from '@tamagui/lucide-icons';
+import { Landmark } from '@tamagui/lucide-icons';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { mintMetadataFromInfo, deriveFavicon } from '~/features/explore/components/mintMeta';
 
@@ -62,7 +62,7 @@ export function MintIcon({ url, hintIcon, size = 44 }: MintIconProps) {
           onError={() => setFaviconError(true)}
         />
       ) : (
-        <Sprout size={size * 0.5} color="$gray10" />
+        <Landmark size={size * 0.5} color="$gray10" />
       )}
     </View>
   );
