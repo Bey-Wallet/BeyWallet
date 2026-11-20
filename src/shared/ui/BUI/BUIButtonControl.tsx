@@ -20,6 +20,7 @@ import {
   appButtonStates,
   appDimensions,
   appSpacing,
+  appTypography,
 } from '~/shared/theme/appearance';
 
 export type AppButtonVariant = 'default' | 'accent' | 'critical' | 'warning';
@@ -277,7 +278,10 @@ export const BUIButtonControl = forwardRef<GetRef<typeof Button>, BUIButtonContr
               fontWeight="500"
               fontSize={resolvedFontSize}
               lineHeight={Math.round(resolvedFontSize * 1.4)}
-              letterSpacing={resolvedFontSize * 0.005}
+              letterSpacing={
+                appTypography.label1.letterSpacing *
+                (resolvedFontSize / appTypography.label1.fontSize)
+              }
               color={color}
               flexShrink={1}
               textAlign="center"

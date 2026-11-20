@@ -38,25 +38,34 @@ maps to Allo's existing U+00A5 yen glyph. No other currency outlines are modifie
 ## Spacing and sizes
 
 Keep the existing rounded 10% size baseline, line heights, weights, control geometry,
-accessible text scaling and amount animations. Approved letter spacing is:
+accessible text scaling and amount animations. The 20 November spacing adjustment
+tightens headings, labels, body text and numbers. The wider trial was rejected.
+Current compact trial values:
 
 | Area                                                 | Letter spacing                           |
 | ---------------------------------------------------- | ---------------------------------------- |
-| 40-point main balances and prominent payment amounts | -0.25                                    |
-| Home main balance (44 points)                        | -0.1                                     |
-| Amount entry                                         | -0.25 scaled proportionally to font size |
-| Bitcoin price                                        | -0.1                                     |
-| Nostr detail amounts                                 | -0.15                                    |
-| Onboarding headings                                  | -0.1                                     |
+| 40-point main balances and prominent payment amounts | -0.35                                    |
+| Home main balance (44 points)                        | -0.2                                     |
+| Amount entry                                         | -0.35 scaled proportionally to font size |
+| Bitcoin price                                        | -0.15                                    |
+| Nostr detail amounts                                 | -0.2                                     |
+| Onboarding headings                                  | -0.15                                    |
 | Risk Disclosure heading                              | -0.05                                    |
 | Small activity amounts                               | 0                                        |
+| Secondary amounts (29 / 25 points)                   | -0.15 / -0.1                             |
+| Headings (29 / 22 / 18 points)                       | -0.2 / -0.15 / -0.1                      |
+| Labels (14 / 13 / 11 points)                         | -0.05 / -0.03 / 0.02                     |
+| Body text (14 / 13 / 11 points)                      | -0.03 / 0 / 0.04                         |
+| Brief captions                                       | 0.06                                     |
 
-Existing small positive label/button tracking is retained. Rolling-number cells
+Button tracking scales from the 14-point label role; native inputs and BUI text
+roles use the corresponding shared tracking. Copyable monospaced text retains 0.5.
+Rolling-number cells
 allow mild negative spacing capped at the balance tracking scaled to their size.
 Do not restore the old -1/-1.5 margins or apply a blanket zero-spacing override.
-Digit-pair and currency-sample ink bounds were checked across all six faces at
-the rolling-number limit. Native text rendering still needs device checks after
-future font or layout changes.
+Digit-pair ink bounds were checked across all six faces at the current rolling-number
+limit, including the footed 1. Separated digits retain positive ink gaps. Native
+text rendering, currency combinations and wrapping still need device review.
 
 ## Integration
 

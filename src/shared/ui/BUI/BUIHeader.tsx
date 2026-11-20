@@ -6,6 +6,7 @@ import { Spinner } from '~/shared/ui/Spinner';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import { BUIIcon } from './BUIIcon';
 import { BUIText } from './BUIText';
+import { buiTypography } from './typography';
 import { useBUIChromeTheme as useBUITheme } from './useBUITheme';
 import { buiBadgeOffset } from './badgeGeometry';
 import {
@@ -168,7 +169,7 @@ function HeaderTitle({
             opacity: 0,
             fontFamily: 'AlloTextSemiBold',
             fontSize: size,
-            letterSpacing: 0,
+            letterSpacing: buiTypography[variant === 'centered' ? 'h2' : 'h3'].letterSpacing,
             includeFontPadding: false,
           }}
           onTextLayout={({ nativeEvent }) => {
