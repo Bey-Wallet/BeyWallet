@@ -77,6 +77,21 @@ it('rechecks funds received after the selection preview', async () => {
   expect(await repository.removeIfEmpty(mint)).toBe('funds');
 });
 
+it('permits reviewing destructive removal of ready funds while still blocking in-flight proofs', async () => {
+  await insert('coco_cashu_proofs', { mintUrl: mint, state: 'ready', amount: 1 });
+  expect(await repository.inspect(mint, true)).toBeNull();
+  expect(await repository.removeIfEmpty(mint)).toBe('funds');
+  await db.run("UPDATE coco_cashu_proofs SET state = 'inflight' WHERE mintUrl = ?", [mint]);
+  expect(await repository.inspect(mint, true)).toBe('pending');
+});
+
+it('keeps pending payments protected even when a funded removal is explicitly allowed', async () => {
+  await insert('coco_cashu_proofs', { mintUrl: mint, state: 'ready', amount: 1 });
+  await insert('coco_cashu_melt_quotes', { mintUrl: mint, state: 'PENDING' });
+  expect(await repository.inspect(mint, true)).toBe('pending');
+  expect(await repository.removeIfEmpty(mint)).toBe('funds');
+});
+
 it.each([
   ['coco_cashu_mint_quotes', { state: 'PAID' }, 'pending'],
   ['coco_cashu_mint_quotes', { state: 'UNPAID', expiry: 4000000000 }, 'pending'],

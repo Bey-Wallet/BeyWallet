@@ -5,7 +5,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Landmark } from '@tamagui/lucide-icons';
-import { YStack, useTheme } from 'tamagui';
+import { XStack, YStack, useTheme } from 'tamagui';
 import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { useBUIOverlayAppearance } from '~/shared/ui/BUI/useBUITheme';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -71,6 +71,7 @@ function ConnectedMintSheetContent({ mintUrl, onClose }: { mintUrl: string; onCl
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [reviewRemoval, setReviewRemoval] = useState(false);
+  const [reviewFunds, setReviewFunds] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [error, setError] = useState('');
@@ -149,17 +150,44 @@ function ConnectedMintSheetContent({ mintUrl, onClose }: { mintUrl: string; onCl
     hapticService.acknowledge();
   };
   const remove = async () => {
-    if (removing.current || !canShow) return;
+    if (removing.current || !canShow || useWalletStore.getState().isRestoring) return;
     removing.current = true;
     setBusy(true);
     setError('');
     try {
-      // Recheck in the existing transactional repository: the initial UI check is not authority.
-      const result = await removeConnectedMints([url]);
-      if (!result.removed.includes(url)) {
-        setError(mintRemovalMessages[result.blocked[url] ?? 'unknown']);
+      const currentBlock = (await inspectConnectedMints([url]))[url];
+      if (currentBlock === 'funds') {
+        if (!reviewFunds) {
+          setReviewFunds(true);
+          setError('This mint now has funds. Review the warning before confirming again.');
+          void removal.refetch();
+          return;
+        }
+        const unresolved = (await inspectConnectedMints([url], { allowFunds: true }))[url];
+        if (unresolved !== null) {
+          setError(mintRemovalMessages[unresolved ?? 'unknown']);
+          return;
+        }
+        // Explicitly confirmed destructive removal uses the same operation as Mint Details.
+        await wallet.removeMint(url);
+        if (
+          useWalletStore
+            .getState()
+            .mints.some((item) => mintUrlKey(item.mintUrl) === mintUrlKey(url))
+        )
+          throw new Error('Mint was not removed');
+      } else if (currentBlock !== null) {
+        setError(mintRemovalMessages[currentBlock ?? 'unknown']);
         void removal.refetch();
         return;
+      } else {
+        // Empty removal still rechecks persisted state inside its existing transaction.
+        const result = await removeConnectedMints([url]);
+        if (!result.removed.includes(url)) {
+          setError(mintRemovalMessages[result.blocked[url] ?? 'unknown']);
+          void removal.refetch();
+          return;
+        }
       }
       await Promise.allSettled([
         wallet.refreshMintList(),
@@ -242,144 +270,200 @@ function ConnectedMintSheetContent({ mintUrl, onClose }: { mintUrl: string; onCl
   const satsUnit = primary.endsWith(' sat');
   const hidden = settings.hideBalance || !canShow;
   const blocked = balance > 0 ? 'funds' : removal.data?.[url];
-  const removeDisabled = blocked !== null || removal.isFetching || busy || wallet.isRestoring;
-  const removeHint = blocked
-    ? mintRemovalMessages[blocked]
-    : removeDisabled
-      ? 'Checking wallet activity'
-      : 'Review removal';
+  const removeDisabled =
+    (blocked !== null && blocked !== 'funds') || removal.isFetching || busy || wallet.isRestoring;
+  const removeHint =
+    blocked === 'funds'
+      ? 'Review removal and balance warning'
+      : blocked
+        ? mintRemovalMessages[blocked]
+        : removeDisabled
+          ? 'Checking wallet activity'
+          : 'Review removal';
   return (
     <>
       <BUISheet
         ref={sheet}
         appearance={appearance}
-        title={name}
-        showHeader={false}
+        title={reviewRemoval ? 'Remove mint?' : name}
+        showHeader={reviewRemoval}
         canDismiss={!busy || !canShow}
         onClose={closed}
       >
-        {canShow && (
-          <ConnectedMintSheetView
-            name={name}
-            url={url}
-            icon={
-              <MintImage
-                mintUrl={url}
-                src={icon}
-                width={72}
-                height={72}
-                rounded="$6"
-                fallback={<Landmark size={32} color="$color" />}
-              />
-            }
-            amount={hidden ? '****' : satsUnit ? primary.slice(0, -4) : primary}
-            unit={!hidden && satsUnit ? 'sat' : undefined}
-            secondary={hidden || values.primary === null ? null : values.secondary}
-            connection={connection}
-            offline={deviceOffline || !!infoQuery.error}
-            checking={infoQuery.isFetching}
-            refreshDisabled={deviceOffline}
-            units={units}
-            payments={payments}
-            copied={copied}
-            busy={busy}
-            removeDisabled={removeDisabled}
-            removeHint={removeHint}
-            transferDisabled={!mint?.trusted || balance <= 0 || wallet.isRestoring || deviceOffline}
-            recoverDisabled={wallet.isRestoring}
-            onClose={() => sheet.current?.dismiss()}
-            onCopy={() => void copyUrl()}
-            onRemove={() => {
-              setEditingName(false);
-              setReviewRemoval(true);
-              setError('');
-            }}
-            onRefresh={() => void infoQuery.refetch({ cancelRefetch: false })}
-            onTransfer={() =>
-              leave(() =>
-                router.push({ pathname: '/(modals)/swap', params: { sourceMintUrl: url } }),
-              )
-            }
-            onRecover={() =>
-              leave(() => router.push({ pathname: '/recover-funds', params: { mintUrl: url } }))
-            }
-            onQr={() => {
-              Keyboard.dismiss();
-              setShowQr(true);
-            }}
-            onRename={() => {
-              if (editingName || busy) return;
-              setDraftName(name);
-              setEditingName(true);
-              setReviewRemoval(false);
-              setError('');
-            }}
-            renameEditor={
-              editingName
-                ? {
-                    input: (
-                      <BottomSheetTextInput
-                        accessibilityLabel="Mint name"
-                        value={draftName}
-                        onChangeText={setDraftName}
-                        autoFocus
-                        selectTextOnFocus
-                        editable={!busy}
-                        returnKeyType="done"
-                        autoCapitalize="sentences"
-                        onSubmitEditing={() => void saveName()}
-                        style={{
-                          fontFamily: 'AlloTextSemiBold',
-                          fontSize: 18,
-                          lineHeight: 25,
-                          letterSpacing: 0,
-                          color: String(theme.color.val),
-                          backgroundColor: String(theme.gray2.val),
-                          textAlign: 'center',
-                          height: 32,
-                          paddingVertical: 0,
-                          paddingHorizontal: 8,
-                          borderRadius: 6,
-                        }}
-                      />
-                    ),
-                    onSave: () => void saveName(),
-                    onCancel: () => {
-                      setEditingName(false);
-                      Keyboard.dismiss();
-                      setError('');
-                    },
-                  }
-                : undefined
-            }
-            onDetails={() =>
-              leave(() =>
-                router.push({ pathname: '/(modals)/mint-details', params: { mintUrl: url } }),
-              )
-            }
-          >
-            {reviewRemoval && (
-              <YStack gap="$3">
-                <AppText variant="title3">Remove this mint?</AppText>
-                <AppText tone="secondary">Your transaction history stays in your wallet.</AppText>
+        {canShow &&
+          (reviewRemoval ? (
+            <YStack gap="$4">
+              <XStack bg="$gray2" rounded="$6" p="$3" gap="$3" items="center">
+                <MintImage mintUrl={url} src={icon} width={48} height={48} rounded="$4" />
+                <YStack flex={1} minWidth={0} gap="$1">
+                  <AppText variant="label1">{name}</AppText>
+                  <AppText variant="body3" tone="secondary">
+                    {url}
+                  </AppText>
+                </YStack>
+              </XStack>
+              <AppText tone="secondary">
+                This removes the mint from your wallet. Your transaction history is kept.
+              </AppText>
+              {(reviewFunds || blocked === 'funds') && (
+                <YStack bg="$gray2" rounded="$6" p="$3" gap="$2" accessibilityRole="alert">
+                  <AppText variant="label1" tone="warning">
+                    This mint still has funds
+                  </AppText>
+                  {balance > 0 && (
+                    <AppText tone="secondary">
+                      Balance: {hidden ? '****' : `${balance.toLocaleString()} sat`}
+                    </AppText>
+                  )}
+                  <AppText tone="secondary">
+                    Transfer or withdraw first. Removing this mint deletes its local proofs and
+                    related data without moving your funds. Recovery is not guaranteed.
+                  </AppText>
+                </YStack>
+              )}
+              {!!error && (
+                <AppText tone="error" accessibilityRole="alert">
+                  {error}
+                </AppText>
+              )}
+              <YStack gap="$2">
                 <AppButton
                   haptic
                   variant="critical"
+                  emphasis="primary"
+                  size="large"
                   loading={busy}
+                  loadingText="Removing mint…"
                   disabled={removeDisabled}
                   onPress={() => void remove()}
                 >
                   Remove mint
                 </AppButton>
+                <AppButton
+                  emphasis="secondary"
+                  size="large"
+                  disabled={busy}
+                  onPress={() => {
+                    setReviewRemoval(false);
+                    setReviewFunds(false);
+                    setError('');
+                  }}
+                >
+                  Cancel
+                </AppButton>
               </YStack>
-            )}
-            {!!error && (
-              <AppText tone="error" accessibilityRole="alert">
-                {error}
-              </AppText>
-            )}
-          </ConnectedMintSheetView>
-        )}
+            </YStack>
+          ) : (
+            <ConnectedMintSheetView
+              name={name}
+              url={url}
+              icon={
+                <MintImage
+                  mintUrl={url}
+                  src={icon}
+                  width={72}
+                  height={72}
+                  rounded="$6"
+                  fallback={<Landmark size={32} color="$color" />}
+                />
+              }
+              amount={hidden ? '****' : satsUnit ? primary.slice(0, -4) : primary}
+              unit={!hidden && satsUnit ? 'sat' : undefined}
+              secondary={hidden || values.primary === null ? null : values.secondary}
+              connection={connection}
+              offline={deviceOffline || !!infoQuery.error}
+              checking={infoQuery.isFetching}
+              refreshDisabled={deviceOffline}
+              units={units}
+              payments={payments}
+              copied={copied}
+              busy={busy}
+              removeDisabled={removeDisabled}
+              removeHint={removeHint}
+              transferDisabled={
+                !mint?.trusted || balance <= 0 || wallet.isRestoring || deviceOffline
+              }
+              recoverDisabled={wallet.isRestoring}
+              onClose={() => sheet.current?.dismiss()}
+              onCopy={() => void copyUrl()}
+              onRemove={() => {
+                if (removeDisabled) return;
+                setEditingName(false);
+                setReviewRemoval(true);
+                setReviewFunds(blocked === 'funds');
+                setError('');
+              }}
+              onRefresh={() => void infoQuery.refetch({ cancelRefetch: false })}
+              onTransfer={() =>
+                leave(() =>
+                  router.push({ pathname: '/(modals)/swap', params: { sourceMintUrl: url } }),
+                )
+              }
+              onRecover={() =>
+                leave(() => router.push({ pathname: '/recover-funds', params: { mintUrl: url } }))
+              }
+              onQr={() => {
+                Keyboard.dismiss();
+                setShowQr(true);
+              }}
+              onRename={() => {
+                if (editingName || busy) return;
+                setDraftName(name);
+                setEditingName(true);
+                setReviewRemoval(false);
+                setError('');
+              }}
+              renameEditor={
+                editingName
+                  ? {
+                      input: (
+                        <BottomSheetTextInput
+                          accessibilityLabel="Mint name"
+                          value={draftName}
+                          onChangeText={setDraftName}
+                          autoFocus
+                          selectTextOnFocus
+                          editable={!busy}
+                          returnKeyType="done"
+                          autoCapitalize="sentences"
+                          onSubmitEditing={() => void saveName()}
+                          style={{
+                            fontFamily: 'AlloTextSemiBold',
+                            fontSize: 18,
+                            lineHeight: 25,
+                            letterSpacing: 0,
+                            color: String(theme.color.val),
+                            backgroundColor: String(theme.gray2.val),
+                            textAlign: 'center',
+                            height: 32,
+                            paddingVertical: 0,
+                            paddingHorizontal: 8,
+                            borderRadius: 6,
+                          }}
+                        />
+                      ),
+                      onSave: () => void saveName(),
+                      onCancel: () => {
+                        setEditingName(false);
+                        Keyboard.dismiss();
+                        setError('');
+                      },
+                    }
+                  : undefined
+              }
+              onDetails={() =>
+                leave(() =>
+                  router.push({ pathname: '/(modals)/mint-details', params: { mintUrl: url } }),
+                )
+              }
+            >
+              {!!error && (
+                <AppText tone="error" accessibilityRole="alert">
+                  {error}
+                </AppText>
+              )}
+            </ConnectedMintSheetView>
+          ))}
       </BUISheet>
       <MintUrlQrOverlay url={url} visible={showQr && canShow} onClose={() => setShowQr(false)} />
     </>

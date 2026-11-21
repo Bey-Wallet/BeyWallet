@@ -16,12 +16,12 @@ function repository() {
   return new ConnectedMintRemovalRepository(initService.getRepo().db);
 }
 
-export async function inspectConnectedMints(urls: string[]) {
+export async function inspectConnectedMints(urls: string[], { allowFunds = false } = {}) {
   const repo = await repository();
   const result: Record<string, MintRemovalBlock | null> = {};
   for (const url of new Set(urls)) {
     try {
-      result[url] = recoveryCoordinator.has(url) ? 'recovery' : await repo.inspect(url);
+      result[url] = recoveryCoordinator.has(url) ? 'recovery' : await repo.inspect(url, allowFunds);
     } catch {
       result[url] = 'unknown';
     }

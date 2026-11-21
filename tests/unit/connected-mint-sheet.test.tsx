@@ -13,6 +13,8 @@ const mockPresent = jest.fn();
 const mockDismiss = jest.fn();
 const mockClose = jest.fn();
 const mockRemove = jest.fn();
+const mockInspect = jest.fn();
+const mockDestructiveRemove = jest.fn();
 const mockRename = jest.fn();
 const mockRefresh = jest.fn();
 let mockOffline = false;
@@ -30,6 +32,7 @@ jest.mock('@react-navigation/native', () => ({ useIsFocused: () => mockFocused }
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('tamagui', () => ({
   YStack: 'YStack',
+  XStack: 'XStack',
   useTheme: () => ({ color: { val: '#fff' }, gray2: { val: '#222' } }),
 }));
 jest.mock('@tamagui/lucide-icons', () => ({ Landmark: 'Landmark' }));
@@ -84,7 +87,7 @@ jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: async () => {} }),
 }));
 jest.mock('~/services/wallet/connectedMintRemoval', () => ({
-  inspectConnectedMints: jest.fn(),
+  inspectConnectedMints: (...args: any[]) => mockInspect(...args),
   removeConnectedMints: (...args: any[]) => mockRemove(...args),
   mintRemovalMessages: {
     funds: 'Transfer funds before removing',
@@ -131,6 +134,7 @@ beforeEach(() => {
     refreshBalance: async () => {},
     syncMintsToNostr: async () => {},
     setMintNickname: mockRename,
+    removeMint: mockDestructiveRemove,
   });
   mockRename.mockImplementation(async (url, name) =>
     useWalletStore.setState({
@@ -138,6 +142,12 @@ beforeEach(() => {
     }),
   );
   mockRemove.mockResolvedValue({ removed: [mockUrl], blocked: {} });
+  mockInspect.mockImplementation(async (_urls, options) => ({
+    [mockUrl]:
+      mockBlock ??
+      (!options?.allowFunds && useWalletStore.getState().balances[mockUrl] > 0 ? 'funds' : null),
+  }));
+  mockDestructiveRemove.mockImplementation(async () => useWalletStore.setState({ mints: [] }));
 });
 afterEach(async () => {
   await act(async () => tree?.unmount());
@@ -205,9 +215,9 @@ it('keeps an unsuccessful rename editable and does not claim success', async () 
   expect(props().renameEditor).toBeDefined();
   expect(hapticService.selection).not.toHaveBeenCalled();
 });
-it('blocks funded, pending and unknown removal states', async () => {
+it('allows reviewing funded removal while blocking pending and unknown states', async () => {
   await render();
-  expect(props().removeDisabled).toBe(true);
+  expect(props().removeDisabled).toBe(false);
   await act(async () => {
     await useWalletStore.setState({ balances: { [mockUrl]: 0 } });
   });
@@ -219,6 +229,63 @@ it('blocks funded, pending and unknown removal states', async () => {
   await act(async () => tree.update(<ConnectedMintSheet mintUrl={mockUrl} onClose={mockClose} />));
   expect(props().removeDisabled).toBe(true);
   expect(mockRemove).not.toHaveBeenCalled();
+});
+
+it('removes a funded mint only after its warning is confirmed', async () => {
+  await render();
+  await act(async () => props().onRemove());
+  expect(mockDestructiveRemove).not.toHaveBeenCalled();
+  expect(tree.root.findByProps({ children: 'This mint still has funds' })).toBeDefined();
+  await act(async () => removeButton().props.onPress());
+  expect(mockDestructiveRemove).toHaveBeenCalledWith(mockUrl);
+  expect(mockRemove).not.toHaveBeenCalled();
+  expect(hapticService.completion).toHaveBeenCalledTimes(1);
+});
+
+it('replaces the overview with confirmation and restores it when cancelled', async () => {
+  await render();
+  await act(async () => props().onRemove());
+  expect(tree.root.findAllByType('MintView' as any)).toHaveLength(0);
+  expect(tree.root.findByType('Sheet' as any).props).toMatchObject({
+    title: 'Remove mint?',
+    showHeader: true,
+  });
+  expect(tree.root.findByProps({ children: 'Everyday mint' })).toBeDefined();
+  const cancel = tree.root
+    .findAllByType('Button' as any)
+    .find((button) => button.props.children === 'Cancel')!;
+  await act(async () => cancel.props.onPress());
+  expect(props().amount).toBe('24,000');
+  expect(tree.root.findByType('Sheet' as any).props.showHeader).toBe(false);
+  expect(mockDestructiveRemove).not.toHaveBeenCalled();
+  expect(mockRemove).not.toHaveBeenCalled();
+});
+
+it('requires another confirmation if funds appear after the initial empty-mint review', async () => {
+  useWalletStore.setState({ balances: { [mockUrl]: 0 } });
+  mockInspect.mockImplementation(async (_urls, options) => ({
+    [mockUrl]: options?.allowFunds ? null : 'funds',
+  }));
+  await render();
+  await act(async () => props().onRemove());
+  await act(async () => removeButton().props.onPress());
+  expect(mockDestructiveRemove).not.toHaveBeenCalled();
+  expect(mockRemove).not.toHaveBeenCalled();
+  expect(tree.root.findByProps({ children: 'This mint still has funds' })).toBeDefined();
+  await act(async () => removeButton().props.onPress());
+  expect(mockDestructiveRemove).toHaveBeenCalledTimes(1);
+});
+
+it('does not delete a funded mint with an unresolved payment', async () => {
+  mockInspect.mockImplementation(async (_urls, options) => ({
+    [mockUrl]: options?.allowFunds ? 'pending' : 'funds',
+  }));
+  await render();
+  await act(async () => props().onRemove());
+  await act(async () => removeButton().props.onPress());
+  expect(mockDestructiveRemove).not.toHaveBeenCalled();
+  expect(mockRemove).not.toHaveBeenCalled();
+  expect(tree.root.findByProps({ children: 'Pending payments or requests' })).toBeDefined();
 });
 it('rechecks eligibility at confirmation and keeps a mint if activity changed', async () => {
   useWalletStore.setState({ balances: { [mockUrl]: 0 } });
@@ -246,7 +313,8 @@ it('deduplicates removal confirmation and closes only after a verified removal',
     void removeButton().props.onPress();
   });
   expect(mockRemove).toHaveBeenCalledTimes(1);
-  expect(props().busy).toBe(true);
+  expect(removeButton().props.loading).toBe(true);
+  expect(tree.root.findByType('Sheet' as any).props.canDismiss).toBe(false);
   await act(async () => finish({ removed: [mockUrl], blocked: {} }));
   expect(hapticService.completion).toHaveBeenCalledTimes(1);
   expect(mockDismiss).toHaveBeenCalled();

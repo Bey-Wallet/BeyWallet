@@ -8,13 +8,18 @@ export async function mintRemovalBlock(
   db: Pick<ExpoSqliteDb, 'get'>,
   mintUrl: string,
   now = Math.floor(Date.now() / 1000),
+  allowFunds = false,
 ): Promise<MintRemovalBlock | null> {
   const row = await db.get<{ reason: MintRemovalBlock | null }>(
-    `WITH target AS (SELECT ? AS url, ? AS now)
+    `WITH target AS (SELECT ? AS url, ? AS now, ? AS allowFunds)
      SELECT CASE
        WHEN NOT EXISTS (SELECT 1 FROM coco_cashu_mints WHERE mintUrl = target.url)
          THEN 'missing'
-       WHEN EXISTS (SELECT 1 FROM coco_cashu_proofs
+       WHEN target.allowFunds = 1 AND EXISTS (SELECT 1 FROM coco_cashu_proofs
+         WHERE mintUrl = target.url AND
+           (state NOT IN ('ready', 'spent') OR usedByOperationId IS NOT NULL))
+         THEN 'pending'
+       WHEN target.allowFunds = 0 AND EXISTS (SELECT 1 FROM coco_cashu_proofs
          WHERE mintUrl = target.url AND (state <> 'spent' OR usedByOperationId IS NOT NULL))
          THEN 'funds'
        WHEN EXISTS (SELECT 1 FROM coco_cashu_mint_quotes WHERE mintUrl = target.url
@@ -43,7 +48,7 @@ export async function mintRemovalBlock(
            OR EXISTS (SELECT 1 FROM json_each(mintUrls) WHERE value = target.url)))
          THEN 'recovery'
        ELSE NULL END AS reason FROM target`,
-    [mintUrl, now],
+    [mintUrl, now, allowFunds ? 1 : 0],
   );
   if (!row || !Object.prototype.hasOwnProperty.call(row, 'reason'))
     throw new Error('Mint state could not be checked.');
@@ -53,8 +58,8 @@ export async function mintRemovalBlock(
 export class ConnectedMintRemovalRepository {
   constructor(private db: ExpoSqliteDb) {}
 
-  async inspect(mintUrl: string) {
-    return mintRemovalBlock(this.db, mintUrl);
+  async inspect(mintUrl: string, allowFunds = false) {
+    return mintRemovalBlock(this.db, mintUrl, undefined, allowFunds);
   }
 
   async removeIfEmpty(mintUrl: string): Promise<MintRemovalBlock | null> {
