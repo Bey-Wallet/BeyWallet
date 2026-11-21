@@ -6,6 +6,7 @@ import {
   prepareRecoveryDatabaseEncryption,
   walletDatabaseNames,
 } from './encryptedDatabase';
+import { appLogger } from '~/shared/utils/appLogger';
 
 type SynchronousStateStorage = Omit<StateStorage, 'getItem' | 'setItem' | 'removeItem'> & {
   getItem: (name: string) => string | null;
@@ -78,7 +79,7 @@ export function closeDb(strict = false): void {
       dbInstance.closeSync();
     } catch (error) {
       if (strict) throw new Error('Wallet database could not be closed safely.');
-      console.warn('[SqliteStorage] Failed to close database connection:', error);
+      appLogger.warn('[SqliteStorage] Failed to close database connection:', error, 'app_runtime');
     }
     dbInstance = null;
   }
@@ -99,7 +100,7 @@ export const sqliteStorage: SynchronousStateStorage = {
       if (name === 'wallet-storage') lastWalletSnapshot = row?.value;
       return row ? row.value : null;
     } catch (error) {
-      console.warn(`[SqliteStorage] Failed to get item ${name}:`, error);
+      appLogger.warn('[SqliteStorage] Failed to get item …:', error, 'app_runtime');
       return null;
     }
   },
@@ -115,7 +116,7 @@ export const sqliteStorage: SynchronousStateStorage = {
       if (name === 'wallet-storage') lastWalletSnapshot = value;
     } catch (error) {
       if (name === 'wallet-storage') invalidateWalletSnapshot();
-      console.warn(`[SqliteStorage] Failed to set item ${name}:`, error);
+      appLogger.warn('[SqliteStorage] Failed to set item …:', error, 'app_runtime');
       if (name === 'wallet-storage') throw error;
     }
   },
@@ -126,7 +127,7 @@ export const sqliteStorage: SynchronousStateStorage = {
       const db = getDb();
       db.runSync('DELETE FROM coco_cashu_settings WHERE key = ?', [name]);
     } catch (error) {
-      console.warn(`[SqliteStorage] Failed to remove item ${name}:`, error);
+      appLogger.warn('[SqliteStorage] Failed to remove item …:', error, 'app_runtime');
     }
   },
 };

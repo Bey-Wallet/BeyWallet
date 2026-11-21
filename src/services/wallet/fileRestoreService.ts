@@ -12,6 +12,7 @@ import { recoveryCoordinator } from './recoveryCoordinator';
 import { parseWalletBackup, sameBackupIdentity, type WalletBackup } from './walletBackup';
 import { backupService } from './backupService';
 import { readFileRestorePreview } from './fileRestorePreview';
+import { appLogger } from '~/shared/utils/appLogger';
 
 let releaseLifecycle: (() => void) | undefined;
 let working = false;
@@ -196,7 +197,7 @@ export const fileRestoreService = {
       useFileRestoreStore.setState({ phase: 'ready', preview });
     } catch {
       // Fixed stage codes only: native exceptions can contain SQL values or bearer data.
-      console.warn('[FileRestore] Preparation failed at stage:', stage);
+      appLogger.warn('[FileRestore] Preparation failed at stage:', undefined, 'wallet_sdk');
       if (!stopped) {
         releaseLifecycle?.();
         releaseLifecycle = undefined;

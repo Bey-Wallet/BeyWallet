@@ -1,6 +1,7 @@
 import { ConnectedMintRemovalRepository } from '~/storage/sqlite/repositories/ConnectedMintRemovalRepository';
 import type { MintRemovalBlock } from '~/storage/sqlite/repositories/ConnectedMintRemovalRepository';
 import { recoveryCoordinator } from './recoveryCoordinator';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export const mintRemovalMessages: Record<MintRemovalBlock, string> = {
   funds: 'Transfer funds before removing',
@@ -16,12 +17,12 @@ function repository() {
   return new ConnectedMintRemovalRepository(initService.getRepo().db);
 }
 
-export async function inspectConnectedMints(urls: string[]) {
+export async function inspectConnectedMints(urls: string[], { allowFunds = false } = {}) {
   const repo = await repository();
   const result: Record<string, MintRemovalBlock | null> = {};
   for (const url of new Set(urls)) {
     try {
-      result[url] = recoveryCoordinator.has(url) ? 'recovery' : await repo.inspect(url);
+      result[url] = recoveryCoordinator.has(url) ? 'recovery' : await repo.inspect(url, allowFunds);
     } catch {
       result[url] = 'unknown';
     }
@@ -54,7 +55,11 @@ export async function removeConnectedMints(urls: string[]) {
       try {
         await eventBus.emit('mint:untrusted', { mintUrl: url });
       } catch {
-        console.warn('[MintRemoval] Connection removed; subscription cleanup needs refresh.');
+        appLogger.warn(
+          '[MintRemoval] Connection removed; subscription cleanup needs refresh.',
+          undefined,
+          'wallet_sdk',
+        );
       }
     }
     return { removed, blocked };

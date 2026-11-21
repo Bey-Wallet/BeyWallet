@@ -1,5 +1,6 @@
 import { nfcFlow } from './nfcFlow';
 import * as SecureStore from 'expo-secure-store';
+import { appLogger } from '~/shared/utils/appLogger';
 
 const consumedLaunchKey = 'bey.nfc.consumedLaunch';
 let launchQueue: Promise<unknown> = Promise.resolve();
@@ -14,7 +15,11 @@ function consumeLaunch(id: string): Promise<boolean> {
     })
     .catch(() => {
       // Manual NFC remains available when launch replay protection cannot persist.
-      console.warn('[NFC] Could not consume launch; open NFC manually.');
+      appLogger.warn(
+        '[NFC] Could not consume launch; open NFC manually.',
+        undefined,
+        'app_runtime',
+      );
       return false;
     });
   launchQueue = result;

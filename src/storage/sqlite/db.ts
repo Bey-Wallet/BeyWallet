@@ -1,6 +1,7 @@
 // Minimal promise-based wrapper for expo-sqlite's async API
 // Consumers pass an already opened database instance
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export type ExpoSqliteDatabaseLike = SQLiteDatabase;
 
@@ -62,14 +63,14 @@ export class ExpoSqliteDb {
 
   async exec(sql: string): Promise<void> {
     if (!sql) {
-      console.error('[ExpoSqliteDb] exec called with empty SQL');
+      appLogger.error('[ExpoSqliteDb] exec called with empty SQL', undefined, 'app_runtime');
       return;
     }
     // execAsync can run multiple statements separated by semicolons
     try {
       await (this.root.db as any).execAsync(sql);
     } catch (e) {
-      console.error('[ExpoSqliteDb] execAsync failed for SQL:', sql.substring(0, 100));
+      appLogger.error('[ExpoSqliteDb] execAsync failed for SQL:', e, 'app_runtime');
       throw e;
     }
   }

@@ -19,6 +19,7 @@ import {
   type NostrInboxItem,
   useNostrInboxStore,
 } from '~/state/nostrInboxStore';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export interface NostrClaimResult {
   eventId: string;
@@ -510,10 +511,7 @@ class NostrClaimService {
         return result;
       }
       const failure = classifyFailure(error);
-      console.warn('[NostrClaimService] Claim deferred or failed', {
-        eventId,
-        category: failure.code,
-      });
+      appLogger.warn('[NostrClaimService] Claim deferred or failed', error, 'ecash_receive');
       const result = this.defer(item, failure, true);
       DeviceEventEmitter.emit('nostr:claim-result', result);
       return result;

@@ -573,8 +573,8 @@ it('keeps the iOS Lightning result visible after closing the NFC radio session',
   expect(pay).toHaveBeenCalledTimes(1);
   expect(flow.getSnapshot()).toMatchObject({ status: 'confirmed', visible: true });
   const events = diagnostics.mock.calls
-    .filter(([prefix]) => prefix === '[NFC]')
-    .map(([, data]) => data.event);
+    .filter(([prefix]) => typeof prefix === 'string' && prefix.startsWith('[NFC] '))
+    .map(([prefix]) => prefix.slice('[NFC] '.length));
   expect(events).toEqual(
     expect.arrayContaining([
       'read_complete',
@@ -856,8 +856,8 @@ it('reports lifecycle/dismissal reasons without logging a failed invoice or nati
   flow.dismiss();
   await flow.background('host_unmount');
   const events = diagnostics.mock.calls
-    .filter(([prefix]) => prefix === '[NFC]')
-    .map(([, data]) => data.event);
+    .filter(([prefix]) => typeof prefix === 'string' && prefix.startsWith('[NFC] '))
+    .map(([prefix]) => prefix.slice('[NFC] '.length));
   expect(events).toEqual(
     expect.arrayContaining(['lightning_prepare_failed', 'dismiss_requested', 'host_unmount']),
   );

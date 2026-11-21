@@ -50,6 +50,7 @@ import {
   encodeTokenV4,
   encodeTokenV3,
 } from '~/services/wallet';
+import { appLogger } from '~/shared/utils/appLogger';
 
 // Ensure Buffer is available globally
 if (typeof global.Buffer === 'undefined') {
@@ -107,7 +108,7 @@ export default function TokenDetailsModal() {
         // Try to encode if it's an object
         return encodeToken(entry.metadata.token);
       } catch (e) {
-        console.warn('[TokenDetails] Failed to encode metadata token:');
+        appLogger.warn('[TokenDetails] Failed to encode metadata token:', e, 'app_runtime');
       }
     }
 
@@ -115,7 +116,7 @@ export default function TokenDetailsModal() {
       try {
         return typeof entry.token === 'string' ? entry.token : encodeToken(entry.token);
       } catch (e) {
-        console.warn('[TokenDetails] Failed to encode token from entry:');
+        appLogger.warn('[TokenDetails] Failed to encode token from entry:', e, 'app_runtime');
         return '';
       }
     }
@@ -172,7 +173,7 @@ export default function TokenDetailsModal() {
         setQrCodeFragment(currentToken);
       }
     } catch (e) {
-      console.error('Failed to decode token for QR:');
+      appLogger.error('Failed to decode token for QR:', e, 'app_runtime');
       setShowAnimatedQR(false);
       setQrCodeFragment(currentToken);
     }
@@ -239,7 +240,7 @@ export default function TokenDetailsModal() {
         setTokenVersion('V3');
       }
     } catch (e) {
-      console.error('Failed to toggle token version:');
+      appLogger.error('Failed to toggle token version:', e, 'app_runtime');
       toast.showFeedback(interactionCopy.failedToSwitchTokenVersion);
     }
   };

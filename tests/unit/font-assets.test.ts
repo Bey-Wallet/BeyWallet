@@ -85,6 +85,8 @@ it.each(Object.entries(manifest.fonts))(
     expect(expected.zeroGlyph).toBe('zero.tf');
     expect(expected.oneGlyph).toBe('one.foot.tf');
     expect(expected.roundness).toBe(0);
+    expect(expected.sixGlyph).toBe('six.tf.ss01');
+    expect(expected.nineGlyph).toBe('nine.tf.ss01');
     for (const feature of ['zero', 'ss02', 'cv02', 'cv05']) {
       expect(defaults?.some((index) => features.get(feature)?.includes(index))).toBe(false);
     }

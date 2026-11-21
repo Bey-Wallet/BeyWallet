@@ -28,6 +28,7 @@ import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 
 import { useSettingsStore } from '~/state/settingsStore';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export function OnchainMintFlow() {
   const router = useRouter();
@@ -125,17 +126,17 @@ export function OnchainMintFlow() {
                 address: data.request,
               },
             });
-            console.log(
-              '[OnchainMintFlow] Saved on-chain quote in local database history:',
-              data.quote,
-            );
           } catch (dbErr) {
-            console.warn('[OnchainMintFlow] Failed to save on-chain quote to history:');
+            appLogger.warn(
+              '[OnchainMintFlow] Failed to save on-chain quote to history:',
+              dbErr,
+              'mint_quote',
+            );
           }
         }
       } catch (err: any) {
         if (isMounted) {
-          console.error('[OnchainMintFlow] Failed to create quote:');
+          appLogger.error('[OnchainMintFlow] Failed to create quote:', err, 'mint_quote');
           setErrorMsg(err.message || 'Failed to request deposit address');
           setStep('error');
         }
@@ -167,7 +168,6 @@ export function OnchainMintFlow() {
       setIsChecking(true);
       if (showToast) setIsManualCheck(true);
       try {
-        console.log('[OnchainMintFlow] Checking deposit status for:', quoteData.quote);
         const status = await quotesService.checkOnchainMintQuote(activeMintUrl, quoteData.quote);
         setAmountPaid(status.amount_paid);
         setAmountIssued(status.amount_issued);
@@ -175,7 +175,6 @@ export function OnchainMintFlow() {
 
         const delta = status.amount_paid - status.amount_issued;
         if (delta > 0) {
-          console.log('[OnchainMintFlow] Payment detected, redeeming...', delta, 'sats');
           await quotesService.redeemOnchainMintQuote(
             activeMintUrl,
             quoteData.quote,
@@ -192,7 +191,11 @@ export function OnchainMintFlow() {
               status.amount_paid,
             );
           } catch (dbErr) {
-            console.warn('[OnchainMintFlow] Failed to update history state to paid:');
+            appLogger.warn(
+              '[OnchainMintFlow] Failed to update history state to paid:',
+              dbErr,
+              'mint_quote',
+            );
           }
 
           setEventTime(Date.now());
@@ -204,7 +207,7 @@ export function OnchainMintFlow() {
           }
         }
       } catch (err: any) {
-        console.error('[OnchainMintFlow] Check payment error:');
+        appLogger.error('[OnchainMintFlow] Check payment error:', err, 'mint_quote');
         if (showToast) {
           toast.showFeedback(interactionCopy.couldNotCheckPaymentStatusPleaseTry);
         }

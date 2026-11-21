@@ -36,6 +36,7 @@ import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currenc
 import { decodeNostrPublicKey } from '~/services/api/nostrProfileService';
 import { historyService } from '~/services/wallet/historyService';
 import { normalizeNpub } from '~/shared/utils/nostr';
+import { appLogger } from '~/shared/utils/appLogger';
 
 type MeltStep = 'invoice' | 'confirm' | 'result';
 
@@ -218,7 +219,7 @@ export default function MeltScreen() {
               throw new Error(
                 'This invoice needs a payable amount. Ask for an invoice with an amount.',
               );
-            console.log('[MeltScreen] Auto-fetched melt quote amount:', quote.amount);
+
             setQuoteAmount(quote.amount);
             setFeeReserve(quote.fee_reserve);
             setQuoteId(quote.quote);
@@ -311,7 +312,6 @@ export default function MeltScreen() {
 
       const inputType = detectLightningInputType(cleaned);
       if (inputType !== 'unknown') cleaned = normalizeLightningInput(cleaned);
-      console.log('[MeltScreen] Input type:', inputType);
 
       if (inputType === 'bolt11') {
         // Bolt11 invoice — go directly to get quote
@@ -359,10 +359,9 @@ export default function MeltScreen() {
             return;
           }
 
-          console.log(`[MeltScreen] LN address resolved: amount=${amountSats} sat`);
           await resolveAndGetQuote(cleaned, amountSats);
         } catch (err: any) {
-          console.error('[MeltScreen] LN address resolution failed:');
+          appLogger.error('[MeltScreen] LN address resolution failed:', err, 'lightning_pay');
           setError(err.message || 'Failed to resolve Lightning address');
         } finally {
           setIsResolvingAddress(false);
@@ -385,14 +384,13 @@ export default function MeltScreen() {
       setError(null);
 
       try {
-        console.log(`[MeltScreen] Resolving ${address} for ${amountSats} sat...`);
         const bolt11 = await requestInvoiceFromLnurl(address, amountSats);
         if (generation !== quoteGeneration.current) return;
         setResolvedInvoice(bolt11);
-        console.log('[MeltScreen] Lightning address resolved');
+
         await getQuoteForInvoice(bolt11);
       } catch (err: any) {
-        console.error('[MeltScreen] Resolution failed:');
+        appLogger.error('[MeltScreen] Resolution failed:', err, 'lightning_pay');
         setError(err.message || 'Failed to get invoice from Lightning address');
         setIsGettingQuote(false);
       }
@@ -417,7 +415,6 @@ export default function MeltScreen() {
       setError(null);
 
       try {
-        console.log('[MeltScreen] Getting melt quote from', activeMintUrl);
         const payment = paymentFor(activeMintUrl, bolt11);
         const quote = await payment.preview();
         if (generation !== quoteGeneration.current || paymentRef.current !== payment) return;
@@ -454,7 +451,7 @@ export default function MeltScreen() {
         setStep('confirm');
       } catch (err: any) {
         if (generation !== quoteGeneration.current) return;
-        console.error('[MeltScreen] Quote failed:');
+        appLogger.error('[MeltScreen] Quote failed:', err, 'lightning_pay');
         setError(err.message || 'Failed to get melt quote');
       } finally {
         if (generation === quoteGeneration.current) setIsGettingQuote(false);
@@ -481,7 +478,6 @@ export default function MeltScreen() {
     setError(null);
 
     try {
-      console.log('[MeltScreen] Paying melt quote:', quoteId);
       saveLightningRecipient(useSettingsStore.getState().npub, activeMintUrl, quoteId, lnAddress);
       const result = await payment.pay();
       if (paymentRef.current !== payment) return;
@@ -547,7 +543,7 @@ export default function MeltScreen() {
       if (!success) {
       }
     } catch (err: any) {
-      console.error('[MeltScreen] Auth error:');
+      appLogger.error('[MeltScreen] Auth error:', err, 'lightning_pay');
       setError(err.message || 'Authentication failed');
     } finally {
       authLock.current = false;

@@ -10,7 +10,8 @@ The app uses **Allo 1.0**, approved after an Android device trial, with two opti
 Regular/Medium/SemiBold use weights 400/500/600. Lighter requests map to 400 and
 heavier requests map to 600. Only these six static faces are loaded and embedded.
 `$mono` is a compatibility alias to Allo Text, not a separately bundled font.
-Roundness is fixed at **`ROND=0`**. The upstream static OTFs use roundness 50 and
+Roundness is restored to **`ROND=0`**, keeping open 6 and 9.
+Sizes, weights and tracking remain unchanged. The upstream static OTFs use roundness 50 and
 are not the app's source; prepare the faces from `AlloVariable.ttf` instead.
 
 ## Number and character features
@@ -21,6 +22,7 @@ Both optical families enable these upstream features by default:
 - `cv01`: footed 1.
 - `cv03`: tailed lowercase l.
 - `cv04`: serifed uppercase I.
+- `ss03`: restricted to open 6 and 9 in this experiment; 4 keeps its original form.
 
 Zero remains normal and unslashed. `zero`, `ss02`, `cv02` and `cv05` are not
 enabled by default. The original Allo outlines are retained; no glyphs are redrawn.
@@ -38,25 +40,34 @@ maps to Allo's existing U+00A5 yen glyph. No other currency outlines are modifie
 ## Spacing and sizes
 
 Keep the existing rounded 10% size baseline, line heights, weights, control geometry,
-accessible text scaling and amount animations. Approved letter spacing is:
+accessible text scaling and amount animations. The 20 November spacing adjustment
+tightens headings, labels, body text and numbers. The wider trial was rejected.
+Current compact trial values:
 
 | Area                                                 | Letter spacing                           |
 | ---------------------------------------------------- | ---------------------------------------- |
-| 40-point main balances and prominent payment amounts | -0.25                                    |
-| Home main balance (44 points)                        | -0.1                                     |
-| Amount entry                                         | -0.25 scaled proportionally to font size |
-| Bitcoin price                                        | -0.1                                     |
-| Nostr detail amounts                                 | -0.15                                    |
-| Onboarding headings                                  | -0.1                                     |
+| 40-point main balances and prominent payment amounts | -0.35                                    |
+| Home main balance (44 points)                        | -0.2                                     |
+| Amount entry                                         | -0.35 scaled proportionally to font size |
+| Bitcoin price                                        | -0.15                                    |
+| Nostr detail amounts                                 | -0.2                                     |
+| Onboarding headings                                  | -0.15                                    |
 | Risk Disclosure heading                              | -0.05                                    |
 | Small activity amounts                               | 0                                        |
+| Secondary amounts (29 / 25 points)                   | -0.15 / -0.1                             |
+| Headings (29 / 22 / 18 points)                       | -0.2 / -0.15 / -0.1                      |
+| Labels (14 / 13 / 11 points)                         | -0.05 / -0.03 / 0.02                     |
+| Body text (14 / 13 / 11 points)                      | -0.03 / 0 / 0.04                         |
+| Brief captions                                       | 0.06                                     |
 
-Existing small positive label/button tracking is retained. Rolling-number cells
+Button tracking scales from the 14-point label role; native inputs and BUI text
+roles use the corresponding shared tracking. Copyable monospaced text retains 0.5.
+Rolling-number cells
 allow mild negative spacing capped at the balance tracking scaled to their size.
 Do not restore the old -1/-1.5 margins or apply a blanket zero-spacing override.
-Digit-pair and currency-sample ink bounds were checked across all six faces at
-the rolling-number limit. Native text rendering still needs device checks after
-future font or layout changes.
+Digit-pair ink bounds were checked across all six faces at the current rolling-number
+limit, including the footed 1. Separated digits retain positive ink gaps. Native
+text rendering, currency combinations and wrapping still need device review.
 
 ## Integration
 
@@ -84,7 +95,7 @@ bc26a56fd707fb463f99a51fba67bfb57ab66c341c710efb7419919de9b85330
 Reproduce with the downloaded variable TTF and its OFL file:
 
 ```sh
-uv run --no-project --with fonttools==4.67.0 --with uharfbuzz==0.57.0 python scripts/prepare-allo-fonts.py --source <AlloVariable.ttf> --license <OFL.txt>
+uv run --no-project --with fonttools==4.67.0 --with uharfbuzz==0.57.0 python scripts/prepare-allo-fonts.py --source <AlloVariable.ttf> --license <OFL.txt> --roundness 0 --open-six-nine
 ```
 
 The script instantiates Text and Display faces, fixes roundness, sets feature

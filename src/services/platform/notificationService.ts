@@ -5,6 +5,7 @@ import { feedbackCatalog } from '~/services/feedback/feedbackCatalog';
 import { feedbackCoordinator, type FeedbackEvent } from '~/services/feedback/feedbackCoordinator';
 import { useSettingsStore } from '~/state/settingsStore';
 import { deliveryIdentifier } from '~/services/feedback/deliveryIdentifier';
+import { appLogger } from '~/shared/utils/appLogger';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => {
@@ -109,7 +110,7 @@ export class NotificationService {
         trigger: null,
       });
     } catch {
-      console.warn('[Notifications] delivery unavailable');
+      appLogger.warn('[Notifications] delivery unavailable', undefined, 'app_runtime');
     }
   }
 

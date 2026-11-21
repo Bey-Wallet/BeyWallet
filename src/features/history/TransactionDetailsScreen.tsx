@@ -70,6 +70,7 @@ import {
 } from '~/services/wallet/lightningReceiptContext';
 import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { appLogger } from '~/shared/utils/appLogger';
 
 interface HistoryEntry {
   id: string;
@@ -121,11 +122,14 @@ function TransactionDetailsContent() {
           const decoded = decodeToken(clean);
           const secrets = decoded.proofs.map((p: any) => p.secret);
           if (secrets.length > 0) {
-            console.log('[TransactionDetails] Deleting associated proofs from DB:', secrets.length);
             await repo.proofRepository.deleteProofs(entry.mintUrl, secrets);
           }
         } catch (e) {
-          console.warn('[TransactionDetails] Failed to delete proofs during delete txn:');
+          appLogger.warn(
+            '[TransactionDetails] Failed to delete proofs during delete txn:',
+            e,
+            'app_runtime',
+          );
         }
       }
 
@@ -136,7 +140,7 @@ function TransactionDetailsContent() {
       router.back();
       queryClient.invalidateQueries({ queryKey: ['history'] });
     } catch (err: any) {
-      console.error('[TransactionDetails] Failed to delete transaction:');
+      appLogger.error('[TransactionDetails] Failed to delete transaction:', err, 'app_runtime');
       toast.showFeedback(interactionCopy.failedToDeleteTransaction);
     }
   };
@@ -163,7 +167,11 @@ function TransactionDetailsContent() {
           }
         }
       } catch (err) {
-        console.warn('[TransactionDetails] Failed to load by ID from historyRepository:');
+        appLogger.warn(
+          '[TransactionDetails] Failed to load by ID from historyRepository:',
+          err,
+          'app_runtime',
+        );
       }
 
       // 2. If it's a quoteId, try to find by quoteId or matching ID in repository entries
@@ -177,11 +185,15 @@ function TransactionDetailsContent() {
           }
         }
       } catch (err) {
-        console.warn('[TransactionDetails] Failed to load by quoteId from historyRepository:');
+        appLogger.warn(
+          '[TransactionDetails] Failed to load by quoteId from historyRepository:',
+          err,
+          'app_runtime',
+        );
       }
 
       // 3. Fallback to core historyService
-      console.log('[TransactionDetails] Falling back to core historyService search for id:', id);
+
       const history = await historyService.getHistory(200, 0);
       return (history.find((e: any) => e.id === id) as HistoryEntry) || null;
     },
@@ -207,7 +219,11 @@ function TransactionDetailsContent() {
           return quote;
         }
       } catch (err) {
-        console.warn('[TransactionDetails] Failed to load mint quote from repository:');
+        appLogger.warn(
+          '[TransactionDetails] Failed to load mint quote from repository:',
+          err,
+          'app_runtime',
+        );
       }
       return null;
     },
@@ -370,10 +386,14 @@ function TransactionDetailsContent() {
           await repo.proofRepository.deleteProofs(entry.mintUrl, secrets);
         }
       } catch (e) {
-        console.warn('[TransactionDetails] Failed to delete inflight proofs during reclaim:');
+        appLogger.warn(
+          '[TransactionDetails] Failed to delete inflight proofs during reclaim:',
+          e,
+          'app_runtime',
+        );
       }
     } catch (err: any) {
-      console.error('[TransactionDetails] Reclaim failed:');
+      appLogger.error('[TransactionDetails] Reclaim failed:', err, 'app_runtime');
       toast.showFeedback(interactionCopy.couldNotConfirmReclaimCheckHistoryBefore);
     } finally {
       refreshRevision.current++;
@@ -407,7 +427,7 @@ function TransactionDetailsContent() {
           }
         }
       } catch (e) {
-        console.error('[TransactionDetails] Failed to read saved invoice:');
+        appLogger.error('[TransactionDetails] Failed to read saved invoice:', e, 'app_runtime');
       }
     }
   }, [entry, isPendingMint, onchain, receiptSnapshot?.request]);
@@ -488,7 +508,6 @@ function TransactionDetailsContent() {
 
           // If pending and unspent but expired, trigger auto-sweep/refund
           if (!isSpent && expiresAt && Date.now() > expiresAt && newState !== 'claimed') {
-            console.log('[TransactionDetails] Token expired and unspent on refresh. Sweeping...');
             reclaimLock.current = true;
             sweeping = true;
             setIsReclaiming(true);
@@ -513,7 +532,11 @@ function TransactionDetailsContent() {
             // Refresh updates the visible receipt; it is not a fresh arrival.
           }
         } catch (err) {
-          console.warn('[TransactionDetails] Failed to refresh proof states:');
+          appLogger.warn(
+            '[TransactionDetails] Failed to refresh proof states:',
+            err,
+            'app_runtime',
+          );
         }
       }
 
@@ -603,7 +626,7 @@ function TransactionDetailsContent() {
       void queryClient.invalidateQueries({ queryKey: ['history'] });
       void useWalletStore.getState().refreshBalance();
     } catch (err: any) {
-      console.error('[TransactionDetails] Claim failed:');
+      appLogger.error('[TransactionDetails] Claim failed:', err, 'app_runtime');
       toast.showFeedback(interactionCopy.couldNotConfirmReceiptCheckHistoryBefore);
     } finally {
       refreshRevision.current++;
@@ -641,7 +664,7 @@ function TransactionDetailsContent() {
               return;
             }
             await quotesService.redeemMintQuote(entry.mintUrl, qId);
-            console.log('[TransactionDetails] Background redeem success for mint quote:', qId);
+
             queryClient.invalidateQueries({ queryKey: ['history'] });
             refetch();
           }
@@ -975,7 +998,7 @@ function TransactionDetailsContent() {
                 await handleRefresh();
               }
             } catch (e) {
-              console.warn('[TransactionDetails] Failed to cancel quote:');
+              appLogger.warn('[TransactionDetails] Failed to cancel quote:', e, 'app_runtime');
             }
           }}
           onPaid={handleCollectMint}

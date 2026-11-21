@@ -5,8 +5,12 @@
 Show all 25 current currencies by default, plus None for sats-only display. There is
 no shortlist, hidden group or More currencies step.
 The list keeps its configured order when selecting a currency; only the checkmark moves.
+The order follows descending OTC FX turnover in the September release of the
+[2025 BIS survey, Table 4](https://www.bis.org/publications/202509-commentary-otc-derivatives.pdf).
+KWD and NGN are not individually ranked in that table and follow alphabetically.
+None remains first as the sats-only option.
 
-Removed from the picker at the user's request:
+Removed from the picker and metadata at the user's request:
 
 - VND — Vietnamese Dong.
 - PHP — Philippine Peso.
@@ -23,11 +27,9 @@ NGN (Nigerian Naira) and THB (Thai Baht) remain selectable. The naira symbol use
 Allo's original U+20A6 glyph; its shape has not been customized. The only added cmap
 alias in the prepared Allo assets is full-width yen to Allo's existing yen glyph.
 
-`SELECTABLE_CURRENCIES` controls the Settings choices. The full currency metadata is
-retained in `SUPPORTED_CURRENCIES` so saved preferences and imported backups using
-the removed codes continue to show their correct symbols and conversions. Selecting
-a new currency offers only the current 25; existing preferences are not silently
-changed to USD.
+`SELECTABLE_CURRENCIES` and `SUPPORTED_CURRENCIES` now expose the same 25 currencies.
+There is no hidden currency metadata. Unrecognized saved codes use a generic numeric
+display with the original code as a suffix, rather than silently displaying USD.
 
 ## Further European additions — deferred
 

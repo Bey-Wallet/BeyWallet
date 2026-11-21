@@ -16,7 +16,7 @@ import {
   areAllPaymentProofsSpent,
 } from '~/services/wallet/paymentRequestPayment';
 import { LightningPayment } from '~/services/wallet/lightningPayment';
-import { safeMintErrorCode } from '~/services/wallet/walletLogger';
+import { appLogger } from '~/shared/utils/appLogger';
 import { walletService, decodeToken, historyService } from '~/services/wallet';
 import { proofService } from '~/services/wallet/proofService';
 import { useWalletStore } from '~/state/walletStore';
@@ -93,6 +93,24 @@ function nfcErrorMessage(error: unknown, status: NfcStatus): string {
 }
 
 /** Secrets and operation controllers live only here, never in navigation or persisted UI state. */
+const nfcLogMessages = {
+  state: '[NFC] state',
+  wallet_ready: '[NFC] wallet_ready',
+  wallet_not_ready: '[NFC] wallet_not_ready',
+  read_complete: '[NFC] read_complete',
+  lightning_detected: '[NFC] lightning_detected',
+  lightning_preview: '[NFC] lightning_preview',
+  lightning_prepare_failed: '[NFC] lightning_prepare_failed',
+  lightning_submit: '[NFC] lightning_submit',
+  dismiss_requested: '[NFC] dismiss_requested',
+  dismiss_blocked: '[NFC] dismiss_blocked',
+  app_background: '[NFC] app_background',
+  host_unmount: '[NFC] host_unmount',
+  foreground: '[NFC] foreground',
+  failed: '[NFC] failed',
+  sheet_closed: '[NFC] sheet_closed',
+} as const;
+
 export class NfcFlow {
   /** Development diagnostics deliberately omit every payment payload and native error. */
   private trace(
@@ -115,24 +133,9 @@ export class NfcFlow {
     error?: unknown,
   ) {
     if (!__DEV__) return;
-    console.log('[NFC]', {
-      event,
-      status: this.state.status,
-      direction: this.state.direction,
-      visible: this.state.visible,
-      locked: this.state.locked,
-      hasPayment: this.state.hasPayment,
-      ...(error === undefined
-        ? {}
-        : {
-            reason: nfcErrorMessage(
-              error,
-              event === 'lightning_prepare_failed' ? 'paying' : this.state.status,
-            ),
-            mintCode: safeMintErrorCode(error),
-            preparation: this.lightning?.preparationDiagnostic,
-          }),
-    });
+    if (error === undefined) appLogger.debug(nfcLogMessages[event]);
+    else
+      appLogger.debug(nfcLogMessages[event], this.lightning?.preparationDiagnostic?.error ?? error);
   }
   private state: NfcPresentation = {
     visible: false,

@@ -5,6 +5,7 @@ import { Fingerprint } from '@tamagui/lucide-icons';
 import { biometricService } from '~/services/platform/biometricService';
 import { AppState, AppStateStatus, StyleSheet } from 'react-native';
 import BeyIcon from '~/shared/icons/BeyIcon';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
   // Track active authentication request to prevent overlapping promise races
@@ -13,28 +14,24 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
   const handleAuthenticate = useCallback(
     async (force = false) => {
       if (!force && isAuthenticatingRef.current) {
-        console.log('Biometric auth already in progress, skipping auto-trigger');
         return;
       }
 
-      console.log(`Starting biometric auth (force: ${force})`);
       isAuthenticatingRef.current = true;
 
       try {
         if (force) {
-          console.log('Forcing auth: cancelling any active prompt first');
           await biometricService.cancelAuthenticate();
         }
         const success = await biometricService.authenticateAsync('Unlock Bey Wallet to continue');
-        console.log('Biometric auth result success:', success);
+
         if (success) {
           onUnlock();
         }
       } catch (e) {
-        console.error('Error during biometric auth:', e);
+        appLogger.error('Error during biometric auth:', e, 'app_runtime');
       } finally {
         isAuthenticatingRef.current = false;
-        console.log('Biometric auth attempt finished');
       }
     },
     [onUnlock],
@@ -42,7 +39,6 @@ export function LockOverlay({ onUnlock }: { onUnlock: () => void }) {
 
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      console.log('AppState changed to:', nextAppState);
       if (nextAppState === 'background' || nextAppState === 'inactive') {
         // Cancel active prompt immediately
         await biometricService.cancelAuthenticate();

@@ -15,6 +15,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { useNostrRequestStore, type RequestPayment } from '~/state/nostrRequestStore';
 import { normalizeNpub } from '~/shared/utils/nostr';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export function requestPaymentKey(request: ParsedPaymentRequest): string {
   const target = request.nostrTarget ? normalizeNpub(request.nostrTarget) : 'nfc';
@@ -318,10 +319,7 @@ export class PaymentRequestPayment {
         nfc_write: 'NFC write failed. Keep the phones together and retry delivery.',
       };
       this.failureMessage = messages[stage];
-      console.warn('[PaymentRequestPayment] Delivery failed', {
-        operationId: this.operationId,
-        category: stage,
-      });
+      appLogger.warn('[PaymentRequestPayment] Delivery failed', error, 'wallet_sdk');
       throw error;
     } finally {
       this.busy = false;

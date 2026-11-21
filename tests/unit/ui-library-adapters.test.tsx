@@ -1,9 +1,12 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { RemoteImage, MintImage } from '~/shared/ui/RemoteImage';
+import { MintIconImage } from '~/features/explore/components/MintIcon';
 
 jest.mock('tamagui', () => ({ Text: 'Text', View: 'View' }));
-jest.mock('@tamagui/lucide-icons', () => ({ Sprout: 'Sprout' }));
+jest.mock('@tamagui/lucide-icons', () => ({ Landmark: 'Landmark' }));
+jest.mock('~/shared/hooks/useMintInfo', () => ({ useMintInfo: jest.fn() }));
+jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('expo-image', () => ({
   Image: 'ExpoImage',
 }));
@@ -68,7 +71,7 @@ it('falls back from mint icon to favicon to placeholder and resets for another m
   await act(async () => image().props.onError());
   expect(image().props.source.uri).toBe('https://mint.example/favicon.ico');
   await act(async () => image().props.onError());
-  expect(tree.root.findAllByType('Sprout' as any)).toHaveLength(1);
+  expect(tree.root.findAllByType('Landmark' as any)).toHaveLength(1);
   await act(async () => {
     tree.update(
       <MintImage
@@ -80,5 +83,35 @@ it('falls back from mint icon to favicon to placeholder and resets for another m
     );
   });
   expect(image().props.source.uri).toBe('https://cdn.example/icon');
+  await act(async () => tree.unmount());
+});
+
+it('keeps the discovery landmark visible until an icon loads, including failed image requests', async () => {
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <MintIconImage
+        url="https://mint.example"
+        info={{ icon_url: 'https://cdn.example/icon', nuts: {} }}
+      />,
+    );
+  });
+  const image = () => tree.root.findByType('ExpoImage' as any);
+  expect(tree.root.findAllByType('Landmark' as any)).toHaveLength(1);
+  await act(async () => image().props.onError());
+  expect(image().props.source.uri).toBe('https://mint.example/favicon.ico');
+  expect(tree.root.findAllByType('Landmark' as any)).toHaveLength(1);
+  await act(async () => image().props.onLoad());
+  expect(tree.root.findAllByType('Landmark' as any)).toHaveLength(0);
+  await act(async () => {
+    tree.update(
+      <MintIconImage
+        url="https://next-mint.example"
+        info={{ icon_url: 'https://cdn.example/next-icon', nuts: {} }}
+      />,
+    );
+  });
+  expect(image().props.source.uri).toBe('https://cdn.example/next-icon');
+  expect(tree.root.findAllByType('Landmark' as any)).toHaveLength(1);
   await act(async () => tree.unmount());
 });

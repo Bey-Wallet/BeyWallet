@@ -51,6 +51,7 @@ import {
   type OfflineAmounts,
 } from '~/shared/utils/offlineSendUtils';
 import { withTokenMemo } from '~/services/wallet/tokenUtils';
+import { appLogger } from '~/shared/utils/appLogger';
 
 type SendStep = 'amount' | 'confirm' | 'result' | 'success' | 'payment_request';
 
@@ -176,7 +177,6 @@ export function SendModalScreen() {
   // Auto-switch to payment_request step if we got a creqA param
   React.useEffect(() => {
     if (activeParsedRequest) {
-      console.log('[SendModal] Auto-switching to payment_request stage');
       setStep('payment_request');
     } else if (params.paymentRequest) {
       try {
@@ -328,8 +328,6 @@ export function SendModalScreen() {
   React.useEffect(() => {
     if (!listeningForClaim || !encodedToken || !operationId) return;
 
-    console.log('[SendModalScreen] Starting automated state monitoring for:', operationId);
-
     let isDetected = false;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -340,26 +338,26 @@ export function SendModalScreen() {
       // Double confirmation for events only — polling already verified the chain state directly
       if (source === 'event') {
         try {
-          console.log(`[SendModalScreen] 🛡️ Verifying event success for:`, operationId);
           const tokenToPoll = rawTokenRef.current;
           if (!tokenToPoll) return;
           const states = await proofService.checkProofStates(tokenToPoll);
           const allSpent = states.length > 0 && states.every((s: any) => s.state === 'SPENT');
           if (!allSpent) {
-            console.warn(
-              '[SendModalScreen] ⚠️ Event claimed but proofs still UNSPENT. Ignoring premature event.',
+            appLogger.warn(
+              '[SendModalScreen] Event claimed but proofs still UNSPENT. Ignoring premature event.',
+              undefined,
+              'ecash_send',
             );
             return;
           }
         } catch (err) {
-          console.error('[SendModalScreen] Verification check failed:');
+          appLogger.error('[SendModalScreen] Verification check failed:', err, 'ecash_send');
           return;
         }
       }
 
       if (isDetected || stopped) return;
       isDetected = true;
-      console.log(`[SendModalScreen] ✅ SUCCESS CONFIRMED via ${source} for:`, operationId);
 
       setStep('success');
       queryClient.invalidateQueries({ queryKey: ['history'] });
@@ -381,14 +379,12 @@ export function SendModalScreen() {
         if (!tokenToPoll) return;
         const states = await proofService.checkProofStates(tokenToPoll);
         const spentCount = states.filter((s: any) => s.state === 'SPENT').length;
-        console.log(
-          `[SendModalScreen] 🔍 Poll [${operationId}]: ${spentCount}/${states.length} SPENT`,
-        );
+
         if (states.length > 0 && spentCount === states.length) {
           handleSuccess('polling');
         }
       } catch (err) {
-        console.warn('[SendModalScreen] Polling check failed:');
+        appLogger.warn('[SendModalScreen] Polling check failed:', err, 'ecash_send');
       }
       if (!stopped && !isDetected) timer = setTimeout(pollOnce, PENDING_PAYMENT_CHECK_MS);
     };
@@ -495,12 +491,6 @@ export function SendModalScreen() {
 
       setStatus('success');
       refreshBalance();
-      console.log(
-        '[SendModalScreen] Send successful. OpId:',
-        result.id,
-        'Token length:',
-        (result.encoded || result.token || '').length,
-      );
 
       const computedExpiry = submittedReviewRef.current?.reclaimAt;
       setExpiresAt(computedExpiry);
@@ -527,7 +517,7 @@ export function SendModalScreen() {
 
       setStep('result');
     } catch (err: any) {
-      console.error('[SendModal] Failed to send:');
+      appLogger.error('[SendModal] Failed to send:', err, 'ecash_send');
       setError(err.message || 'Failed to create token');
       setStatus('error');
       setStep('result');
@@ -604,7 +594,7 @@ export function SendModalScreen() {
           });
         } catch {
           // Optional profile metadata must not turn a published payment into a failed send.
-          console.warn('[SendModal] Could not update contact metadata.');
+          appLogger.warn('[SendModal] Could not update contact metadata.', undefined, 'ecash_send');
         }
       }
 
@@ -647,7 +637,7 @@ export function SendModalScreen() {
 
       setStep('result');
     } catch (err: any) {
-      console.error('[SendModal] Nostr send failed:');
+      appLogger.error('[SendModal] Nostr send failed:', err, 'ecash_send');
       setError(err.message || 'Failed to send via Nostr');
       setStatus('error');
       setStep('result');
@@ -685,7 +675,7 @@ export function SendModalScreen() {
         await handleSend();
       }
     } catch (error: any) {
-      console.error('[SendModal] Execution error:');
+      appLogger.error('[SendModal] Execution error:', error, 'ecash_send');
       setError(error.message || 'Send failed');
       setStatus('error');
       setStep('result');
@@ -807,15 +797,6 @@ export function SendModalScreen() {
 
       {step === 'amount' && (
         <YStack flex={1}>
-          {(() => {
-            console.log(
-              '[SendModalScreen] Rendering step: amount, sendMode:',
-              sendMode,
-              'isOffline:',
-              isOffline,
-            );
-            return null;
-          })()}
           {sendMode === 'standard' && (
             <AmountStage
               mintUrl={activeMintUrl}

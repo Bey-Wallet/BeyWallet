@@ -104,8 +104,16 @@ const createAlloFont = (optical: 'Text' | 'Display') =>
       bold: 'bold',
     },
     letterSpacing: {
+      1: appTypography.caption.letterSpacing,
+      2: appTypography.body3.letterSpacing,
+      3: appTypography.body2.letterSpacing,
       4: appTypography.body1.letterSpacing,
+      5: appTypography.label1.letterSpacing,
+      6: appTypography.title3.letterSpacing,
+      7: appTypography.title3.letterSpacing,
       8: appTypography.title2.letterSpacing,
+      9: appTypography.title1.letterSpacing,
+      10: appTypography.display.letterSpacing,
     },
     face: {
       100: { normal: `Allo${optical}Regular` },

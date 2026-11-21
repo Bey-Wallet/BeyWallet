@@ -5,7 +5,7 @@ import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
-import { Check, ChevronDown, Sprout, Plus, Landmark } from '@tamagui/lucide-icons';
+import { Check, ChevronDown, Plus, Landmark } from '@tamagui/lucide-icons';
 import { Text, YStack, View } from 'tamagui';
 
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -410,7 +410,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
               <ListTable>{choices.map(renderItem)}</ListTable>
             ) : (
               <YStack px="$5" py="$6" gap="$3" items="center">
-                {checkingMethods ? <Spinner size={22} /> : <Sprout size={32} color="$gray10" />}
+                {checkingMethods ? <Spinner size={22} /> : <Landmark size={32} color="$gray10" />}
                 <Text textAlign="center" color="$gray10">
                   {checkingMethods
                     ? 'Checking available mints…'

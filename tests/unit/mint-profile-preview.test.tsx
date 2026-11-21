@@ -26,6 +26,7 @@ let mockSection = 'reliability';
 const mockRouter = { canGoBack: () => true, back: jest.fn(), replace: mockReplace, push: mockPush };
 let mockScore: number | null = 98;
 let mockMetadataError: Error | null = null;
+let mockMissingMetadata = false;
 let mockCheckingConnection = false;
 let mockProviderError = false;
 let mockRadarRefreshError = false;
@@ -72,7 +73,7 @@ jest.mock('@tanstack/react-query', () => ({
     if (key[0] === 'mint-metadata')
       return {
         ...base,
-        data: mockInfo,
+        data: mockMissingMetadata ? undefined : mockInfo,
         isFetching: mockCheckingConnection,
         error: mockMetadataError,
         errorUpdatedAt: mockMetadataError ? 2000 : 0,
@@ -180,6 +181,7 @@ jest.mock('@tamagui/lucide-icons', () =>
       'ChevronUp',
       'ExternalLink',
       'RefreshCw',
+      'Unplug',
     ].map((name) => [name, name]),
   ),
 );
@@ -247,6 +249,7 @@ beforeEach(() => {
   mockScore = 98;
   mockSection = 'reliability';
   mockMetadataError = null;
+  mockMissingMetadata = false;
   mockCheckingConnection = false;
   mockProviderError = false;
   mockRadarRefreshError = false;
@@ -304,6 +307,17 @@ const render = async (section = 'reliability') => {
     tree = create(content(section));
   });
 };
+
+it('shows retry instead of an endless loader when the first mint lookup fails', async () => {
+  mockMissingMetadata = true;
+  mockMetadataError = new Error('Timed out');
+  await render('preview');
+  expect(tree.root.findByProps({ children: 'Could not reach this mint' })).toBeDefined();
+  expect(tree.root.findAllByProps({ children: 'Fetching mint details...' })).toHaveLength(0);
+  expect(tree.root.findAllByProps({ children: 'Connect' })).toHaveLength(0);
+  await act(async () => button('Try again').props.onPress());
+  expect(mockRefetch).toHaveBeenCalledWith({ cancelRefetch: false });
+});
 
 it('shows compact mint facts on preview and keeps reliability in its own card', async () => {
   await render('preview');

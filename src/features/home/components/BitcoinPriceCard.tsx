@@ -183,7 +183,7 @@ export default function BitcoinPriceCard() {
                   <Text
                     fontSize={22}
                     fontWeight={800}
-                    letterSpacing={-0.1}
+                    letterSpacing={-0.15}
                     color="$accent4"
                     lineHeight={32}
                   >
@@ -194,7 +194,7 @@ export default function BitcoinPriceCard() {
                     showDecimals={false}
                     fontSize={22}
                     fontWeight={800}
-                    letterSpacing={-0.1}
+                    letterSpacing={-0.15}
                     color="$accent4"
                     lineHeight={32}
                   >

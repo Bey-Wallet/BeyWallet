@@ -1,6 +1,9 @@
 import { getPublicKey } from 'nostr-tools/pure';
 import { hexToBytes } from '@noble/hashes/utils.js';
-import { nostrIdentityService } from '~/services/wallet/nostrIdentityService';
+import {
+  nostrIdentityService,
+  resolveBeyNip05Pubkey,
+} from '~/services/wallet/nostrIdentityService';
 import { nostrService } from '~/services/wallet/nostrService';
 
 jest.mock('~/services/wallet/nostrService', () => ({
@@ -24,6 +27,21 @@ function response(body: unknown, ok = true, status = 200): Response {
 }
 
 describe('nostrIdentityService', () => {
+  it('bounds a stalled response body and aborts its request', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => new Promise(() => {}),
+    } as unknown as Response);
+    try {
+      const result = resolveBeyNip05Pubkey('alice');
+      await jest.advanceTimersByTimeAsync(5_000);
+      await expect(result).resolves.toBeNull();
+      expect(fetchMock.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
   beforeEach(() => {
     jest.clearAllMocks();
     (nostrService.createProfileEvent as jest.Mock).mockResolvedValue(profileEvent);

@@ -430,7 +430,7 @@ export default function NostrActivityModal() {
                         fontSize={29}
                         fontWeight="900"
                         color={detailItem.type === 'sent' ? '$red10' : '$color1'}
-                        letterSpacing={-0.15}
+                        letterSpacing={-0.2}
                       >
                         {detailItem.type === 'sent' ? '−' : '+'}
                         {showBitcoinSymbol ? '₿' : ''}
@@ -459,7 +459,7 @@ export default function NostrActivityModal() {
                         fontSize={29}
                         fontWeight="900"
                         color={detailItem.type === 'sent' ? '$red10' : '$color1'}
-                        letterSpacing={-0.15}
+                        letterSpacing={-0.2}
                       >
                         {detailItem.type === 'sent' ? '−' : '+'}
                         {fiatValue || '—'}

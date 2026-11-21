@@ -80,7 +80,9 @@ export function ConnectedMintSheetView(props: ConnectedMintSheetViewProps) {
           justify="center"
         >
           {icon}
-          <AppText variant="label2">{title}</AppText>
+          <AppText variant="label2" fontWeight="600">
+            {title}
+          </AppText>
         </YStack>
       </AppPressable>
     </YStack>

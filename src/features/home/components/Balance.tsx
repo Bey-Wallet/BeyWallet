@@ -14,7 +14,7 @@ import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 
 const balanceFontSize = 44;
-const balanceLetterSpacing = -0.1;
+const balanceLetterSpacing = -0.2;
 
 export default function Balance() {
   const theme = useTheme();

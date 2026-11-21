@@ -1,9 +1,16 @@
 # Compact feedback across Bey
 
-The approved toast keeps the user's adjusted 54-point minimum height, tight padding, 32-point
-status badge, content-fitting width, contrasting theme, and background-free action button. Ordinary
+The approved toast follows a compact ListTable row: 48-point minimum height, 16-point side padding,
+8-point vertical padding, a vertically centered 22-point icon slot without a background, 14-point body title
+and 13-point description. It keeps content-fitting width and a background-free action button,
+using the app's same-theme `$gray2` card surface and `$6` corners.
+Titles, descriptions and actions match the status icon color, with dedicated high-contrast
+foregrounds for each appearance: green success, yellow info/loading, orange warnings and red errors.
+Single-line content centers vertically;
+descriptions and measured multiline titles align the icon and content to the top. Ordinary
 notices and ongoing-operation notices share `ToastContent` and the same surface props. The dedicated
-playground and its route/Settings entry have been removed.
+playground is available at **Settings → Advanced → BUI → Toasts** in the development client only.
+Its local provider previews the production components in light/dark mode without wallet actions.
 
 ## Presentation rules
 
@@ -70,14 +77,15 @@ Use an updated development/preview build. There is no test playground to open.
    quote is not called received until issued. View opens details. Unknown/reclaim/receipt warnings
    may include the essential instruction to check History before retrying.
 7. **Progress:** create/import a disposable wallet or use an existing supported long operation.
-   Expect the same compact pill styling with a spinner; it persists while its screen/operation owns
+   Expect the same compact card styling with a spinner; it persists while its screen/operation owns
    progress. It must not disappear after one second or block ordinary navigation outside protected
    operations.
 8. **Appearance/accessibility:** repeat in light/dark appearance, portrait/landscape, larger device
    text, VoiceOver/TalkBack, and Reduce Motion. Check safe top/side insets, centered short toasts,
    readable status icons, clear announcements, and a usable View target. The action has no fill or
    underline when idle or pressed; keyboard focus remains visible.
-9. Confirm **Settings → Advanced** has no Toast playground entry and no playground route exists.
+9. In a development client, open **Settings → Advanced → BUI → Toasts** and try every status,
+   long text, details and View action. Confirm release builds cannot open the preview route.
 
 Android/iOS visual alignment, screen-reader timing, native sheet layering, lock/background behavior,
 and physical clipboard/share behavior still require device verification. Fully closed-app payment

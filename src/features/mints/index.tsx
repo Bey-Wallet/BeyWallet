@@ -6,9 +6,9 @@ import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useMemo } from 'react';
-import { YStack } from 'tamagui';
+import { ScrollView, YStack } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
-import { Share2, Plus, QrCode } from '@tamagui/lucide-icons';
+import { Share2, Plus, QrCode, Unplug, RefreshCw } from '@tamagui/lucide-icons';
 import { useRouter, Stack } from 'expo-router';
 
 import { hapticService } from '~/services/platform/hapticService';
@@ -124,7 +124,11 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
     dataUpdatedAt: connectionCheckedAt,
     errorUpdatedAt: connectionErrorAt,
     refetch: recheckConnection,
-  } = useMintInfo(url, { enabled: validUrl && !isAlreadyAdded, refetchOnMount: 'always' });
+  } = useMintInfo(url, {
+    enabled: validUrl && !isAlreadyAdded,
+    refetchOnMount: 'always',
+    priority: 'interactive',
+  });
   const info = fetchedInfo || {};
   const handleCopy = async (text: string, label: string) => {
     if (!(await copyWithFeedback(text, toast))) return;
@@ -141,21 +145,64 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
       </YStack>
     );
   }
-  if (!validUrl) {
+  if (!validUrl || (fetchError && !fetchedInfo)) {
     return (
-      <YStack flex={1} items="center" justify="center" bg="$background" p="$4" gap="$4">
-        <Text color="$red10">Failed to fetch mint information.</Text>
-        <AppButton
-          variant="default"
-          emphasis="secondary"
-          size="large"
-          onPress={() => void recheckConnection()}
+      <YStack flex={1} bg="$background">
+        <Stack.Screen options={{ title: 'Mint details' }} />
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
+          showsVerticalScrollIndicator={false}
         >
-          Try again
-        </AppButton>
-        <AppButton variant="default" emphasis="ghost" size="medium" onPress={safeGoBack}>
-          Go Back
-        </AppButton>
+          <YStack width="100%" maxWidth={360} px="$4" py="$6" items="center" gap="$5">
+            <YStack
+              width={72}
+              height={72}
+              rounded={999}
+              bg="$gray3"
+              items="center"
+              justify="center"
+            >
+              <Unplug size={30} color="$iconSecondary" strokeWidth={1.5} />
+            </YStack>
+            <YStack gap="$2" items="center" width="100%" accessibilityLiveRegion="polite">
+              <Text
+                kind="h3"
+                color="$color"
+                fontWeight="600"
+                textAlign="center"
+                accessibilityRole="header"
+              >
+                {validUrl ? 'Could not reach this mint' : 'Invalid mint URL'}
+              </Text>
+              {validUrl && (
+                <Text kind="body3" color="$gray10" textAlign="center" width="100%">
+                  {url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                </Text>
+              )}
+              <Text kind="body2" color="$gray10" textAlign="center" maxWidth={280} mt="$1">
+                {validUrl
+                  ? 'Check your connection or try again later.'
+                  : 'Check the mint address and try again.'}
+              </Text>
+            </YStack>
+            <YStack items="center" gap="$2">
+              {validUrl && (
+                <AppButton
+                  variant="default"
+                  emphasis="secondary"
+                  size="medium"
+                  icon={<RefreshCw size={18} />}
+                  onPress={() => void recheckConnection({ cancelRefetch: false })}
+                >
+                  Try again
+                </AppButton>
+              )}
+              <AppButton variant="default" emphasis="ghost" size="medium" onPress={safeGoBack}>
+                Go Back
+              </AppButton>
+            </YStack>
+          </YStack>
+        </ScrollView>
       </YStack>
     );
   }

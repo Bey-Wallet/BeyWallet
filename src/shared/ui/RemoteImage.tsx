@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { View, type ImageProps } from 'tamagui';
-import { Sprout } from '@tamagui/lucide-icons';
+import { Landmark } from '@tamagui/lucide-icons';
 import { deriveFavicon } from '~/shared/utils/mintIcon';
 
 type Props = Omit<ImageProps, 'source' | 'src' | 'onError'> & {
@@ -32,7 +32,7 @@ export function MintImage({ mintUrl, fallback, ...props }: Props & { mintUrl?: s
       fallbackUri={mintUrl ? deriveFavicon(mintUrl) : undefined}
       fallback={
         <View flex={1} items="center" justify="center" bg="$gray3">
-          {fallback ?? <Sprout size={18} color="$gray10" />}
+          {fallback ?? <Landmark size={18} color="$gray10" />}
         </View>
       }
     />

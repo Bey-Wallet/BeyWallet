@@ -1,38 +1,19 @@
 import * as Crypto from 'expo-crypto';
 import { TextEncoder, TextDecoder } from 'text-encoding';
 import { Buffer } from 'buffer';
+import { appLogger } from '~/shared/utils/appLogger';
+import { installDependencyConsoleGuard } from '~/shared/utils/dependencyConsoleGuard';
 
 // @ts-ignore
 global.TextEncoder = TextEncoder;
 // @ts-ignore
 global.TextDecoder = TextDecoder;
 
-// Filter out verbose coco-cashu library logs
-const originalConsoleLog = console.log;
-console.log = (...args: any[]) => {
-  const firstArg = args[0];
-  if (typeof firstArg === 'string') {
-    // Suppress keep/blinded message logs
-    if (
-      /^(amount\.keep|keep \[)/.test(firstArg) ||
-      /blindedMessage|blindingFactor/.test(firstArg)
-    ) {
-      return;
-    }
-  }
-  // Suppress arrays with blindedMessage objects
-  if (Array.isArray(firstArg) && firstArg[0]?.blindedMessage) {
-    return;
-  }
-  originalConsoleLog.apply(console, args);
-};
-
-console.log('[Polyfills] Starting polyfill installation using expo-crypto');
+installDependencyConsoleGuard();
 
 // 1. Patch Buffer
 if (typeof global.Buffer === 'undefined') {
   global.Buffer = Buffer;
-  console.log('[Polyfills] Patched global.Buffer');
 }
 
 // 2. Patch Crypto
@@ -64,20 +45,23 @@ try {
       configurable: true,
       enumerable: true,
     });
-    console.log('[Polyfills] Patched global.crypto with expo-crypto');
   } else {
-    console.log('[Polyfills] Native global.crypto and getRandomValues already present');
   }
 } catch (e) {
-  console.warn(
+  appLogger.warn(
     '[Polyfills] Failed to define global.crypto via Object.defineProperty, trying direct assignment:',
     e,
+    'app_runtime',
   );
   try {
     // @ts-ignore
     global.crypto = cryptoShim;
   } catch (e2) {
-    console.error('[Polyfills] Direct assignment of global.crypto also failed:', e2);
+    appLogger.error(
+      '[Polyfills] Direct assignment of global.crypto also failed:',
+      e2,
+      'app_runtime',
+    );
   }
 }
 

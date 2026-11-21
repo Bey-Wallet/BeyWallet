@@ -6,6 +6,7 @@ import {
 } from '~/storage/sqlite/repositories/WalletActivityRepository';
 import { feedbackCoordinator } from '~/services/feedback/feedbackCoordinator';
 import type { RecoverySession } from '~/state/recoverySessionStore';
+import { appLogger } from '~/shared/utils/appLogger';
 
 const listeners = new Set<() => void>();
 export function subscribeWalletActivity(listener: () => void) {
@@ -60,7 +61,11 @@ export async function saveWalletActivity(activity: WalletActivity) {
     await journal().save({ ...activity, updatedAt: Date.now() });
     notify();
   } catch {
-    console.warn('[WalletActivity] Could not save local activity summary.');
+    appLogger.warn(
+      '[WalletActivity] Could not save local activity summary.',
+      undefined,
+      'wallet_sdk',
+    );
   }
 }
 

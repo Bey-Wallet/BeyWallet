@@ -18,6 +18,7 @@ import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useWalletStore } from '~/state/walletStore';
 import { mintManager, proofService } from '~/services/wallet';
 import { useSettingsStore } from '~/state/settingsStore';
+import { appLogger } from '~/shared/utils/appLogger';
 
 interface TokenInfo {
   mint: string;
@@ -115,7 +116,7 @@ export function ConfirmStage({
           }
         }
       } catch (e) {
-        console.warn('[ConfirmStage] Failed to check local token expiry:');
+        appLogger.warn('[ConfirmStage] Failed to check local token expiry:', e, 'ecash_receive');
       }
     })();
     return () => {

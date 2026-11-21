@@ -31,6 +31,7 @@ import { nostrRequestStore } from '~/state/nostrRequestStore';
 
 import { normalizeRelayUrl } from '~/shared/utils/nostrRelays';
 import { getNostrRelays, getNostrInboxRelays, useNostrRelayStore } from '~/state/nostrRelayStore';
+import { appLogger } from '~/shared/utils/appLogger';
 
 // ─── Event Kinds ──────────────────────────────────────────────────────────────
 //
@@ -174,7 +175,7 @@ class NostrService {
       if (this.isRunning && generation === this.generation)
         await useMessageStore.getState().refresh();
     } catch {
-      console.warn('[NostrService] Chat storage is not ready.');
+      appLogger.warn('[NostrService] Chat storage is not ready.', undefined, 'wallet_sdk');
     }
   }
 
@@ -579,7 +580,11 @@ class NostrService {
         }
       })
       .catch(() => {
-        console.warn('[NostrService] Inbox processing interrupted; relay events remain retryable.');
+        appLogger.warn(
+          '[NostrService] Inbox processing interrupted; relay events remain retryable.',
+          undefined,
+          'wallet_sdk',
+        );
       })
       .finally(() => {
         if (this.draining === work) this.draining = null;
@@ -589,7 +594,6 @@ class NostrService {
   }
 
   public stop(): void {
-    console.log('[NostrService] Stopping.');
     this._teardown();
   }
 
@@ -673,16 +677,7 @@ class NostrService {
         if (event.kind === 4 && event.created_at < nostrMessageSince(this.pubkeyHex!)) return;
         if (generation === this.generation) this.enqueueEvent(event);
       },
-      oneose: () => {
-        console.log(
-          '[NostrService] ✅ Initial EOSE — relay sync complete, listening for new events…',
-        );
-      },
     });
-
-    console.log(
-      `[NostrService] Subscribed to kinds [${LISTENED_KINDS.join(', ')}] across ${getNostrRelays().length} relays`,
-    );
   }
 
   private _startReconnectLoop(): void {
@@ -727,8 +722,10 @@ class NostrService {
 
       const decrypted = await this._decrypt(event);
       if (decrypted === null) {
-        console.warn(
-          `[NostrService] Event ${event.id.slice(0, 8)}… could not be decrypted; it remains retryable`,
+        appLogger.warn(
+          '[NostrService] Event …… could not be decrypted; it remains retryable',
+          undefined,
+          'wallet_sdk',
         );
         return;
       }
@@ -801,8 +798,10 @@ class NostrService {
       }
       if (generation === this.generation) this.processedEvents.add(event.id);
     } catch {
-      console.warn(
-        `[NostrService] Event ${event.id.slice(0, 8)}… processing failed; it remains retryable.`,
+      appLogger.warn(
+        '[NostrService] Event …… processing failed; it remains retryable.',
+        undefined,
+        'wallet_sdk',
       );
     } finally {
       if (generation === this.generation) this.processingEvents.delete(event.id);
@@ -828,7 +827,7 @@ class NostrService {
     outgoingConversation?: string,
   ): Promise<void> {
     if (text.length > MAX_NOSTR_PAYMENT_MESSAGE_LENGTH) {
-      console.warn('[NostrService] Ignoring oversized payment message');
+      appLogger.warn('[NostrService] Ignoring oversized payment message', undefined, 'wallet_sdk');
       return;
     }
 
@@ -904,7 +903,7 @@ class NostrService {
             });
         }
       } catch {
-        console.warn('[NostrService] Ignoring invalid payment request');
+        appLogger.warn('[NostrService] Ignoring invalid payment request', undefined, 'wallet_sdk');
       }
       return; // Skip token parsing since it's a request
     }
@@ -957,9 +956,7 @@ class NostrService {
       unit = decoded.unit || 'sat';
       note = decoded.memo;
     } catch {
-      console.warn(
-        `[NostrService] Event ${sourceEvent.id.slice(0, 8)}… contained an invalid token`,
-      );
+      appLogger.warn('[NostrService] Event …… contained an invalid token', undefined, 'wallet_sdk');
       return;
     }
 
@@ -969,7 +966,11 @@ class NostrService {
       !Number.isSafeInteger(amount) ||
       amount <= 0
     ) {
-      console.warn('[NostrService] Ignoring invalid payment token metadata');
+      appLogger.warn(
+        '[NostrService] Ignoring invalid payment token metadata',
+        undefined,
+        'wallet_sdk',
+      );
       return;
     }
 
@@ -1098,10 +1099,14 @@ class NostrService {
 
     try {
       await Promise.any(this.pool.publish(getNostrRelays(), event));
-      console.log('[NostrService] Published NIP-17 inbox relay preference.');
+
       return true;
     } catch (err: any) {
-      console.warn('[NostrService] Could not publish NIP-17 inbox relay preference:');
+      appLogger.warn(
+        '[NostrService] Could not publish NIP-17 inbox relay preference:',
+        err,
+        'wallet_sdk',
+      );
       return false;
     }
   }
@@ -1181,10 +1186,10 @@ class NostrService {
 
     try {
       await Promise.any(pool.publish(relays, profileEvent));
-      console.log('[NostrService] Published Nostr kind-0 profile.');
+
       return true;
     } catch (err: any) {
-      console.warn('[NostrService] Could not publish Nostr profile:');
+      appLogger.warn('[NostrService] Could not publish Nostr profile:', err, 'wallet_sdk');
       return false;
     } finally {
       if (ownsPool) pool.close(relays);
@@ -1201,7 +1206,7 @@ class NostrService {
       const profileEvent = await this.createProfileEvent(nip05, privkeyHex, pubkeyHex);
       return this.publishProfileEvent(profileEvent);
     } catch (err: any) {
-      console.warn('[NostrService] Could not create Nostr profile:');
+      appLogger.warn('[NostrService] Could not create Nostr profile:', err, 'wallet_sdk');
       return false;
     }
   }
@@ -1250,7 +1255,7 @@ class NostrService {
         return contact.username;
       }
     } catch (e) {
-      console.warn('[NostrService] Failed local contact username lookup:');
+      appLogger.warn('[NostrService] Failed local contact username lookup:', e, 'wallet_sdk');
     }
     return this.resolveUsername(pubkeyHex);
   }
@@ -1334,15 +1339,11 @@ class NostrService {
     try {
       nip17Event = createNip17GiftWrap(tokenString, recipientPubkeyHex, senderPrivkeyHex);
     } catch (e) {
-      console.warn('[NostrService] Failed to construct NIP-17 gift wrap:');
+      appLogger.warn('[NostrService] Failed to construct NIP-17 gift wrap:', e, 'wallet_sdk');
     }
 
     const ownsPool = this.pool === null;
     const pool = this.pool ?? new SimplePool();
-
-    console.log(
-      `[NostrService] 📤 Sending token via Nostr DM (NIP-04 & NIP-17) to ${recipientPubkeyHex.slice(0, 8)}… on ${publishRelays.length} relays`,
-    );
 
     try {
       const publishAttempts: Promise<unknown>[] = [
@@ -1356,11 +1357,13 @@ class NostrService {
 
       const published = await hasSuccessfulRelayPublish(publishAttempts);
       if (!published) {
-        console.error('[NostrService] Failed to publish token to any relay.');
+        appLogger.error(
+          '[NostrService] Failed to publish token to any relay.',
+          undefined,
+          'wallet_sdk',
+        );
         return false;
       }
-
-      console.log(`[NostrService] ✅ Token published via Nostr.`);
 
       // Publication is the acceptance boundary; do not let later claim work
       // turn a successfully published payment into a reported send failure.
@@ -1381,7 +1384,7 @@ class NostrService {
 
       return true;
     } catch (err: any) {
-      console.error('[NostrService] Failed to publish token to any relay:');
+      appLogger.error('[NostrService] Failed to publish token to any relay:', err, 'wallet_sdk');
       return false;
     } finally {
       if (ownsPool) {
@@ -1419,10 +1422,6 @@ class NostrService {
     const ownsPool = !this.pool;
     const pool = this.pool ?? new SimplePool();
 
-    console.log(
-      `[NostrService] 📤 Backing up ${mints.length} mints to Nostr (Kind 10019) on ${getNostrRelays().length} relays…`,
-    );
-
     let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
@@ -1434,10 +1433,10 @@ class NostrService {
           );
         }),
       ]);
-      console.log(`[NostrService] ✅ Mints backed up. Event: ${signedEvent.id}`);
+
       return true;
     } catch (err: any) {
-      console.error('[NostrService] Failed to backup mints to Nostr:');
+      appLogger.error('[NostrService] Failed to backup mints to Nostr:', err, 'wallet_sdk');
       return false;
     } finally {
       if (timeout) clearTimeout(timeout);
@@ -1452,7 +1451,6 @@ class NostrService {
     pubkeyHex: string,
     options: { throwOnFailure?: boolean } = {},
   ): Promise<string[]> {
-    console.log(`[NostrService] 📥 Fetching mints from Nostr for pubkey ${pubkeyHex.slice(0, 8)}…`);
     const pool = new SimplePool();
     const relays = getNostrRelays();
 
@@ -1466,7 +1464,6 @@ class NostrService {
       const events = await pool.querySync(relays, filter);
 
       if (!events || events.length === 0) {
-        console.log('[NostrService] No mint backup found on Nostr.');
         return [];
       }
 
@@ -1479,10 +1476,9 @@ class NostrService {
         .filter((tag) => tag[0] === 'mint' && typeof tag[1] === 'string')
         .map((tag) => tag[1]);
 
-      console.log(`[NostrService] ✅ Recovered ${mintUrls.length} mints from Nostr backup.`);
       return mintUrls;
     } catch (err: any) {
-      console.error('[NostrService] Failed to fetch mints from Nostr:');
+      appLogger.error('[NostrService] Failed to fetch mints from Nostr:', err, 'wallet_sdk');
       if (options.throwOnFailure) throw new Error('Backup discovery failed.');
       return [];
     } finally {
@@ -1517,14 +1513,11 @@ class NostrService {
       const signedEvent = finalizeEvent(eventTemplate, privkeyBytes);
       const pool = this.pool ?? new SimplePool();
 
-      console.log(
-        `[NostrService] 📤 Backing up encrypted NIP-60 wallet state (Kind 37375) to Nostr relays…`,
-      );
       await Promise.any(pool.publish(getNostrRelays(), signedEvent));
-      console.log(`[NostrService] ✅ NIP-60 Wallet state backed up. Event: ${signedEvent.id}`);
+
       return true;
     } catch (err: any) {
-      console.error('[NostrService] Failed NIP-60 wallet state backup:');
+      appLogger.error('[NostrService] Failed NIP-60 wallet state backup:', err, 'wallet_sdk');
       return false;
     }
   }
@@ -1536,7 +1529,6 @@ class NostrService {
     privkeyHex: string,
     pubkeyHex: string,
   ): Promise<any | null> {
-    console.log(`[NostrService] 📥 Fetching NIP-60 wallet state from Nostr…`);
     const pool = new SimplePool();
     const relays = getNostrRelays();
 
@@ -1550,7 +1542,6 @@ class NostrService {
 
       const events = await pool.querySync(relays, filter);
       if (!events || events.length === 0) {
-        console.log('[NostrService] No NIP-60 wallet backup found on Nostr.');
         return null;
       }
 
@@ -1562,10 +1553,9 @@ class NostrService {
       const decryptedText = nip44.v2.decrypt(latestEvent.content, conversationKey);
       const walletData = JSON.parse(decryptedText);
 
-      console.log('[NostrService] ✅ Successfully recovered and decrypted NIP-60 wallet state.');
       return walletData;
     } catch (err: any) {
-      console.error('[NostrService] Failed NIP-60 wallet state recovery:');
+      appLogger.error('[NostrService] Failed NIP-60 wallet state recovery:', err, 'wallet_sdk');
       return null;
     } finally {
       pool.close(relays);

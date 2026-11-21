@@ -7,6 +7,7 @@ import {
   parseCashuHealthList,
 } from '~/services/api/mintHealthService';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
+import { invalidateWalletStorageGeneration } from '~/storage/sqlite/walletStorageLifecycle';
 
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({
   sqliteStorage: { getItem: jest.fn(), setItem: jest.fn() },
@@ -257,6 +258,33 @@ it('checks mint metadata without registering or trusting a mint', async () => {
   await expect(mintHealthService.mintInfo(url)).rejects.toThrow('valid Cashu');
 });
 
+it('does not repopulate local metadata after wallet storage is replaced', async () => {
+  let finish!: (value: unknown) => void;
+  fetchMock.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const lookup = mintHealthService.mintInfo(url);
+  invalidateWalletStorageGeneration();
+  finish(response({ name: 'Example', nuts: {} }));
+  await expect(lookup).resolves.toMatchObject({ name: 'Example' });
+  expect(sqliteStorage.setItem).not.toHaveBeenCalled();
+});
+
+it('keeps live metadata usable if caching fails and bounds oversized persisted responses', async () => {
+  jest.mocked(sqliteStorage.setItem).mockImplementationOnce(() => {
+    throw new Error('Storage unavailable');
+  });
+  fetchMock.mockResolvedValueOnce(response({ name: 'Example', nuts: {} }));
+  await expect(mintHealthService.mintInfo(url)).resolves.toMatchObject({ name: 'Example' });
+  jest.mocked(sqliteStorage.setItem).mockClear();
+  fetchMock.mockResolvedValueOnce(response({ description: 'x'.repeat(70_000), nuts: {} }));
+  await expect(mintHealthService.mintInfo(url)).resolves.toHaveProperty('nuts');
+  expect(sqliteStorage.setItem).not.toHaveBeenCalled();
+});
+
 it('cancels on timeout without replacing the last saved result', async () => {
   jest.useFakeTimers();
   try {
@@ -278,3 +306,24 @@ it('cancels on timeout without replacing the last saved result', async () => {
     jest.useRealTimers();
   }
 });
+
+it.each(['fetch', 'body'])(
+  'settles a stuck %s even when the native request ignores abort',
+  async (stage) => {
+    jest.useFakeTimers();
+    try {
+      const never = new Promise<never>(() => {});
+      fetchMock.mockImplementationOnce(() =>
+        stage === 'fetch' ? never : Promise.resolve({ ok: true, status: 200, json: () => never }),
+      );
+      const result = expect(mintHealthService.mintInfo(url)).rejects.toMatchObject({
+        name: 'AbortError',
+      });
+      await jest.advanceTimersByTimeAsync(8000);
+      await result;
+      expect(sqliteStorage.setItem).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  },
+);

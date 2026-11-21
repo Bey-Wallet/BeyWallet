@@ -8,6 +8,7 @@
 // ─── Regexes ──────────────────────────────────────────────────
 
 import { bech32 } from 'bech32';
+import { appLogger } from '~/shared/utils/appLogger';
 
 /** Decode LNURL locally. Resolution and payment still require an explicit user action. */
 export function normalizeLightningInput(input: string): string {
@@ -137,7 +138,7 @@ export async function getLnurlPayParams(lnUrlOrAddress: string): Promise<LnUrlPa
 
   const response = await fetch(url);
   if (!response.ok) {
-    console.warn(`[LNURL] HTTP ${response.status} fetching ${url}`);
+    appLogger.warn('[LNURL] HTTP … fetching …', undefined, 'app_runtime');
     return null;
   }
   const data = await response.json();

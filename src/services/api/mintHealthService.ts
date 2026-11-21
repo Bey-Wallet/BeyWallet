@@ -1,4 +1,5 @@
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
+import { walletStorageGeneration } from '~/storage/sqlite/walletStorageLifecycle';
 import { normalizeMintUrl as mintHealthUrl } from '~/shared/utils/mintUrl';
 export { normalizeMintUrl as mintHealthUrl } from '~/shared/utils/mintUrl';
 
@@ -219,28 +220,53 @@ function save(cacheKey: string, data: unknown) {
 }
 async function request(url: string, signal?: AbortSignal): Promise<unknown | null> {
   const controller = new AbortController();
-  const abort = () => controller.abort();
+  let rejectCancelled!: (reason: Error) => void;
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    rejectCancelled = reject;
+  });
+  const abort = () => {
+    controller.abort();
+    rejectCancelled(
+      Object.assign(new Error('Request cancelled or timed out'), { name: 'AbortError' }),
+    );
+  };
   signal?.addEventListener('abort', abort);
-  if (signal?.aborted) controller.abort();
+  if (signal?.aborted) abort();
   const timer = setTimeout(abort, 8000);
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: { Accept: 'application/json' },
-    });
-    if (response.status === 404) return null;
-    if (!response.ok) throw new Error(`Monitoring service returned ${response.status}`);
-    const data = await response.json();
-    if (controller.signal.aborted)
-      throw Object.assign(new Error('Request cancelled'), { name: 'AbortError' });
-    return data;
+    return await Promise.race([
+      cancelled,
+      (async () => {
+        if (controller.signal.aborted) throw new Error('Request cancelled');
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: { Accept: 'application/json' },
+        });
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error(`Monitoring service returned ${response.status}`);
+        return response.json();
+      })(),
+    ]);
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', abort);
   }
 }
 
+function parseMintInfo(value: unknown): Record<string, any> {
+  const data = record(value);
+  if (!data.nuts || typeof data.nuts !== 'object' || Array.isArray(data.nuts)) {
+    throw new Error('Mint did not return valid Cashu information');
+  }
+  return data;
+}
+
 export const mintHealthService = {
+  /** Presentation hints only; mintInfo always makes a fresh network request. */
+  cachedMintInfo(url: string) {
+    const cached = read(key('metadata', mintHealthUrl(url)), parseMintInfo);
+    return cached && Date.now() - cached.savedAt <= 7 * 24 * 60 * 60 * 1000 ? cached : undefined;
+  },
   cachedRadarList() {
     return read(key('radar-list'), parseRadarList);
   },
@@ -259,9 +285,17 @@ export const mintHealthService = {
     return data;
   },
   async mintInfo(url: string, signal?: AbortSignal) {
-    const data = record(await request(`${mintHealthUrl(url)}/v1/info`, signal));
-    if (!data.nuts || typeof data.nuts !== 'object' || Array.isArray(data.nuts)) {
-      throw new Error('Mint did not return valid Cashu information');
+    const canonical = mintHealthUrl(url);
+    const generation = walletStorageGeneration();
+    const data = parseMintInfo(await request(`${canonical}/v1/info`, signal));
+    // Cache failure must not turn a valid response into a failed lookup.
+    // Do not repopulate storage after a wallet replacement or deletion.
+    if (generation === walletStorageGeneration() && !signal?.aborted) {
+      try {
+        if (JSON.stringify(data).length <= 64 * 1024) save(key('metadata', canonical), data);
+      } catch {
+        /* Live metadata remains usable when local cache storage is unavailable. */
+      }
     }
     return data;
   },

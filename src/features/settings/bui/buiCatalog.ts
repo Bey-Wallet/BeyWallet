@@ -93,6 +93,11 @@ export const buiCatalog = [
         title: 'Menus & tooltips',
         description: 'Action menus, overflow menus, anchored tooltips, explanations and dismissal.',
       },
+      {
+        number: 15,
+        title: 'Toasts',
+        description: 'Status notices, loading, descriptions, long text and actionable feedback.',
+      },
     ],
   },
 ] as const;

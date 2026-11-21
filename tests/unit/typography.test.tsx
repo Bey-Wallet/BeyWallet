@@ -73,7 +73,7 @@ it.each(['light', 'dark'] as const)(
             fontFamily: 'AlloDisplaySemiBold',
             fontSize: 40,
             lineHeight: 50,
-            letterSpacing: -0.25,
+            letterSpacing: -0.35,
           }),
         ]),
       );

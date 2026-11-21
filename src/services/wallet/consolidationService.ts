@@ -17,6 +17,7 @@ import { proofService } from '~/services/wallet/proofService';
 import { initService } from '~/services/wallet/initService';
 import { decodeToken } from '~/services/wallet/tokenUtils';
 import { createWalletActivity, saveWalletActivity } from './walletActivityService';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export interface FragmentationAnalysis {
   /** 0–100. Higher = more fragmented. >60 is worth consolidating. */
@@ -88,10 +89,6 @@ export const consolidationService = {
       throw new Error('Wallet is already well-consolidated (≤ 3 proofs).');
     }
 
-    console.log(
-      `[Consolidation] Starting self-swap for ${mintUrl}: ${beforeProofs.length} proofs, ${totalAmount} sat`,
-    );
-
     // Step 1: Send — this locks the proofs into an inflight token
     let activity = {
       ...createWalletActivity('optimize', mintUrl),
@@ -116,7 +113,11 @@ export const consolidationService = {
       await walletService.receive(sendResult.token);
     } catch (receiveErr: any) {
       await saveWalletActivity({ ...activity, state: 'review' });
-      console.error(`[Consolidation] ❌ Receive failed after send succeeded:`);
+      appLogger.error(
+        '[Consolidation] Receive failed after send succeeded:',
+        receiveErr,
+        'wallet_sdk',
+      );
       try {
         const repo = initService.getRepo();
         if (repo?.historyRepository) {
@@ -136,10 +137,9 @@ export const consolidationService = {
               originalReceiveError: receiveErr?.message,
             },
           });
-          console.log(`[Consolidation] Token saved as "unclaimed" in history. User can retry.`);
         }
       } catch (saveErr) {
-        console.warn(`[Consolidation] Failed to save unclaimed token:`);
+        appLogger.warn('[Consolidation] Failed to save unclaimed token:', saveErr, 'wallet_sdk');
       }
       throw new Error(
         `Consolidation failed — send succeeded but receive did not. ` +
@@ -153,10 +153,6 @@ export const consolidationService = {
     const afterAmount = afterProofs.reduce((s, p) => s + p.amount, 0);
     // Wallet totals can include concurrent activity; never infer an operation fee from them.
     await saveWalletActivity({ ...activity, state: 'completed', afterCount: afterProofs.length });
-
-    console.log(
-      `[Consolidation] ✅ Done: ${beforeProofs.length} → ${afterProofs.length} proofs, ${totalAmount} → ${afterAmount} sat`,
-    );
 
     return {
       mintUrl,

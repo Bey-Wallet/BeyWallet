@@ -4,6 +4,7 @@ import type { HCESession } from 'react-native-hce';
 import { useAuthStore } from '~/state/authStore';
 import { cleanToken, decodeToken, encodeTokenV4 } from '~/services/wallet';
 import { parsePaymentInput } from '~/shared/utils/paymentInputParser';
+import { appLogger } from '~/shared/utils/appLogger';
 
 const init = async function () {
   const supported = await NfcManager.isSupported();
@@ -88,7 +89,7 @@ const openPaymentSession = (): NfcPaymentSession => {
               : /too (large|long)|capacity/i.test(message)
                 ? 'capacity'
                 : 'write_failed';
-        console.warn('[NfcPaymentSession] Write failed', { category });
+        appLogger.warn('[NfcPaymentSession] Write failed', error, 'app_runtime');
         await session.close();
         throw new Error(
           category === 'contact_lost' || category === 'session_missing'
@@ -224,7 +225,7 @@ const stopHceSimulation = async (session: any) => {
   try {
     await session.setEnabled(false);
   } catch (e: any) {
-    console.warn('[nfcService] Could not stop NFC broadcast');
+    appLogger.warn('[nfcService] Could not stop NFC broadcast', e, 'app_runtime');
   } finally {
     if (hceLocks.has(session)) useAuthStore.getState().setLockDisabled(hceLocks.get(session)!);
     hceLocks.delete(session);
@@ -238,7 +239,7 @@ const isStringSafeForNFC = function (str: string): boolean {
     const bytes = encoder.encode(str);
     return bytes.length <= SAFE_NFC_BYTE_LIMIT;
   } catch (error) {
-    console.warn('Error measuring string byte size:', error);
+    appLogger.warn('Error measuring string byte size:', error, 'app_runtime');
     return false;
   }
 };

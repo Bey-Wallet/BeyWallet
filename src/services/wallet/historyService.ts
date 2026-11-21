@@ -12,6 +12,7 @@ import {
   getOptimizationLinks,
   mergeWalletActivity,
 } from './walletActivityService';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export const historyService = {
   getPosOrigins: (): Promise<PosOrigin[]> => new PosRepository(initService.getRepo().db).list(),
@@ -97,9 +98,10 @@ export const historyService = {
         );
       }
       if (!row) {
-        console.warn(
+        appLogger.warn(
           '[HistoryService] tagHistoryVia: target history row not found for mint:',
-          normalized,
+          undefined,
+          'wallet_sdk',
         );
         return;
       }
@@ -114,7 +116,7 @@ export const historyService = {
       await db.run(`UPDATE coco_cashu_history SET metadata = ? WHERE id = ?`, [updated, row.id]);
     } catch (err) {
       // Non-critical — never crash the app for a metadata tag
-      console.warn('[HistoryService] tagHistoryVia failed:');
+      appLogger.warn('[HistoryService] tagHistoryVia failed:', err, 'wallet_sdk');
     }
   },
 };

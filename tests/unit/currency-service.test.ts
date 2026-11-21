@@ -23,12 +23,13 @@ describe('fiat display', () => {
       expect(currencyService.formatValue(0.001, code)).toBe(`<${formatter.format(0.01)}`);
     },
   );
-  it('retires only the four requested picker options, keeping NGN, THB and saved-value formatting', () => {
+  it('has the same 25 currencies in metadata and the picker, keeping NGN and THB', () => {
     expect(SELECTABLE_CURRENCIES).toHaveLength(25);
     const retired = ['VND', 'PHP', 'IDR', 'ARS'];
     expect(SELECTABLE_CURRENCIES.map(({ code }) => code)).toEqual(
-      SUPPORTED_CURRENCIES.filter(({ code }) => !retired.includes(code)).map(({ code }) => code),
+      SUPPORTED_CURRENCIES.map(({ code }) => code),
     );
+    expect(SUPPORTED_CURRENCIES.some(({ code }) => retired.includes(code))).toBe(false);
     expect(SELECTABLE_CURRENCIES.map(({ code }) => code)).toEqual(
       expect.arrayContaining(['NGN', 'THB']),
     );
@@ -59,8 +60,6 @@ describe('fiat display', () => {
 
   it.each([
     ['THB', '฿'],
-    ['PHP', '₱'],
-    ['VND', '₫'],
     ['NGN', '₦'],
   ] as const)('uses the currency symbol for %s', (code, label) => {
     expect(currencyService.formatValue(12.5, code)).toContain(label);
@@ -68,11 +67,9 @@ describe('fiat display', () => {
     expect(currencyService.formatValue(0.001, code)).toMatch(/^</);
   });
 
-  it('distinguishes Argentine pesos and formats Indonesian rupiah', () => {
-    expect(currencyService.formatValue(12.5, 'ARS')).toBe('AR$12,50');
-    expect(currencyService.getSymbol('ARS')).toBe('AR$');
-    expect(currencyService.formatValue(12.5, 'IDR')).toMatch(/^Rp\s?12,50$/);
-    expect(currencyService.getSymbol('IDR')).toBe('Rp');
+  it('labels an unsupported saved currency by its code instead of silently showing USD', () => {
+    expect(currencyService.formatValue(12.5, 'XXX' as any)).toBe('12.50 XXX');
+    expect(currencyService.getSymbol('XXX' as any)).toBe('XXX');
   });
 
   it('distinguishes Mexican pesos from US dollars in displays and amount entry labels', () => {
@@ -119,11 +116,7 @@ describe('fiat display', () => {
         expect(fallback.formatValue(0.001, 'AED')).toBe('<0.01 AED');
         expect(fallback.formatValue(0.001, 'KWD')).toBe('<0.01 KWD');
         expect(fallback.formatValue(12.5, 'THB')).toBe('฿12.50');
-        expect(fallback.formatValue(12.5, 'PHP')).toBe('₱12.50');
-        expect(fallback.formatValue(12.5, 'VND')).toBe('12.50 ₫');
         expect(fallback.formatValue(12.5, 'NGN')).toBe('₦12.50');
-        expect(fallback.formatValue(12.5, 'IDR')).toBe('Rp12.50');
-        expect(fallback.formatValue(12.5, 'ARS')).toBe('AR$12.50');
         expect(fallback.formatValue(12.5, 'MXN')).toBe('MX$12.50');
         expect(fallback.formatValue(12.5, 'PLN')).toBe('12.50 zł');
         expect(fallback.formatValue(12.5, 'CZK')).toBe('12.50 Kč');

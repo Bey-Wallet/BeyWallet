@@ -36,6 +36,7 @@ import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { MintDetailsView } from './components/MintDetailsView';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { MintUrlQrOverlay } from './components/MintUrlQrOverlay';
+import { appLogger } from '~/shared/utils/appLogger';
 
 const mintText = (value: unknown) => (typeof value === 'string' ? value : undefined);
 
@@ -90,7 +91,7 @@ function MintDetailsContent() {
       toast.showFeedback(interactionCopy.mintRemoved);
     } catch (e: any) {
       isRemovingRef.current = false;
-      console.error('Failed to remove mint:', e);
+      appLogger.error('Failed to remove mint:', e, 'app_runtime');
       toast.showFeedback(interactionCopy.couldNotRemoveThisMintCheckIts);
     } finally {
       setIsRemoving(false);
@@ -117,7 +118,7 @@ function MintDetailsContent() {
     dataUpdatedAt: connectionCheckedAt,
     errorUpdatedAt: connectionErrorAt,
     refetch: recheckConnection,
-  } = useMintInfo(mintUrl || '', { refetchOnMount: 'always' });
+  } = useMintInfo(mintUrl || '', { refetchOnMount: 'always', priority: 'interactive' });
 
   const normalizedTargetUrl = useMemo(() => mintUrl?.replace(/\/$/, '') || '', [mintUrl]);
 

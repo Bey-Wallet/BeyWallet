@@ -13,6 +13,7 @@ import { DownloadCloud, RefreshCw, ArrowUpCircle } from '@tamagui/lucide-icons';
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
+import { appLogger } from '~/shared/utils/appLogger';
 
 const STORAGE_KEY_LAST_OTA_CHANGELOG = 'last_installed_ota_changelog';
 const STORAGE_KEY_LAST_OTA_VERSION = 'last_installed_ota_version';
@@ -123,7 +124,7 @@ export default function OtaUpdateScreen() {
       const version = sqliteStorage.getItem(STORAGE_KEY_LAST_OTA_VERSION);
       if (version) setStoredVersion(version);
     } catch (e) {
-      console.warn('[OtaUpdate] Error reading stored update notes:', e);
+      appLogger.warn('[OtaUpdate] Error reading stored update notes:', e, 'settings_action');
     }
   }, []);
 
@@ -149,7 +150,7 @@ export default function OtaUpdateScreen() {
         setStatus('no-update');
       }
     } catch (error: any) {
-      console.error('[OtaUpdate] Check failed:', error);
+      appLogger.error('[OtaUpdate] Check failed:', error, 'settings_action');
       setStatus('error');
       setErrorMsg(
         error.message || 'Failed to check for updates. Please check your internet connection.',
@@ -199,7 +200,7 @@ export default function OtaUpdateScreen() {
 
       setStatus('ready');
     } catch (error: any) {
-      console.error('[OtaUpdate] Download failed:', error);
+      appLogger.error('[OtaUpdate] Download failed:', error, 'settings_action');
       setStatus('error');
       setErrorMsg(error.message || 'Failed to download update bundle.');
     } finally {
@@ -211,7 +212,7 @@ export default function OtaUpdateScreen() {
     try {
       await Updates.reloadAsync();
     } catch (e: any) {
-      console.warn('[OtaUpdate] Reload failed:', e);
+      appLogger.warn('[OtaUpdate] Reload failed:', e, 'settings_action');
       setErrorMsg('Could not restart the app. Please try again.');
     }
   };

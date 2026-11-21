@@ -20,6 +20,7 @@ import {
 import { mintUrlKey, normalizeMintUrl } from '~/shared/utils/mintUrl';
 import { InteractionManager } from 'react-native';
 import { Mint as CashuMint, Wallet, OutputData } from '@cashu/cashu-ts';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export type MintRestoreStatus = 'pending' | 'scanning' | 'done' | 'partial' | 'error';
 
@@ -108,12 +109,11 @@ export const useWalletStore = create<WalletState>()(
         const diagnosticStart = Date.now();
         const diagnosticGeneration = diagnosticFailureGeneration();
         set({ isInitializing: true, error: null });
-        console.log('[WalletStore] Starting initialization...');
+
         try {
           const walletExists = await initService.walletExists();
           if (generation !== walletStorageGeneration()) return;
           if (!walletExists) {
-            console.log('[WalletStore] No wallet exists, skipping initialization');
             set({ isInitializing: false });
             return;
           }
@@ -152,20 +152,22 @@ export const useWalletStore = create<WalletState>()(
                 }
                 if (generation !== recoveryCoordinator.generation) return;
                 if (repairResults.some((r) => r === true)) {
-                  console.log('[WalletStore] Keysets repaired in background, refreshing...');
                   await get().refreshBalance();
                   const freshMintInfos = await mintManager.getMintInfoList();
                   set({ mints: freshMintInfos });
                 }
               } catch (e) {
-                console.warn('[WalletStore] Background keyset repair error:');
+                appLogger.warn(
+                  '[WalletStore] Background keyset repair error:',
+                  e,
+                  'wallet_refresh',
+                );
               }
             });
           }
-          console.log('[WalletStore] Initialization complete');
         } catch (err: any) {
           if (generation !== walletStorageGeneration()) return;
-          console.error('[WalletStore] Initialization failed:');
+          appLogger.error('[WalletStore] Initialization failed:', err, 'wallet_refresh');
           recordDiagnosticFailure('wallet_start', err, diagnosticStart, diagnosticGeneration);
           set({ error: err.message, isInitializing: false });
         }
@@ -200,16 +202,17 @@ export const useWalletStore = create<WalletState>()(
           // Defer heavy background work AFTER all sheet animations settle
           // This matches Sovran — addMint never blocks the UI thread
           InteractionManager.runAfterInteractions(() => {
-            console.log(`[WalletStore] 🔄 Background: repair keysets for: ${url}`);
             void recoveryCoordinator
               .maintenance(`repair:${url}`, async () => {
                 await mintManager.repairMintKeysets(url, 'sat');
               })
-              .catch(() => console.warn('[WalletStore] Keyset repair failed.'));
+              .catch(() =>
+                appLogger.warn('[WalletStore] Keyset repair failed.', undefined, 'wallet_refresh'),
+              );
             get().syncMintsToNostr();
           });
         } catch (err: any) {
-          console.error('[WalletStore] Failed to add mint:');
+          appLogger.error('[WalletStore] Failed to add mint:', err, 'wallet_refresh');
           set({ error: err.message });
         }
       },
@@ -227,7 +230,7 @@ export const useWalletStore = create<WalletState>()(
             get().syncMintsToNostr();
           });
         } catch (err: any) {
-          console.error('[WalletStore] Failed to trust mint:');
+          appLogger.error('[WalletStore] Failed to trust mint:', err, 'wallet_refresh');
           set({ error: err.message });
         }
       },
@@ -257,17 +260,25 @@ export const useWalletStore = create<WalletState>()(
             get()
               .autoCheckPendingOnchainQuotes()
               .catch((err) => {
-                console.warn('[WalletStore] Background pending on-chain quote check failed:');
+                appLogger.warn(
+                  '[WalletStore] Background pending on-chain quote check failed:',
+                  undefined,
+                  'wallet_refresh',
+                );
               });
             get()
               .cleanSpentProofs()
               .catch((err) => {
-                console.warn('[WalletStore] Background spent proofs clean failed:');
+                appLogger.warn(
+                  '[WalletStore] Background spent proofs clean failed:',
+                  undefined,
+                  'wallet_refresh',
+                );
               });
           });
         } catch (err: any) {
           if (generation !== walletStorageGeneration()) return;
-          console.error('[WalletStore] Error refreshing balance:');
+          appLogger.error('[WalletStore] Error refreshing balance:', err, 'wallet_refresh');
           recordDiagnosticFailure('wallet_refresh', err, diagnosticStart, diagnosticGeneration);
           set({ error: err.message, isRefreshing: false });
         }
@@ -281,7 +292,7 @@ export const useWalletStore = create<WalletState>()(
             get().syncMintsToNostr();
           });
         } catch (err: any) {
-          console.error('[WalletStore] Failed to untrust mint:');
+          appLogger.error('[WalletStore] Failed to untrust mint:', err, 'wallet_refresh');
           set({ error: err.message });
         }
       },
@@ -295,7 +306,7 @@ export const useWalletStore = create<WalletState>()(
             get().syncMintsToNostr();
           });
         } catch (err: any) {
-          console.error('[WalletStore] Failed to remove mint:');
+          appLogger.error('[WalletStore] Failed to remove mint:', err, 'wallet_refresh');
           set({ error: err.message });
           throw err;
         }
@@ -305,7 +316,7 @@ export const useWalletStore = create<WalletState>()(
         try {
           return await mintManager.getMintInfo(url);
         } catch (err: any) {
-          console.error('[WalletStore] Failed to fetch mint info:');
+          appLogger.error('[WalletStore] Failed to fetch mint info:', err, 'wallet_refresh');
           throw err;
         }
       },
@@ -325,7 +336,7 @@ export const useWalletStore = create<WalletState>()(
           });
         } catch (err: any) {
           if (generation !== walletStorageGeneration()) return;
-          console.error('[WalletStore] Failed to refresh mint list:');
+          appLogger.error('[WalletStore] Failed to refresh mint list:', err, 'wallet_refresh');
           set({ isRefreshing: false });
         }
       },
@@ -335,7 +346,7 @@ export const useWalletStore = create<WalletState>()(
           await mintManager.setMintNickname(url, nickname);
           await get().refreshMintList();
         } catch (err: any) {
-          console.error('[WalletStore] Failed to set mint nickname:');
+          appLogger.error('[WalletStore] Failed to set mint nickname:', err, 'wallet_refresh');
           set({ error: err.message });
         }
       },
@@ -426,18 +437,12 @@ export const useWalletStore = create<WalletState>()(
               privKey?: string;
             };
             try {
-              console.log(
-                `[WalletStore] Auto-checking pending on-chain deposit quote ${entry.quoteId} for mint ${entry.mintUrl}`,
-              );
               const status = await quotesService.checkOnchainMintQuote(
                 entry.mintUrl,
                 entry.quoteId,
               );
               const delta = status.amount_paid - status.amount_issued;
               if (delta > 0 && metadata.privKey) {
-                console.log(
-                  `[WalletStore] Pending on-chain quote ${entry.quoteId} has been paid! Redeeming ${delta} sat...`,
-                );
                 await quotesService.redeemOnchainMintQuote(
                   entry.mintUrl,
                   entry.quoteId,
@@ -446,7 +451,11 @@ export const useWalletStore = create<WalletState>()(
                 get().refreshBalance();
               }
             } catch (err) {
-              console.warn(`[WalletStore] Failed checking pending quote ${entry.quoteId}:`);
+              appLogger.warn(
+                '[WalletStore] Failed checking pending quote …:',
+                err,
+                'wallet_refresh',
+              );
             }
           }
 
@@ -465,18 +474,12 @@ export const useWalletStore = create<WalletState>()(
               inputs?: Array<{ secret: string }>;
             };
             try {
-              console.log(
-                `[WalletStore] Auto-checking pending on-chain melt quote ${entry.quoteId} for mint ${entry.mintUrl}`,
-              );
               const status = await quotesService.checkOnchainMeltQuote(
                 entry.mintUrl,
                 entry.quoteId,
               );
 
               if (status.state === 'PAID') {
-                console.log(
-                  `[WalletStore] Pending on-chain melt ${entry.quoteId} was paid! Finalizing...`,
-                );
                 const m = initService.getManager() as any;
 
                 // Claim change proofs if any
@@ -503,7 +506,6 @@ export const useWalletStore = create<WalletState>()(
                     state: 'ready' as const,
                   }));
                   await repo.proofRepository.saveProofs(entry.mintUrl, changeCoreProofs);
-                  console.log(`[WalletStore] Claimed ${changeProofs.length} change proofs`);
                 }
 
                 // Mark inputs as spent
@@ -528,9 +530,6 @@ export const useWalletStore = create<WalletState>()(
                 });
                 get().refreshBalance();
               } else if (status.state === 'UNPAID') {
-                console.log(
-                  `[WalletStore] Pending on-chain melt ${entry.quoteId} failed/unpaid. Reclaiming inputs...`,
-                );
                 const m = initService.getManager() as any;
 
                 // Restore inputs back to ready
@@ -548,11 +547,19 @@ export const useWalletStore = create<WalletState>()(
                 get().refreshBalance();
               }
             } catch (err) {
-              console.warn(`[WalletStore] Failed checking pending melt quote ${entry.quoteId}:`);
+              appLogger.warn(
+                '[WalletStore] Failed checking pending melt quote …:',
+                err,
+                'wallet_refresh',
+              );
             }
           }
         } catch (e) {
-          console.warn('[WalletStore] Failed to auto-check pending on-chain quotes:');
+          appLogger.warn(
+            '[WalletStore] Failed to auto-check pending on-chain quotes:',
+            e,
+            'wallet_refresh',
+          );
         } finally {
           set({ isCheckingPendingOnchain: false });
         }
@@ -569,9 +576,6 @@ export const useWalletStore = create<WalletState>()(
             const readyProofs = await repo.proofRepository.getReadyProofs(activeUrl);
             if (readyProofs.length === 0) return;
 
-            console.log(
-              `[WalletStore] Checking spendable state for ${readyProofs.length} ready proofs on ${activeUrl}...`,
-            );
             const wallet = new Wallet(new CashuMint(activeUrl));
             const states = await wallet.checkProofsStates(
               readyProofs.map((p) => ({ secret: p.secret, amount: p.amount, C: p.C, id: p.id })),
@@ -585,16 +589,12 @@ export const useWalletStore = create<WalletState>()(
             });
 
             if (spentSecrets.length > 0) {
-              console.log(
-                `[WalletStore] Found ${spentSecrets.length} spent proofs locally. Setting them to spent...`,
-              );
               await m.proofService.setProofState(activeUrl, spentSecrets, 'spent');
               await get().refreshBalance();
             } else {
-              console.log('[WalletStore] All local proofs are fresh and unspent!');
             }
           } catch (e) {
-            console.warn('[WalletStore] Failed to clean spent proofs:');
+            appLogger.warn('[WalletStore] Failed to clean spent proofs:', e, 'wallet_refresh');
           }
         });
       },

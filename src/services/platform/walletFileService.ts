@@ -7,6 +7,7 @@ import * as bip39 from 'bip39';
 import { Platform } from 'react-native';
 import { useSettingsStore } from '~/state/settingsStore';
 import { parseWalletBackup, type WalletBackup } from '~/services/wallet/walletBackup';
+
 export type { WalletBackup } from '~/services/wallet/walletBackup';
 
 const BACKUP_VERSION = 4;
@@ -51,8 +52,6 @@ export const walletFileService = {
       theme: 'system' | 'light' | 'dark';
     },
   ): Promise<string> => {
-    console.log('[WalletFileService] Exporting wallet backup...');
-
     if (!bip39.validateMnemonic(mnemonic)) {
       throw new Error('Invalid mnemonic — cannot export.');
     }
@@ -119,7 +118,7 @@ export const walletFileService = {
       await FileSystem.writeAsStringAsync(fileUri, serialized, {
         encoding: 'utf8',
       });
-      console.log(`[WalletFileService] ✅ Saved directly to: ${fileUri}`);
+
       return fileName;
     } else {
       // iOS: Write to temporary directory and show share sheet
@@ -140,15 +139,12 @@ export const walletFileService = {
         UTI: 'public.json',
       });
 
-      console.log('[WalletFileService] ✅ Shared backup file.');
       return fileName;
     }
   },
 
   /** Select a backup without reading its contents or changing wallet state. */
   selectWalletBackupFile: async (): Promise<string> => {
-    console.log('[WalletFileService] Opening document picker...');
-
     const result = await DocumentPicker.getDocumentAsync({
       copyToCacheDirectory: true,
       multiple: false,
@@ -188,7 +184,6 @@ export const walletFileService = {
    * Export active proofs as a .json file containing the proofs array.
    */
   exportProofsToFile: async (proofs: any[]): Promise<string> => {
-    console.log('[WalletFileService] Exporting proofs to file...');
     const payload = {
       type: 'bey-cashu-proofs',
       proofs,
@@ -237,7 +232,7 @@ export const walletFileService = {
       await FileSystem.writeAsStringAsync(fileUri, serialized, {
         encoding: 'utf8',
       });
-      console.log(`[WalletFileService] ✅ Proofs saved directly to: ${fileUri}`);
+
       return fileName;
     } else {
       const filePath = (FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? '') + fileName;
@@ -266,7 +261,6 @@ export const walletFileService = {
    * Returns the array of proofs.
    */
   importProofsFromFile: async (): Promise<any[]> => {
-    console.log('[WalletFileService] Importing proofs from file...');
     const result = await DocumentPicker.getDocumentAsync({
       copyToCacheDirectory: true,
       multiple: false,

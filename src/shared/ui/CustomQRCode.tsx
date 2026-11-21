@@ -3,6 +3,7 @@ import Svg, { Circle, Rect, Path, G } from 'react-native-svg';
 import QRCode from 'qrcode';
 import { useTheme } from 'tamagui';
 import BeyIcon from '~/shared/icons/BeyIcon';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export interface CustomQRCodeProps {
   value: string;
@@ -54,7 +55,7 @@ export function CustomQRCode({
         moduleCount,
       };
     } catch {
-      console.warn('[CustomQRCode] Could not generate QR matrix');
+      appLogger.warn('[CustomQRCode] Could not generate QR matrix', undefined, 'app_runtime');
       return {
         modules: new Uint8Array(),
         moduleCount: 0,

@@ -513,8 +513,6 @@ export async function seedMockData(db: ExpoSqliteDb): Promise<void> {
   const now = getUnixTimeSeconds();
   const mintUrl = 'https://mock-mint.com';
 
-  console.log('[Database] Seeding mock data...');
-
   await db.transaction(async (tx) => {
     // 1. Mints
     await tx.run(
@@ -623,8 +621,6 @@ export async function seedMockData(db: ExpoSqliteDb): Promise<void> {
       ['https://nofee.testnut.cashu.space', 'Testnut', 'A reliable test mint', 100, 4.8, now],
     );
   });
-
-  console.log('[Database] Mock data seeded successfully');
 }
 
 // Export for testing

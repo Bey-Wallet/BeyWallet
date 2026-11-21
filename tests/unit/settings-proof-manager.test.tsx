@@ -5,6 +5,7 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Alert } from 'react-native';
 import ProofManagerScreen from '~/features/settings/ProofManagerScreen';
+import { useQuery } from '@tanstack/react-query';
 
 const mockDelete = jest.fn(async (..._args: unknown[]) => {});
 const mockRefresh = jest.fn(async () => {});
@@ -17,7 +18,35 @@ const mockProofs = {
   ],
   spent: [{ mintUrl: 'https://mint.example', amount: 2, secret: 'spent-fixture', state: 'spent' }],
 };
-jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack' }));
+jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
+jest.mock('@legendapp/list/react-native', () => ({
+  LegendList: ({
+    data,
+    renderItem,
+    ListHeaderComponent,
+    ListEmptyComponent,
+    ListFooterComponent,
+    ...props
+  }: any) =>
+    require('react').createElement(
+      'LegendList',
+      { data, renderItem, ...props },
+      ListHeaderComponent,
+      data.length
+        ? data
+            .slice(0, 12)
+            .map((item: any, index: number) =>
+              require('react').createElement(
+                require('react').Fragment,
+                { key: index },
+                renderItem({ item, index }),
+              ),
+            )
+        : ListEmptyComponent,
+      ListFooterComponent,
+    ),
+}));
 jest.mock('@tamagui/lucide-icons', () => ({
   Coins: 'Coins',
   Landmark: 'Landmark',
@@ -51,12 +80,12 @@ jest.mock('~/services/wallet', () => ({
 }));
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: jest.fn() }),
-  useQuery: ({ queryKey }: { queryKey: string[] }) => ({
+  useQuery: jest.fn(({ queryKey }: { queryKey: string[] }) => ({
     data: mockProofs[queryKey[1] as keyof typeof mockProofs],
     isFetching: false,
     isError: false,
     refetch: mockRefresh,
-  }),
+  })),
 }));
 
 it('keeps pending proofs read-only and deletes only shown spent records after confirmation', async () => {
@@ -64,6 +93,12 @@ it('keeps pending proofs read-only and deletes only shown spent records after co
   await act(async () => {
     tree = create(<ProofManagerScreen />);
   });
+  expect(
+    jest
+      .mocked(useQuery)
+      .mock.calls.slice(-3)
+      .map(([options]) => options.enabled),
+  ).toEqual([true, false, false]);
   const rows = () => tree.root.findAllByType('Row' as any);
   const buttons = () => tree.root.findAllByType('AppButton' as any);
   await act(async () =>
@@ -72,6 +107,12 @@ it('keeps pending proofs read-only and deletes only shown spent records after co
       .props.onPress(),
   );
   expect(buttons().map((button) => button.props.children)).toEqual(['Refresh proofs']);
+  expect(
+    jest
+      .mocked(useQuery)
+      .mock.calls.slice(-3)
+      .map(([options]) => options.enabled),
+  ).toEqual([false, true, false]);
   expect(mockDelete).not.toHaveBeenCalled();
   await act(async () =>
     rows()
@@ -89,7 +130,33 @@ it('keeps pending proofs read-only and deletes only shown spent records after co
   await act(async () => erase());
   expect(mockDelete).toHaveBeenCalledWith('https://mint.example', ['spent-fixture']);
   expect(mockDelete).toHaveBeenCalledTimes(1);
-  expect(mockRefresh).toHaveBeenCalledTimes(3);
+  expect(mockRefresh).toHaveBeenCalledTimes(1);
   await act(async () => tree.unmount());
   alert.mockRestore();
+});
+
+it('renders a window of a large proof collection while retaining every shown proof in the dataset', async () => {
+  const original = [...mockProofs.unspent];
+  mockProofs.unspent.push(
+    ...Array.from({ length: 200 }, (_, index) => ({
+      mintUrl: 'https://mint.example',
+      amount: 1,
+      secret: `fixture-${index}`,
+      state: 'ready',
+    })),
+  );
+  let tree!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      tree = create(<ProofManagerScreen />);
+    });
+    const list = tree.root.findByType('LegendList' as any);
+    expect(list.props.data).toHaveLength(201);
+    expect(tree.root.findAllByType('Coins' as any)).toHaveLength(12);
+    expect(list.props.keyExtractor(list.props.data[0], 0)).not.toContain('ready-fixture');
+    expect(list.props.renderItem({ item: list.props.data[200], index: 200 })).toBeDefined();
+  } finally {
+    await act(async () => tree?.unmount());
+    mockProofs.unspent.splice(0, mockProofs.unspent.length, ...original);
+  }
 });

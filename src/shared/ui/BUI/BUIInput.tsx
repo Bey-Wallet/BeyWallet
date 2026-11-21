@@ -15,6 +15,7 @@ import { Spinner } from '~/shared/ui/Spinner';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import { useBUITheme } from './useBUITheme';
 import { BUIText } from './BUIText';
+import { appTypography } from '~/shared/theme/appearance';
 
 export type BUIInputProps = Omit<TextInputProps, 'value' | 'onChangeText' | 'readOnly'> & {
   label: string;
@@ -119,7 +120,7 @@ export const BUIInput = forwardRef<TextInput, BUIInputProps>(function BUIInput(
     fontFamily: 'AlloTextRegular',
     fontSize: 16,
     lineHeight: 24,
-    letterSpacing: 0.08,
+    letterSpacing: appTypography.body1.letterSpacing,
     includeFontPadding: false,
   } as const;
   return (
@@ -390,7 +391,7 @@ export const BUISearchInput = forwardRef<
             fontFamily: 'AlloTextRegular',
             fontSize: 16,
             lineHeight: 24,
-            letterSpacing: 0.08,
+            letterSpacing: appTypography.body1.letterSpacing,
             includeFontPadding: false,
             color: disabled ? c.tertiaryText : c.text,
             paddingVertical: 6,

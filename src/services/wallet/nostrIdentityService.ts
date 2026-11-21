@@ -1,6 +1,7 @@
 import { finalizeEvent } from 'nostr-tools/pure';
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { nostrService } from '~/services/wallet/nostrService';
+import { withTimeout } from '~/shared/utils/withTimeout';
 
 export const BEY_NIP05_DOMAIN = 'bey.cash';
 export const BEY_NIP05_API = 'https://bey.cash/api';
@@ -13,6 +14,22 @@ export interface Nip05RegistrationResult {
 }
 
 const VERIFICATION_DELAYS_MS = [0, 400, 1_000, 2_000];
+
+async function fetchIdentityJson(url: string, options?: RequestInit) {
+  const controller = new AbortController();
+  try {
+    return await withTimeout(
+      (async () => {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        const data = await response.json();
+        return { response, data };
+      })(),
+      5_000,
+    );
+  } finally {
+    controller.abort();
+  }
+}
 
 function normalizeUsername(username: string): string {
   return username
@@ -30,12 +47,11 @@ export async function resolveBeyNip05Pubkey(username: string): Promise<string | 
   const normalized = normalizeUsername(username);
   if (!normalized) return null;
   try {
-    const response = await fetch(
+    const { response, data } = await fetchIdentityJson(
       `https://${BEY_NIP05_DOMAIN}/.well-known/nostr.json?name=${encodeURIComponent(normalized)}&_t=${Date.now()}`,
       { headers: { Accept: 'application/json' } },
     );
     if (!response.ok) return null;
-    const data = await response.json();
     const pubkey = data?.names?.[normalized];
     return typeof pubkey === 'string' && /^[0-9a-f]{64}$/i.test(pubkey)
       ? pubkey.toLowerCase()
@@ -94,7 +110,7 @@ export const nostrIdentityService = {
       let serverProfilePublished = false;
 
       if (!verified) {
-        const response = await fetch(`${BEY_NIP05_API}/register`, {
+        const { response, data } = await fetchIdentityJson(`${BEY_NIP05_API}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -104,7 +120,6 @@ export const nostrIdentityService = {
             profileEvent,
           }),
         });
-        const data = await response.json().catch(() => null);
         if (!response.ok) {
           verified = (await resolveBeyNip05Pubkey(normalized)) === normalizedPubkey;
           if (!verified) {

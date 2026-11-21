@@ -1,3 +1,4 @@
+import { appLogger } from '~/shared/utils/appLogger';
 export type MempoolTxMetadata = {
   txid: string;
   amount?: number;
@@ -71,7 +72,7 @@ async function fetchTipHeightSafe(apiBase: string): Promise<number | null> {
   try {
     return await fetchTipHeight(apiBase);
   } catch (error) {
-    console.warn('could not fetch block height', error);
+    appLogger.warn('could not fetch block height', error, 'app_runtime');
     return null;
   }
 }
@@ -122,7 +123,7 @@ export async function fetchAddressTxMetadata(
       url: `${mempoolWebBase(apiBase)}/tx/${incoming.txid}`,
     };
   } catch (e) {
-    console.warn('fetchAddressTxMetadata failed:', e);
+    appLogger.warn('fetchAddressTxMetadata failed:', e, 'app_runtime');
     return null;
   }
 }
@@ -153,7 +154,7 @@ export async function fetchTxMetadata(
       url: `${mempoolWebBase(apiBase)}/tx/${txid}`,
     };
   } catch (e) {
-    console.warn('fetchTxMetadata failed:', e);
+    appLogger.warn('fetchTxMetadata failed:', e, 'app_runtime');
     return null;
   }
 }

@@ -11,6 +11,7 @@
  */
 
 import { initService } from '~/services/wallet/initService';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export const recoveryService = {
   /**
@@ -52,7 +53,11 @@ export const recoveryService = {
     const proofService = unsafeManager.proofService;
 
     if (!proofRepository?.getReservedProofs || !proofRepository?.releaseProofs) {
-      console.warn('[RecoveryService] Proof repository does not expose reserved proof access');
+      appLogger.warn(
+        '[RecoveryService] Proof repository does not expose reserved proof access',
+        undefined,
+        'wallet_sdk',
+      );
       return {
         totalReservedProofs: 0,
         rolledBackSendOperations: 0,
@@ -74,8 +79,6 @@ export const recoveryService = {
         errors: [],
       };
     }
-
-    console.log(`[RecoveryService] Found ${totalReservedProofs} reserved proofs`);
 
     // Group by operationId
     const proofsByOperationId = new Map<
@@ -175,10 +178,6 @@ export const recoveryService = {
       }
     }
 
-    console.log(
-      `[RecoveryService] Recovery complete: ${rolledBackSendOperations} send rollbacks, ${rolledBackMeltOperations} melt rollbacks, ${releasedOrphanedReservations} orphaned released, ${errors.length} errors`,
-    );
-
     return {
       totalReservedProofs,
       rolledBackSendOperations,
@@ -217,10 +216,10 @@ export const recoveryService = {
 
       const secrets = inflight.map((p) => p.secret);
       await proofSvc.restoreProofsToReady(mintUrl, secrets);
-      console.log(`[RecoveryService] ✅ Restored ${secrets.length} inflight proofs on ${mintUrl}`);
+
       return secrets.length;
     } catch (err) {
-      console.warn('[RecoveryService] Failed to restore inflight proofs:');
+      appLogger.warn('[RecoveryService] Failed to restore inflight proofs:', err, 'wallet_sdk');
       return 0;
     }
   },

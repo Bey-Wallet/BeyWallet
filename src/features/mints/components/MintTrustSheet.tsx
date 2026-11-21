@@ -27,6 +27,7 @@ export const MintTrustSheet = forwardRef<
 >(function MintTrustSheet({ mint, busy, error, remember, onRememberChange, onConfirm }, ref) {
   const appearance = useBUIOverlayAppearance();
   const { data: info } = useMintInfo(mint?.url || '', {
+    priority: 'interactive',
     enabled: !!mint && (!mint.name || !mint.icon),
   });
   let hostname = mint?.url || '';

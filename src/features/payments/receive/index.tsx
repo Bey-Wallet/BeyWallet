@@ -23,6 +23,7 @@ import ReceiveModeSelector, { ReceiveMode } from '~/shared/ui/ReceiveModeSelecto
 import * as ClipboardAPI from 'expo-clipboard';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { usePreventRemove } from '@react-navigation/native';
+import { appLogger } from '~/shared/utils/appLogger';
 
 type ReceiveStep = 'input' | 'confirm' | 'result';
 
@@ -70,7 +71,6 @@ export function ReceiveModalScreen() {
   const fetchMintInfo = useWalletStore((s) => s.fetchMintInfo);
   const mints = useWalletStore((s) => s.mints);
   const [isReceiveLater, setIsReceiveLater] = useState(false);
-  console.log('[ReceiveModalScreen] State - step:', step, 'isReceiving:', isReceiving);
 
   // Keep a stable ref to mints so handleDecodeToken never needs mints in its deps
   // (avoids infinite re-render when background fetchMintInfo updates the store)
@@ -104,7 +104,6 @@ export function ReceiveModalScreen() {
             throw new Error('Invalid shared eCash link format');
           }
 
-          console.log('[ReceiveModal] Fetching encrypted token from Nostr...');
           const keys = deriveSharingKeys(secretKeyHex);
           const pool = new SimplePool();
           const relays = getNostrRelays();
@@ -121,18 +120,11 @@ export function ReceiveModalScreen() {
 
           tokenToParse = decryptToken(event.content, keys.encryptionKey);
           setToken(tokenToParse);
-          console.log('[ReceiveModal] Decrypted eCash token successfully.');
         }
 
         // Decode using tokenUtils.decodeToken which supports V3, V4 (cashuB/CBOR),
         // and has a manual CBOR fallback that works WITHOUT pre-synced keysets.
         const rawDecoded = decodeToken(tokenToParse);
-        console.log(
-          '[ReceiveModal] decoded — mint:',
-          rawDecoded.mint,
-          'proofs:',
-          rawDecoded.proofs?.length,
-        );
 
         const mintUrl = rawDecoded.mint || '';
         const proofs = rawDecoded.proofs || [];
@@ -151,7 +143,7 @@ export function ReceiveModalScreen() {
             }
           }
         } catch (e) {
-          console.warn('[ReceiveModal] Failed to parse P2PK secret:');
+          appLogger.warn('[ReceiveModal] Failed to parse P2PK secret:', e, 'ecash_receive');
         }
 
         // Show confirm screen immediately — no waiting for network
@@ -186,10 +178,16 @@ export function ReceiveModalScreen() {
                 );
               }
             })
-            .catch((e: any) => console.warn('[ReceiveModal] Background mint preview failed:'));
+            .catch((e: any) =>
+              appLogger.warn(
+                '[ReceiveModal] Background mint preview failed:',
+                undefined,
+                'ecash_receive',
+              ),
+            );
         }
       } catch (err: any) {
-        console.error('[ReceiveModal] Failed to decode token:');
+        appLogger.error('[ReceiveModal] Failed to decode token:', err, 'ecash_receive');
         setError(err.message || 'Invalid token format');
       } finally {
         decodeLock.current = false;
@@ -200,13 +198,6 @@ export function ReceiveModalScreen() {
   ); // stable — only depends on token state, reads mints via ref
 
   React.useEffect(() => {
-    console.log('[ReceiveModal] Params updated:', {
-      hasScannedToken: Boolean(params.scannedToken),
-      hasRequestId: Boolean(params.requestId),
-      from: params.from,
-      mode: params.mode,
-      paste: params.paste,
-    });
     if (params.scannedToken) {
       let raw = params.scannedToken.trim();
       let lower = raw.toLowerCase();
@@ -236,7 +227,6 @@ export function ReceiveModalScreen() {
 
       // NUT-18 Payment Request — redirect to Send modal, don't decode as token
       if (lower.startsWith('creqa') || lower.startsWith('creqb') || lower.startsWith('creq')) {
-        console.log('[ReceiveModal] Detected NUT-18 payment request, redirecting to send...');
         router.replace({
           pathname: '/(modals)/send',
           params: { paymentRequest: raw },
@@ -253,13 +243,8 @@ export function ReceiveModalScreen() {
     }
 
     if (params.paste === 'true') {
-      console.log('[ReceiveModal] Auto-paste check triggered');
       ClipboardAPI.getStringAsync()
         .then((text) => {
-          console.log(
-            '[ReceiveModal] Retrieved clipboard text:',
-            text?.trim() ? 'available' : 'empty',
-          );
           if (text && text.trim()) {
             let trimmed = text.trim();
             let lower = trimmed.toLowerCase();
@@ -293,9 +278,6 @@ export function ReceiveModalScreen() {
               lower.startsWith('creqb') ||
               lower.startsWith('creq')
             ) {
-              console.log(
-                '[ReceiveModal] Clipboard auto-paste detected NUT-18 payment request, redirecting to send...',
-              );
               router.replace({
                 pathname: '/(modals)/send',
                 params: { paymentRequest: trimmed },
@@ -307,7 +289,11 @@ export function ReceiveModalScreen() {
           }
         })
         .catch((err) => {
-          console.warn('[ReceiveModal] Failed to auto-paste from clipboard:');
+          appLogger.warn(
+            '[ReceiveModal] Failed to auto-paste from clipboard:',
+            undefined,
+            'ecash_receive',
+          );
         });
     }
   }, [params.scannedToken, params.requestId, params.from, params.mode, params.paste]);
@@ -319,7 +305,6 @@ export function ReceiveModalScreen() {
 
     try {
       const mintUrl = tokenInfo.mint;
-      console.log('[ReceiveModal] Saving for later:', mintUrl);
 
       // Save only an unclaimed offer. Do not trust a mint or credit spendable proofs.
       const decoded = decodeToken(token.trim());
@@ -347,7 +332,7 @@ export function ReceiveModalScreen() {
       setIsReceiveLater(true);
       setStep('result');
     } catch (err: any) {
-      console.error('[ReceiveModal] Failed to save token for later.');
+      appLogger.error('[ReceiveModal] Failed to save token for later.', err, 'ecash_receive');
       setError('Could not save this token on your device. Please try again.');
       setStatus('error');
       setStep('result');
@@ -378,7 +363,6 @@ export function ReceiveModalScreen() {
         return;
       }
       const mintUrl = tokenInfo.mint;
-      console.log('[ReceiveModal] Starting receive for mint:', mintUrl);
 
       // 1. Trust the mint if not already — skip network call for known trusted mints
       const normalizeUrl = (url: string) => url.replace(/\/$/, '').toLowerCase();
@@ -387,20 +371,21 @@ export function ReceiveModalScreen() {
       );
       if (!alreadyTrusted) {
         try {
-          console.log('[ReceiveModal] Adding and trusting mint:', mintUrl);
           await addMint(mintUrl, { trusted: true });
         } catch (e: any) {
-          console.warn('[ReceiveModal] Mint add/trust error:');
+          appLogger.warn('[ReceiveModal] Mint add/trust error:', e, 'ecash_receive');
         }
       }
 
       // 2. Fire-and-forget keyset repair — don't block receive on a local DB fix
       mintManager
         .repairMintKeysets(mintUrl, 'sat')
-        .catch((e) => console.warn('[ReceiveModal] Keyset repair warning:'));
+        .catch((e) =>
+          appLogger.warn('[ReceiveModal] Keyset repair warning:', undefined, 'ecash_receive'),
+        );
 
       // 3. Receive the token
-      console.log('[ReceiveModal] Calling walletService.receive...');
+
       const { nsec } = useSettingsStore.getState();
 
       try {
@@ -415,7 +400,6 @@ export function ReceiveModalScreen() {
           errMsg.includes('public key');
 
         if (isP2PKError && nsec) {
-          console.log('[ReceiveModal] Standard receive failed, trying P2PK receive...');
           let targetPrivkey = nsec;
           if (targetPrivkey.startsWith('nsec')) {
             try {
@@ -424,7 +408,7 @@ export function ReceiveModalScreen() {
                 targetPrivkey = Buffer.from(decoded.data as Uint8Array).toString('hex');
               }
             } catch (e: any) {
-              console.warn('[ReceiveModal] Failed to decode nsec:');
+              appLogger.warn('[ReceiveModal] Failed to decode nsec:', e, 'ecash_receive');
             }
           }
           await walletService.receiveP2PK(token.trim(), targetPrivkey);
@@ -460,7 +444,7 @@ export function ReceiveModalScreen() {
       const via = params.from === 'nfc' ? 'nfc' : params.scannedToken ? 'qr' : 'paste';
       historyService.tagHistoryVia(tokenInfo.mint, 'receive', via).catch(() => {});
     } catch (err: any) {
-      console.error('[ReceiveModal] ❌ Failed to receive token:');
+      appLogger.error('[ReceiveModal] Failed to receive token:', err, 'ecash_receive');
       setError(err.message || 'Failed to receive token');
       setStatus('error');
       setStep('result');

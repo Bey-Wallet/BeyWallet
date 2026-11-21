@@ -1,13 +1,71 @@
-import React, { useState } from 'react';
-import { AppInput } from '~/shared/ui/AppInput';
+import React from 'react';
 import { useSettingsStore, type ThemePreference } from '~/state/settingsStore';
-import { SELECTABLE_CURRENCIES } from '~/services/wallet/currencyService';
+import {
+  SELECTABLE_CURRENCIES,
+  currencyService,
+  type CurrencyCode,
+} from '~/services/wallet/currencyService';
+import { useQuery } from '@tanstack/react-query';
+import { Coins, RefreshCw } from '@tamagui/lucide-icons';
+import { Text, XStack, YStack } from 'tamagui';
+import { RemoteImage } from '~/shared/ui/RemoteImage';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { Spinner } from '~/shared/ui/Spinner';
+import { bitcoinService } from '~/services/api/bitcoinService';
+import { appSpacing, appTypography } from '~/shared/theme/appearance';
 import {
   SettingsDescription,
   SettingsGroup,
   SettingsPage,
   SettingsRow,
 } from './components/SettingsLayout';
+
+// Flagpedia permits free use of these public-domain flag images:
+// https://flagpedia.net/terms and https://flagpedia.net/download/api
+const currencyRegions: Record<CurrencyCode, string> = {
+  USD: 'us',
+  EUR: 'eu',
+  GBP: 'gb',
+  PLN: 'pl',
+  CZK: 'cz',
+  JPY: 'jp',
+  AUD: 'au',
+  CAD: 'ca',
+  CHF: 'ch',
+  CNY: 'cn',
+  INR: 'in',
+  BRL: 'br',
+  RUB: 'ru',
+  ZAR: 'za',
+  MXN: 'mx',
+  SGD: 'sg',
+  HKD: 'hk',
+  NZD: 'nz',
+  SEK: 'se',
+  KRW: 'kr',
+  TRY: 'tr',
+  THB: 'th',
+  NGN: 'ng',
+  AED: 'ae',
+  KWD: 'kw',
+};
+
+function CurrencyIcon({ code, size = 22 }: { code: string; size?: number }) {
+  const region = currencyRegions[code as CurrencyCode];
+  const fallback = <Coins size={size} color="$iconSecondary" />;
+  if (!region) return fallback;
+  return (
+    <RemoteImage
+      src={`https://flagcdn.com/64x48/${region}.png`}
+      identity={code}
+      width={size}
+      height={Math.round(size * 0.75)}
+      rounded="$1"
+      resizeMode="contain"
+      fallback={fallback}
+    />
+  );
+}
 
 export function ThemeSettingsScreen() {
   const theme = useSettingsStore((state) => state.theme);
@@ -32,10 +90,15 @@ export function ThemeSettingsScreen() {
 }
 
 export function CurrencySettingsScreen() {
-  const [search, setSearch] = useState('');
   const currency = useSettingsStore((state) => state.secondaryCurrency);
   const setCurrency = useSettingsStore((state) => state.setSecondaryCurrency);
-  const query = search.trim().toLowerCase();
+  const price = useQuery({
+    queryKey: ['bitcoinPrice', currency],
+    queryFn: () => bitcoinService.fetchPrice(currency),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    enabled: currency !== 'NONE',
+  });
   const options = [
     { code: 'NONE', name: 'None', description: 'Show sats only' },
     ...SELECTABLE_CURRENCIES.map(({ code, name }) => ({
@@ -43,38 +106,58 @@ export function CurrencySettingsScreen() {
       name,
       description: undefined as string | undefined,
     })),
-  ].filter((item) =>
-    `${item.code} ${item.name} ${item.description ?? ''}`.toLowerCase().includes(query),
-  );
+  ];
   return (
-    <SettingsPage keyboardShouldPersistTaps="handled">
-      <SettingsDescription>
-        Choose the currency used for fiat conversions, or hide the conversion.
-      </SettingsDescription>
-      <AppInput
-        accessibilityLabel="Search currencies"
-        placeholder="Search name or code"
-        value={search}
-        onChangeText={setSearch}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      {options.length ? (
-        <SettingsGroup>
-          {options.map((item) => (
-            <SettingsRow
-              key={item.code}
-              title={item.name}
-              value={item.code === 'NONE' ? undefined : item.code}
-              description={item.description}
-              selected={currency === item.code}
-              onPress={() => void setCurrency(item.code)}
-            />
-          ))}
-        </SettingsGroup>
-      ) : (
-        <SettingsDescription>No currencies found. Try another name or code.</SettingsDescription>
+    <SettingsPage>
+      {currency !== 'NONE' && (
+        <XStack
+          items="center"
+          gap="$3"
+          bg="$gray2"
+          rounded="$6"
+          px={appSpacing.page}
+          py={appSpacing.compact}
+        >
+          <YStack flex={1} gap="$1" accessibilityLiveRegion="polite">
+            <Text {...appTypography.body3} color="$gray10">
+              1 BTC · {currency}
+            </Text>
+            <Text {...appTypography.title3} color="$color">
+              {price.data
+                ? currencyService.formatValue(price.data.price, currency as CurrencyCode)
+                : price.isError
+                  ? 'Price unavailable'
+                  : 'Loading price…'}
+            </Text>
+            {price.data && Date.now() / 1000 - price.data.updatedAt > 120 && (
+              <Text {...appTypography.body3} color="$gray10">
+                Cached price
+              </Text>
+            )}
+          </YStack>
+          <AppIconButton
+            accessibilityLabel="Refresh Bitcoin price"
+            emphasis="ghost"
+            size="small"
+            disabled={price.isFetching}
+            icon={price.isFetching ? <Spinner size={18} /> : RefreshCw}
+            onPress={() => void price.refetch()}
+          />
+        </XStack>
       )}
+      <SettingsGroup>
+        {options.map((item) => (
+          <SettingsRow
+            key={item.code}
+            title={item.name}
+            value={item.code === 'NONE' ? undefined : item.code}
+            description={item.description}
+            icon={<CurrencyIcon code={item.code} />}
+            selected={currency === item.code}
+            onPress={() => void setCurrency(item.code)}
+          />
+        ))}
+      </SettingsGroup>
     </SettingsPage>
   );
 }

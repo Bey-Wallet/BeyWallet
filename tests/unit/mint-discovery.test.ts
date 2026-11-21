@@ -91,6 +91,23 @@ it('retains the directory when relay queries fail', async () => {
   expect(mockClose).toHaveBeenCalledTimes(1);
 });
 
+it('ranks only current online Radar scores and preserves provider order for ties', async () => {
+  const directory = [
+    { ...radarMint(0), score: 80 },
+    { ...radarMint(1), score: 99 },
+    { ...radarMint(2), score: 99 },
+    { ...radarMint(3), score: 100, scoreStale: true },
+    { ...radarMint(4), score: 100, status: 'offline' },
+    { ...radarMint(5), score: null },
+  ];
+  jest.mocked(mintHealthService.radarList).mockResolvedValue(directory);
+  const result = await mintRecommendationService.discoverMints();
+  const rank = (index: number) =>
+    result.find((mint) => mint.url === radarMint(index).url)?.radarRank;
+  expect([rank(0), rank(1), rank(2)]).toEqual([3, 1, 2]);
+  expect([rank(3), rank(4), rank(5)]).toEqual([undefined, undefined, undefined]);
+});
+
 it('retains NIP-87 discoveries when MintRadar fails', async () => {
   jest.mocked(mintHealthService.radarList).mockRejectedValue(new Error('Provider unavailable'));
   mockQuery.mockImplementation(async (_, filter) =>

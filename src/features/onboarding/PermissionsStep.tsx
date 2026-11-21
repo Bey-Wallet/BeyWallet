@@ -1,13 +1,14 @@
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useEffect } from 'react';
-import { YStack, XStack, Text, H1, View, Separator } from 'tamagui';
+import { YStack, XStack, Text, H1, View, ScrollView } from 'tamagui';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
 import {
   ChevronRight,
   Fingerprint,
-  Sprout,
+  Check,
+  Circle,
+  AlertCircle,
   WifiOff,
-  Globe,
   User,
   Landmark,
 } from '@tamagui/lucide-icons';
@@ -18,10 +19,20 @@ import { networkService } from '~/services/platform/networkService';
 import Blockies from '~/shared/ui/Blockies';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintDiscoverySheet, type OnboardingMint } from './MintDiscoverySheet';
-import { AppPressable } from '~/shared/ui/AppPressable';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { Spinner } from '~/shared/ui/Spinner';
+import { AppText } from '~/shared/ui/AppText';
+
+export type SetupProgressStep = {
+  id: string;
+  label: string;
+  status: 'pending' | 'running' | 'done' | 'error';
+};
 
 interface PermissionsStepProps {
   isFinishing?: boolean;
+  setupProgress?: SetupProgressStep[];
+  canSkipOptional?: boolean;
   initialUsername: string;
   npub: string;
   onComplete: (
@@ -37,6 +48,8 @@ export function PermissionsStep({
   npub,
   onComplete,
   isFinishing = false,
+  setupProgress = [],
+  canSkipOptional = false,
 }: PermissionsStepProps) {
   const insets = useSafeAreaInsets();
   const [biometricEnabled, setBiometricEnabled] = useState(false);
@@ -124,6 +137,69 @@ export function PermissionsStep({
   // Truncate npub for display
   const shortNpub = npub ? `${npub.slice(0, 10)}...${npub.slice(-6)}` : 'npub...';
 
+  if (setupProgress.length > 0) {
+    const failed = setupProgress.some((step) => step.status === 'error');
+    return (
+      <YStack
+        flex={1}
+        bg="$background"
+        px="$4"
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom || 16 }}
+      >
+        <AppText variant="title2" text="center" mt="$3">
+          {failed ? 'Setup paused' : 'Opening your wallet'}
+        </AppText>
+        <ScrollView flex={1} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+          <YStack py="$5" accessibilityLiveRegion="polite">
+            <ListTable>
+              {setupProgress.map((step) => (
+                <ListTableRow
+                  key={step.id}
+                  label={step.label}
+                  labelColor={step.status === 'pending' ? '$gray10' : '$color'}
+                  rightContent={
+                    step.status === 'running' ? (
+                      <Spinner size={20} />
+                    ) : step.status === 'done' ? (
+                      <Check size={20} color="$color" />
+                    ) : step.status === 'error' ? (
+                      <AlertCircle size={20} color="$red10" />
+                    ) : (
+                      <Circle size={16} color="$gray10" />
+                    )
+                  }
+                />
+              ))}
+            </ListTable>
+          </YStack>
+        </ScrollView>
+        {failed && (
+          <YStack gap="$3">
+            <AppButton
+              size="large"
+              disabled={isFinishing}
+              onPress={() =>
+                onComplete(initialUsername, biometricEnabled, skipUsername, mintUrls())
+              }
+            >
+              Retry setup
+            </AppButton>
+            {canSkipOptional && (
+              <AppButton
+                size="large"
+                emphasis="secondary"
+                disabled={isFinishing}
+                onPress={() => onComplete(initialUsername, biometricEnabled, true, [])}
+              >
+                Skip & Open Wallet
+              </AppButton>
+            )}
+          </YStack>
+        )}
+      </YStack>
+    );
+  }
+
   return (
     <YStack
       flex={1}
@@ -134,7 +210,7 @@ export function PermissionsStep({
     >
       {/* Header */}
       <YStack gap="$0" mt="$2">
-        <H1 fontSize="$8" text="center" fontWeight="800" letterSpacing={-0.1} color="$color">
+        <H1 fontSize="$8" text="center" fontWeight="800" letterSpacing={-0.15} color="$color">
           Profile & Security
         </H1>
       </YStack>
@@ -186,102 +262,57 @@ export function PermissionsStep({
 
       {/* Bottom Section - Settings & Finish Button */}
       <YStack gap="$4" mb="$4">
-        {/* Toggles Group Card */}
-        <YStack bg="$gray2" rounded="$6" borderWidth={0} overflow="hidden">
-          {/* Biometrics Toggle */}
-          <XStack p="$3.5" justify="space-between" items="center">
-            <XStack gap="$3" items="center" flex={1}>
-              <Fingerprint size={24} color={biometricEnabled ? '$accent10' : '$gray10'} />
-              <YStack flex={1}>
-                <Text fontWeight="700" fontSize="$5">
-                  Biometric Security
-                </Text>
-              </YStack>
-            </XStack>
-            <AppSwitch
-              variant="branded"
-              accessibilityLabel="Biometric security"
-              checked={biometricEnabled}
-              onCheckedChange={handleBiometricToggle}
-              disabled={isRequestingBio}
-            />
-          </XStack>
-
-          <Separator borderColor="$borderColor" />
-
-          {/* Username Claim Toggle (only when online) */}
+        <ListTable>
+          <ListTableRow
+            label="Biometric security"
+            verticalPadding={0}
+            labelColor="$color"
+            icon={Fingerprint}
+            rightContent={
+              <AppSwitch
+                variant="branded"
+                accessibilityLabel="Biometric security"
+                checked={biometricEnabled}
+                onCheckedChange={handleBiometricToggle}
+                disabled={isRequestingBio}
+              />
+            }
+          />
           {!isOffline && (
-            <>
-              <XStack p="$3.5" justify="space-between" items="center">
-                <XStack gap="$3" items="center" flex={1}>
-                  <User size={24} color={!skipUsername ? '$accent10' : '$gray10'} />
-                  <YStack flex={1}>
-                    <Text fontWeight="700" fontSize="$5">
-                      Claim @bey.cash
-                    </Text>
-                    <Text fontSize="$2" color="$gray10">
-                      {skipUsername ? 'Using npub only' : `${initialUsername}@bey.cash`}
-                    </Text>
-                  </YStack>
-                </XStack>
+            <ListTableRow
+              label="Claim @bey.cash"
+              verticalPadding={0}
+              labelColor="$color"
+              icon={User}
+              rightContent={
                 <AppSwitch
                   variant="branded"
                   accessibilityLabel="Claim @bey.cash username"
                   checked={!skipUsername}
                   onCheckedChange={(checked) => setSkipUsername(!checked)}
                 />
-              </XStack>
-
-              <Separator borderColor="$borderColor" />
-            </>
+              }
+            />
           )}
-
-          {/* Mint / Offline Status Row */}
-          <AppPressable
-            minHeight={48}
-            p="$3.5"
-            flexDirection="row"
-            items="center"
-            gap="$3"
-            accessibilityRole="button"
-            accessibilityLabel="Discover mints"
-            disabled={isOffline || isFinishing}
-            onPress={() => {
-              mintSheetRef.current?.present();
-            }}
-          >
-            {isOffline ? (
-              <>
-                <WifiOff size={24} color="$orange10" />
-                <YStack flex={1}>
-                  <Text fontWeight="700" fontSize="$5">
-                    Offline Mode
-                  </Text>
-                  <Text fontSize="$2" color="$gray10">
-                    No mints connected. Add mints on the home screen when online.
-                  </Text>
-                </YStack>
-              </>
-            ) : (
-              <>
-                <Landmark size={22} color="$gray10" />
-                <YStack flex={1}>
-                  <Text fontWeight="700" fontSize="$5">
-                    {selectedMints.length
-                      ? `${selectedMints.length} ${selectedMints.length === 1 ? 'mint' : 'mints'} selected`
-                      : 'Connect mints (optional)'}
-                  </Text>
-                  <Text fontSize="$2" color="$gray10">
-                    {selectedMints.length
-                      ? selectedMints.map((mint) => mint.name || mint.url).join(', ')
-                      : 'Choose mints you trust now, or add them later from Home'}
-                  </Text>
-                </YStack>
-                <ChevronRight size={20} color="$gray10" />
-              </>
-            )}
-          </AppPressable>
-        </YStack>
+          {isOffline ? (
+            <ListTableRow
+              label="Offline mode"
+              verticalPadding={0}
+              labelColor="$color"
+              icon={WifiOff}
+            />
+          ) : (
+            <ListTableRow
+              label="Discover mints"
+              verticalPadding={0}
+              labelColor="$color"
+              icon={Landmark}
+              value={selectedMints.length ? `${selectedMints.length} selected` : undefined}
+              disabled={isFinishing}
+              onPress={() => mintSheetRef.current?.present()}
+            />
+          )}
+        </ListTable>
 
         {/* Offline Info Badge */}
         {isOffline && (
