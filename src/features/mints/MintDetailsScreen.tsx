@@ -117,7 +117,7 @@ function MintDetailsContent() {
     dataUpdatedAt: connectionCheckedAt,
     errorUpdatedAt: connectionErrorAt,
     refetch: recheckConnection,
-  } = useMintInfo(mintUrl || '', { refetchOnMount: 'always' });
+  } = useMintInfo(mintUrl || '', { refetchOnMount: 'always', priority: 'interactive' });
 
   const normalizedTargetUrl = useMemo(() => mintUrl?.replace(/\/$/, '') || '', [mintUrl]);
 

@@ -46,7 +46,15 @@ jest.mock('@tamagui/lucide-icons', () =>
   ),
 );
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
-jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'ListTable', ListTableRow: 'Row' }));
+jest.mock('~/shared/ui/ListTable', () => ({
+  ListTable: 'ListTable',
+  ListTableRow: ({ label, ...props }: any) =>
+    require('react').createElement(
+      'Row',
+      { ...props, label, ...(props.onPress ? { accessibilityLabel: label } : {}) },
+      props.rightContent,
+    ),
+}));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppText', () => ({ AppText: 'AppText' }));
 jest.mock('~/shared/ui/AppSwitch', () => ({ AppSwitch: 'Switch' }));

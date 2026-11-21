@@ -83,6 +83,7 @@ function ConnectedMintSheetContent({ mintUrl, onClose }: { mintUrl: string; onCl
     !!mint &&
     (!settings.biometricEnabled || authenticated);
   const infoQuery = useMintInfo(url, {
+    priority: 'interactive',
     enabled: canShow && !deviceOffline,
     refetchOnMount: 'always',
   });

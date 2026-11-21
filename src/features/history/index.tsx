@@ -1,6 +1,6 @@
 import { LegendList } from '@legendapp/list/react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, RefreshControl } from 'react-native';
+import { Keyboard, RefreshControl, useWindowDimensions } from 'react-native';
 import { Text, XStack, YStack, useTheme } from 'tamagui';
 import { Store, Clock, Inbox, RotateCcw, Check, Search, X } from '@tamagui/lucide-icons';
 
@@ -112,6 +112,7 @@ export function HistoryScreen({
   const router = useRouter();
   const queryClient = useQueryClient();
   const theme = useTheme();
+  const { height: windowHeight } = useWindowDimensions();
   const [scope, setScope] = useState<HistoryScope>(requestedScope);
   useEffect(() => setScope(requestedScope), [requestedScope]);
   const [filters, setFilters] = useState<HistoryFilters>(defaultHistoryFilters);
@@ -302,7 +303,10 @@ export function HistoryScreen({
     <YStack flex={1} bg="$background">
       <LegendList
         data={rows}
-        recycleItems={false}
+        recycleItems
+        estimatedItemSize={70}
+        drawDistance={Math.min(1200, Math.max(600, windowHeight))}
+        getItemType={(item) => item.kind}
         keyExtractor={(item) =>
           item.kind === 'header' ? `section-${item.title}` : `${item.entry.type}-${item.entry.id}`
         }

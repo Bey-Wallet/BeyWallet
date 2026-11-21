@@ -3,6 +3,14 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { CurrencySettingsScreen } from '~/features/settings/PreferenceScreens';
 
 const mockSave = jest.fn();
+jest.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({ isFetching: false, refetch: jest.fn() }),
+}));
+jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
+jest.mock('@tamagui/lucide-icons', () => ({ Coins: 'Coins', RefreshCw: 'RefreshCw' }));
+jest.mock('~/shared/ui/RemoteImage', () => ({ RemoteImage: 'RemoteImage' }));
+jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
+jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
 const mockSettings = { secondaryCurrency: 'NGN', setSecondaryCurrency: mockSave };
 jest.mock('~/state/settingsStore', () => ({
   useSettingsStore: (select: (state: unknown) => unknown) => select(mockSettings),

@@ -13,6 +13,7 @@ export type MintRecommendation = {
   isTestnet?: boolean;
   status?: string | null;
   reliabilityScore?: number | null;
+  radarRank?: number;
 };
 
 type DiscoveryOptions = {
@@ -82,6 +83,19 @@ export const mintRecommendationService = {
       if (onUpdate && !updateTimer && !signal?.aborted) updateTimer = setTimeout(publish, 100);
     };
     const mergeRadar = (mints: Awaited<ReturnType<typeof mintHealthService.radarList>>) => {
+      for (const previous of radarByUrl.values()) previous.radarRank = undefined;
+      const ranks = new Map(
+        mints
+          .filter(
+            (mint) =>
+              mint.status === 'online' &&
+              mint.scoreStale === false &&
+              mint.score !== null &&
+              Number.isFinite(mint.score),
+          )
+          .sort((a, b) => b.score! - a.score!)
+          .map((mint, index) => [mint.url, index + 1]),
+      );
       for (const mint of mints) {
         const url = canonicalUrl(mint.url);
         if (!url) continue;
@@ -94,6 +108,7 @@ export const mintRecommendationService = {
           averageRating: mint.averageRating,
           status: mint.status,
           reliabilityScore: mint.score,
+          radarRank: ranks.get(mint.url),
           isTestnet: mint.isTest,
         });
       }

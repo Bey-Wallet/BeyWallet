@@ -51,8 +51,10 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
   const { primaryCurrency, secondaryCurrency } = useSettingsStore();
   const toast = useAppToast();
   const queryClient = useQueryClient();
-  const checking = useRef(false);
-  const [isChecking, setIsChecking] = useState(false);
+  const checking = useRef(new Set<string>());
+  const [checkingKeys, setCheckingKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const entryKey = `${entry.type}:${entry.id}`;
+  const isChecking = checkingKeys.has(entryKey);
   const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
@@ -166,9 +168,9 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
   const when = formatRelativeTime(historyTimestamp(entry.createdAt));
 
   const handleCheck = async () => {
-    if (checking.current) return;
-    checking.current = true;
-    setIsChecking(true);
+    if (checking.current.has(entryKey)) return;
+    checking.current.add(entryKey);
+    setCheckingKeys((current) => new Set(current).add(entryKey));
 
     try {
       const message = await checkHistoryStatus(entry);
@@ -187,8 +189,12 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
     } catch {
       toast.showFeedback(interactionCopy.couldNotVerifyStatusPleaseTryAgain);
     } finally {
-      checking.current = false;
-      setIsChecking(false);
+      checking.current.delete(entryKey);
+      setCheckingKeys((current) => {
+        const next = new Set(current);
+        next.delete(entryKey);
+        return next;
+      });
     }
   };
 

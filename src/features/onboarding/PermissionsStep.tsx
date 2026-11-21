@@ -1,6 +1,6 @@
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useEffect } from 'react';
-import { YStack, XStack, Text, H1, View, Separator, ScrollView } from 'tamagui';
+import { YStack, XStack, Text, H1, View, ScrollView } from 'tamagui';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
 import {
   ChevronRight,
@@ -19,7 +19,6 @@ import { networkService } from '~/services/platform/networkService';
 import Blockies from '~/shared/ui/Blockies';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintDiscoverySheet, type OnboardingMint } from './MintDiscoverySheet';
-import { AppPressable } from '~/shared/ui/AppPressable';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { Spinner } from '~/shared/ui/Spinner';
 import { AppText } from '~/shared/ui/AppText';
@@ -263,102 +262,57 @@ export function PermissionsStep({
 
       {/* Bottom Section - Settings & Finish Button */}
       <YStack gap="$4" mb="$4">
-        {/* Toggles Group Card */}
-        <YStack bg="$gray2" rounded="$6" borderWidth={0} overflow="hidden">
-          {/* Biometrics Toggle */}
-          <XStack p="$3.5" justify="space-between" items="center">
-            <XStack gap="$3" items="center" flex={1}>
-              <Fingerprint size={24} color={biometricEnabled ? '$accent10' : '$gray10'} />
-              <YStack flex={1}>
-                <Text fontWeight="700" fontSize="$5">
-                  Biometric Security
-                </Text>
-              </YStack>
-            </XStack>
-            <AppSwitch
-              variant="branded"
-              accessibilityLabel="Biometric security"
-              checked={biometricEnabled}
-              onCheckedChange={handleBiometricToggle}
-              disabled={isRequestingBio}
-            />
-          </XStack>
-
-          <Separator borderColor="$borderColor" />
-
-          {/* Username Claim Toggle (only when online) */}
+        <ListTable>
+          <ListTableRow
+            label="Biometric security"
+            verticalPadding={0}
+            labelColor="$color"
+            icon={Fingerprint}
+            rightContent={
+              <AppSwitch
+                variant="branded"
+                accessibilityLabel="Biometric security"
+                checked={biometricEnabled}
+                onCheckedChange={handleBiometricToggle}
+                disabled={isRequestingBio}
+              />
+            }
+          />
           {!isOffline && (
-            <>
-              <XStack p="$3.5" justify="space-between" items="center">
-                <XStack gap="$3" items="center" flex={1}>
-                  <User size={24} color={!skipUsername ? '$accent10' : '$gray10'} />
-                  <YStack flex={1}>
-                    <Text fontWeight="700" fontSize="$5">
-                      Claim @bey.cash
-                    </Text>
-                    <Text fontSize="$2" color="$gray10">
-                      {skipUsername ? 'Using npub only' : `${initialUsername}@bey.cash`}
-                    </Text>
-                  </YStack>
-                </XStack>
+            <ListTableRow
+              label="Claim @bey.cash"
+              verticalPadding={0}
+              labelColor="$color"
+              icon={User}
+              rightContent={
                 <AppSwitch
                   variant="branded"
                   accessibilityLabel="Claim @bey.cash username"
                   checked={!skipUsername}
                   onCheckedChange={(checked) => setSkipUsername(!checked)}
                 />
-              </XStack>
-
-              <Separator borderColor="$borderColor" />
-            </>
+              }
+            />
           )}
-
-          {/* Mint / Offline Status Row */}
-          <AppPressable
-            minHeight={48}
-            p="$3.5"
-            flexDirection="row"
-            items="center"
-            gap="$3"
-            accessibilityRole="button"
-            accessibilityLabel="Discover mints"
-            disabled={isOffline || isFinishing}
-            onPress={() => {
-              mintSheetRef.current?.present();
-            }}
-          >
-            {isOffline ? (
-              <>
-                <WifiOff size={24} color="$orange10" />
-                <YStack flex={1}>
-                  <Text fontWeight="700" fontSize="$5">
-                    Offline Mode
-                  </Text>
-                  <Text fontSize="$2" color="$gray10">
-                    No mints connected. Add mints on the home screen when online.
-                  </Text>
-                </YStack>
-              </>
-            ) : (
-              <>
-                <Landmark size={22} color="$gray10" />
-                <YStack flex={1}>
-                  <Text fontWeight="700" fontSize="$5">
-                    {selectedMints.length
-                      ? `${selectedMints.length} ${selectedMints.length === 1 ? 'mint' : 'mints'} selected`
-                      : 'Connect mints (optional)'}
-                  </Text>
-                  <Text fontSize="$2" color="$gray10">
-                    {selectedMints.length
-                      ? selectedMints.map((mint) => mint.name || mint.url).join(', ')
-                      : 'Choose mints you trust now, or add them later from Home'}
-                  </Text>
-                </YStack>
-                <ChevronRight size={20} color="$gray10" />
-              </>
-            )}
-          </AppPressable>
-        </YStack>
+          {isOffline ? (
+            <ListTableRow
+              label="Offline mode"
+              verticalPadding={0}
+              labelColor="$color"
+              icon={WifiOff}
+            />
+          ) : (
+            <ListTableRow
+              label="Discover mints"
+              verticalPadding={0}
+              labelColor="$color"
+              icon={Landmark}
+              value={selectedMints.length ? `${selectedMints.length} selected` : undefined}
+              disabled={isFinishing}
+              onPress={() => mintSheetRef.current?.present()}
+            />
+          )}
+        </ListTable>
 
         {/* Offline Info Badge */}
         {isOffline && (

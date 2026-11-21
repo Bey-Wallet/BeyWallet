@@ -3,8 +3,10 @@ import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { Spinner } from '~/shared/ui/Spinner';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Text, YStack, XStack, Paragraph, View, useTheme, ScrollView, Separator } from 'tamagui';
+import { Text, YStack, XStack, View, useTheme, Separator } from 'tamagui';
+import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import {
   Scan,
   ArrowLeft,
@@ -12,14 +14,12 @@ import {
   X,
   Plus,
   Check,
-  Sprout,
   Zap,
   Bitcoin,
-  RefreshCw,
-  ChevronDown,
   Landmark,
+  CircleOff,
 } from '@tamagui/lucide-icons';
-import { RefreshControl, TouchableOpacity, Keyboard } from 'react-native';
+import { RefreshControl, TouchableOpacity, Keyboard, useWindowDimensions } from 'react-native';
 import Animated, {
   type SharedValue,
   useSharedValue,
@@ -34,14 +34,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWalletStore } from '~/state/walletStore';
 import type { MintRecommendation } from '~/services/api/mintRecommendationService';
 import { mintMetadataFromInfo } from '~/features/explore/components/mintMeta';
-import { useMintInfo } from '~/shared/hooks/useMintInfo';
+import { useMintInfo, mintInfoQueryOptions } from '~/shared/hooks/useMintInfo';
 import { appTypography } from '~/shared/theme/appearance';
 import { useMintDiscovery } from './hooks/useMintDiscovery';
-import { MintIcon } from '~/features/explore/components/MintIcon';
+import { MintIconImage } from '~/features/explore/components/MintIcon';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
 import { useQuickMintConnection } from './hooks/useQuickMintConnection';
+import { useQueries } from '@tanstack/react-query';
+import { BUIOutlineChip } from '~/shared/ui/BUI/BUIChip';
+import { useAppToast } from '~/shared/hooks/useAppToast';
 
 // ─── Skeleton Loading Components ─────────────────────────────────────────────
+const mintKey = (mint: MintRecommendation) => mintUrlKey(mint.url);
+const supportsOnchain = (info: Record<string, any>) =>
+  mintMetadataFromInfo(info, '').supportsNut30 === true;
+
 interface MintSkeletonRowProps {
   progress: SharedValue<number>;
   showTopSeparator?: boolean;
@@ -195,6 +202,7 @@ interface DiscoveredMintRowProps {
   connecting: boolean;
   disabled: boolean;
   error?: string;
+  rank?: number;
 }
 
 const DiscoveredMintRow = React.memo(
@@ -207,8 +215,19 @@ const DiscoveredMintRow = React.memo(
     connecting,
     disabled,
     error,
+    rank,
   }: DiscoveredMintRowProps) => {
-    const { data: info } = useMintInfo(mint.url);
+    const unavailable = mint.status === 'offline' || mint.status === 'archived';
+    const toast = useAppToast();
+    const explainUnavailable = () =>
+      toast.showFeedback({
+        title:
+          mint.status === 'archived'
+            ? 'This mint is no longer active'
+            : 'This mint is offline. Try again later.',
+        severity: 'warning',
+      });
+    const { data: info, isLoading } = useMintInfo(mint.url, { enabled: !unavailable });
     const meta = mintMetadataFromInfo(info, mint.url);
 
     const displayName =
@@ -237,17 +256,52 @@ const DiscoveredMintRow = React.memo(
         )}
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={() => onPress(mint.url)}
+          onPress={() => (unavailable ? explainUnavailable() : onPress(mint.url))}
           disabled={disabled}
+          accessibilityRole="button"
+          accessibilityLabel={`${displayName}${unavailable ? ', unavailable mint' : ''}`}
           style={{
             paddingVertical: 12,
             flexDirection: 'row',
             alignItems: 'center',
           }}
         >
+          {rank !== undefined && (
+            <View
+              width={32}
+              height={32}
+              rounded={999}
+              items="center"
+              justify="center"
+              mr="$2"
+              accessibilityLabel={`Rank ${rank}`}
+            >
+              <Text
+                {...appTypography.title3}
+                fontWeight="600"
+                color={
+                  rank === 1
+                    ? '$green11'
+                    : rank === 2
+                      ? '$cyan11'
+                      : rank === 3
+                        ? '$orange11'
+                        : '$gray10'
+                }
+              >
+                {rank}
+              </Text>
+            </View>
+          )}
           {/* Left: 48px Circular icon */}
           <View mr="$3">
-            <MintIcon url={mint.url} hintIcon={mint.icon} size={48} />
+            <MintIconImage
+              url={mint.url}
+              hintIcon={mint.icon}
+              size={48}
+              info={info}
+              loading={isLoading}
+            />
           </View>
 
           {/* Middle: Title + badges + URL */}
@@ -256,7 +310,15 @@ const DiscoveredMintRow = React.memo(
               <Text
                 {...appTypography.label1}
                 fontWeight="600"
-                color="$color"
+                color={
+                  rank === 1
+                    ? '$green11'
+                    : rank === 2
+                      ? '$cyan11'
+                      : rank === 3
+                        ? '$orange11'
+                        : '$color'
+                }
                 numberOfLines={1}
                 style={{ maxWidth: '70%' }}
               >
@@ -272,7 +334,32 @@ const DiscoveredMintRow = React.memo(
 
           {/* Right: Add button or connected checkmark */}
           <View>
-            {isAdded ? (
+            {unavailable ? (
+              <AppPressable
+                accessibilityRole="button"
+                accessibilityLabel={`Why ${displayName} is unavailable`}
+                width={48}
+                height={48}
+                items="center"
+                justify="center"
+                disabled={disabled}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  explainUnavailable();
+                }}
+              >
+                <View
+                  bg="$gray3"
+                  rounded={999}
+                  width={32}
+                  height={32}
+                  items="center"
+                  justify="center"
+                >
+                  <CircleOff size={18} color="$gray10" />
+                </View>
+              </AppPressable>
+            ) : isAdded ? (
               <XStack
                 width={48}
                 height={48}
@@ -321,15 +408,21 @@ export default function AddMintScreen() {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [onchainOnly, setOnchainOnly] = useState(false);
+  const [testnutsOnly, setTestnutsOnly] = useState(false);
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [topRanked, setTopRanked] = useState(false);
   const searchInput = useRef<React.ElementRef<typeof Input>>(null);
-  const mintScroll = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const mintScroll = useRef<LegendListRef>(null);
   const enterMintUrl = () => {
-    mintScroll.current?.scrollTo({ y: 0, animated: true });
+    mintScroll.current?.scrollToOffset({ offset: 0, animated: true });
     searchInput.current?.focus();
   };
   const [refreshing, setRefreshing] = useState(false);
+  const failedChecksRef = useRef<(() => Promise<unknown>)[]>([]);
   const {
     requestConnection,
     connectingUrl,
@@ -337,12 +430,13 @@ export default function AddMintScreen() {
     sheet: connectionSheet,
   } = useQuickMintConnection();
 
-  const { mints: walletMints, scannerResult, setScannerResult } = useWalletStore();
+  const walletMints = useWalletStore((state) => state.mints);
+  const scannerResult = useWalletStore((state) => state.scannerResult);
+  const setScannerResult = useWalletStore((state) => state.setScannerResult);
 
   // MintRadar's directory plus NIP-87 relay discovery (cached).
   const {
     data: allDiscoveredMints = [],
-    isLoading: isDiscoverLoading,
     isFetching: isDiscoverFetching,
     isError: isDiscoverError,
     refetch: refetchDiscover,
@@ -353,7 +447,7 @@ export default function AddMintScreen() {
     setRefreshing(true);
 
     try {
-      await refetchDiscover();
+      await Promise.all([refetchDiscover(), ...failedChecksRef.current.map((retry) => retry())]);
     } finally {
       setRefreshing(false);
     }
@@ -411,55 +505,53 @@ export default function AddMintScreen() {
   }, [scannerResult, setScannerResult, requestConnection]);
 
   // ─── Filtered Lists & Lazy Pagination ──────────────────────────────────────
-  const PAGE_SIZE = 12;
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-
-  // Reset pagination when search query changes
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [cleanQuery]);
-
-  const filteredDiscoveredMints = useMemo(() => {
-    if (!cleanQuery) return allDiscoveredMints;
+  const connectedUrlSet = useMemo(
+    () => new Set(walletMints.map((mint) => mintUrlKey(mint.mintUrl))),
+    [walletMints],
+  );
+  const candidates = useMemo(() => {
     const q = cleanQuery.toLowerCase();
-    return allDiscoveredMints.filter((m) => {
+    const matches = allDiscoveredMints.filter((m) => {
+      if (topRanked && m.radarRank === undefined) return false;
+      if (testnutsOnly && m.isTestnet !== true) return false;
+      if (activeOnly && m.status !== 'online') return false;
       const name = m.name?.toLowerCase() || '';
       const url = m.url.toLowerCase();
       const desc = m.description?.toLowerCase() || '';
       return name.includes(q) || url.includes(q) || desc.includes(q);
     });
-  }, [allDiscoveredMints, cleanQuery]);
+    return topRanked ? matches.sort((a, b) => a.radarRank! - b.radarRank!) : matches;
+  }, [allDiscoveredMints, cleanQuery, testnutsOnly, activeOnly, topRanked]);
 
-  // Lazy-loaded slice of discovered mints
-  const displayedDiscoveredMints = useMemo(() => {
-    return filteredDiscoveredMints.slice(0, visibleCount);
-  }, [filteredDiscoveredMints, visibleCount]);
-
-  const hasMore = visibleCount < filteredDiscoveredMints.length;
-
-  const handleLoadMore = useCallback(() => {
-    if (hasMore && !isDiscoverLoading) {
-      setVisibleCount((prev) => prev + PAGE_SIZE);
-    }
-  }, [hasMore, isDiscoverLoading]);
-
-  // Auto load more on reaching near bottom of scroll
-  const handleScroll = useCallback(
-    ({ nativeEvent }: any) => {
-      const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-      const isCloseToBottom =
-        layoutMeasurement.height + contentOffset.y >= contentSize.height - 200;
-      if (isCloseToBottom && hasMore && !isDiscoverLoading) {
-        setVisibleCount((prev) => prev + PAGE_SIZE);
-      }
-    },
-    [hasMore, isDiscoverLoading],
+  // Capability discovery is opt-in and uses the shared cache and four-request queue.
+  const capabilityQueries = useMemo(
+    () =>
+      onchainOnly
+        ? candidates.map((mint) => ({
+            ...mintInfoQueryOptions(mint.url, 'background'),
+            select: supportsOnchain,
+          }))
+        : [],
+    [onchainOnly, candidates],
   );
-
-  // Set of connected mint URLs for quick lookup
-  const connectedUrlSet = useMemo(() => {
-    return new Set(walletMints.map((m) => normalizeUrl(m.mintUrl)));
-  }, [walletMints]);
+  const capabilities = useQueries({ queries: capabilityQueries });
+  const checkingCapabilities =
+    onchainOnly && capabilities.some((query) => query.isPending || query.isFetching);
+  const failedCapabilities = onchainOnly && capabilities.some((query) => query.isError);
+  failedChecksRef.current = capabilities
+    .filter((query) => query.isError)
+    .map((query) => () => query.refetch({ cancelRefetch: false }));
+  const filteredDiscoveredMints = onchainOnly
+    ? candidates.filter((_, index) => capabilities[index]?.data === true)
+    : candidates;
+  const hasFilters = onchainOnly || testnutsOnly || activeOnly || topRanked;
+  const clearFilters = () => {
+    setSearchQuery('');
+    setOnchainOnly(false);
+    setTestnutsOnly(false);
+    setActiveOnly(false);
+    setTopRanked(false);
+  };
 
   // ─── Navigation Handlers ───────────────────────────────────────────────────
   const handleDiscoveredMintPress = useCallback(
@@ -472,13 +564,44 @@ export default function AddMintScreen() {
     [router],
   );
 
+  const discoveredMintsRef = useRef(allDiscoveredMints);
+  discoveredMintsRef.current = allDiscoveredMints;
+
   const handleAddMintAction = useCallback(
     async (url: string) => {
       Keyboard.dismiss();
-      const mint = allDiscoveredMints.find((mint) => mintUrlKey(mint.url) === mintUrlKey(url));
+      const mint = discoveredMintsRef.current.find(
+        (mint) => mintUrlKey(mint.url) === mintUrlKey(url),
+      );
       await requestConnection({ url, name: mint?.name, icon: mint?.icon });
     },
-    [allDiscoveredMints, requestConnection],
+    [requestConnection],
+  );
+
+  const renderDiscoveredMint = useCallback(
+    ({ item: mint, index }: { item: MintRecommendation; index: number }) => (
+      <DiscoveredMintRow
+        mint={mint}
+        rank={topRanked ? mint.radarRank : undefined}
+        isAdded={connectedUrlSet.has(normalizeUrl(mint.url))}
+        connecting={connectingUrl === normalizeUrl(mint.url)}
+        disabled={!!connectingUrl}
+        error={
+          connectionError?.url === normalizeUrl(mint.url) ? connectionError.message : undefined
+        }
+        onPress={handleDiscoveredMintPress}
+        onAdd={handleAddMintAction}
+        showTopSeparator={index > 0}
+      />
+    ),
+    [
+      connectedUrlSet,
+      connectingUrl,
+      connectionError,
+      handleDiscoveredMintPress,
+      handleAddMintAction,
+      topRanked,
+    ],
   );
 
   const safeGoBack = useCallback(() => {
@@ -488,6 +611,11 @@ export default function AddMintScreen() {
       router.replace('/(tabs)');
     }
   }, [router]);
+
+  const rowState = useMemo(
+    () => ({ connectedUrlSet, connectingUrl, connectionError, topRanked }),
+    [connectedUrlSet, connectingUrl, connectionError, topRanked],
+  );
 
   return (
     <YStack flex={1} bg="$background">
@@ -522,16 +650,21 @@ export default function AddMintScreen() {
         }}
       />
 
-      <ScrollView
+      <LegendList
         ref={mintScroll}
+        data={filteredDiscoveredMints}
+        extraData={rowState}
+        renderItem={renderDiscoveredMint}
+        keyExtractor={mintKey}
+        recycleItems
+        estimatedItemSize={74}
+        drawDistance={Math.min(1200, Math.max(600, windowHeight))}
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingTop: 16,
+          paddingTop: 8,
           paddingBottom: insets.bottom + 40,
         }}
         keyboardShouldPersistTaps="handled"
-        onScroll={handleScroll}
-        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -539,146 +672,191 @@ export default function AddMintScreen() {
             tintColor={theme.accentColor?.val || '#888'}
           />
         }
-      >
-        {/* ─── Search Bar (Finding & Adding by URL) ───────────────────────────── */}
-        <YStack gap="$3" mb="$4">
-          <XStack
-            bg="$gray2"
-            rounded="$6"
-            px="$3.5"
-            py="$2"
-            items="center"
-            borderWidth={0}
-            borderColor="$borderColor"
-            gap="$3"
-          >
-            <Search size={20} strokeWidth={3} color="$gray10" />
-            <Input
-              ref={searchInput}
-              flex={1}
-              placeholder="Search mint name or enter URL..."
-              value={searchQuery}
-              editable={!connectingUrl}
-              onChangeText={setSearchQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              returnKeyType="search"
-              borderWidth={0}
-              bg="transparent"
-              {...appTypography.label2}
-              color="$color"
-              fontWeight="500"
-              p={0}
-              focusStyle={{ borderWidth: 0 }}
-              placeholderTextColor={theme.gray9.val}
-              onSubmitEditing={() => {
-                if (isDetectedAsUrl && formattedDetectedUrl) {
-                  handleAddMintAction(formattedDetectedUrl);
-                }
-              }}
-            />
-            {!!searchQuery && (
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery('');
-                }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        ListHeaderComponent={
+          <>
+            {/* ─── Search Bar (Finding & Adding by URL) ───────────────────────────── */}
+            <YStack gap="$2" mb="$1">
+              <XStack
+                bg="$gray2"
+                rounded="$6"
+                px="$1"
+                minHeight={48}
+                items="center"
+                borderWidth={0}
+                borderColor="$borderColor"
+                gap="$1"
               >
-                <X size={16} color="$gray10" />
-              </TouchableOpacity>
-            )}
-          </XStack>
-
-          {/* ─── Smart URL Detection Card ─────────────────────────────────────── */}
-          {isDetectedAsUrl && (
-            <YStack py="$2" gap="$2.5">
-              <XStack justify="space-between" items="center">
-                <XStack gap="$2" items="center" flex={1} mr="$2">
-                  <View
-                    width={40}
-                    height={40}
-                    rounded="$10"
-                    bg="$gray4"
-                    items="center"
-                    justify="center"
-                  >
-                    <Landmark size={18} color="$gray10" />
-                  </View>
-                  <YStack flex={1}>
-                    <Text {...appTypography.body2} fontWeight="600" color="$color">
-                      Add by URL
-                    </Text>
-                    <Text {...appTypography.body2} color="$gray10" numberOfLines={1}>
-                      {formattedDetectedUrl}
-                    </Text>
-                  </YStack>
+                <XStack width={40} items="center" justify="center">
+                  {isDiscoverFetching || checkingCapabilities ? (
+                    <Spinner
+                      size={18}
+                      color="$gray10"
+                      accessibilityLabel={
+                        checkingCapabilities
+                          ? 'Checking on-chain support'
+                          : 'Discovering more mints'
+                      }
+                    />
+                  ) : (
+                    <Search size={18} color="$gray10" />
+                  )}
                 </XStack>
-
-                {isDetectedUrlAlreadyAdded ? (
-                  <XStack bg="$green3" px="$2.5" py="$1.5" rounded="$10" items="center" gap="$1">
-                    <Check size={12} color="$green10" />
-                    <Text {...appTypography.body3} fontWeight="600" color="$green10">
-                      Added
-                    </Text>
-                  </XStack>
-                ) : (
-                  <AppIconButton
-                    variant="default"
-                    shape="circular"
-                    accessibilityLabel="Add mint"
-                    emphasis="secondary"
-                    size="xsmall"
-                    loading={connectingUrl === normalizeUrl(formattedDetectedUrl)}
-                    loadingText="Connecting to mint…"
-                    disabled={!!connectingUrl}
-                    icon={<Plus size={16} strokeWidth={2.5} />}
-                    onPress={() => handleAddMintAction(formattedDetectedUrl)}
-                  />
-                )}
+                <Input
+                  ref={searchInput}
+                  flex={1}
+                  accessibilityLabel="Search mints"
+                  placeholder="Search or paste mint URL"
+                  value={searchQuery}
+                  editable={!connectingUrl}
+                  onChangeText={setSearchQuery}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                  returnKeyType="search"
+                  borderWidth={0}
+                  bg="transparent"
+                  {...appTypography.body1}
+                  height={48}
+                  minWidth={0}
+                  color="$color"
+                  p={0}
+                  focusStyle={{ borderWidth: 0 }}
+                  placeholderTextColor={theme.gray10.val}
+                  onSubmitEditing={() => {
+                    if (isDetectedAsUrl && formattedDetectedUrl) {
+                      handleAddMintAction(formattedDetectedUrl);
+                    }
+                  }}
+                />
+                <XStack width={48} minHeight={48} items="center" justify="center">
+                  {!!searchQuery && (
+                    <AppPressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Clear mint search"
+                      minWidth={48}
+                      minHeight={48}
+                      items="center"
+                      justify="center"
+                      disabled={!!connectingUrl}
+                      onPress={() => {
+                        setSearchQuery('');
+                        searchInput.current?.focus();
+                      }}
+                    >
+                      <View
+                        width={24}
+                        height={24}
+                        rounded={999}
+                        bg="$gray3"
+                        items="center"
+                        justify="center"
+                      >
+                        <X size={14} strokeWidth={2.5} color="$gray10" />
+                      </View>
+                    </AppPressable>
+                  )}
+                </XStack>
               </XStack>
-            </YStack>
-          )}
-        </YStack>
 
-        {connectionError &&
-          isDetectedAsUrl &&
-          connectionError.url === normalizeUrl(formattedDetectedUrl) && (
-            <Text color="$red10" fontSize={11} accessibilityRole="alert" mb="$3">
-              {connectionError.message}
-            </Text>
-          )}
+              {/* ─── Smart URL Detection Card ─────────────────────────────────────── */}
+              {isDetectedAsUrl && (
+                <YStack py="$2" gap="$2.5">
+                  <XStack justify="space-between" items="center">
+                    <XStack gap="$2" items="center" flex={1} mr="$2">
+                      <View
+                        width={40}
+                        height={40}
+                        rounded="$10"
+                        bg="$gray4"
+                        items="center"
+                        justify="center"
+                      >
+                        <Landmark size={18} color="$gray10" />
+                      </View>
+                      <YStack flex={1}>
+                        <Text {...appTypography.body2} fontWeight="600" color="$color">
+                          Add by URL
+                        </Text>
+                        <Text {...appTypography.body2} color="$gray10" numberOfLines={1}>
+                          {formattedDetectedUrl}
+                        </Text>
+                      </YStack>
+                    </XStack>
 
-        {/* Discover mints from MintRadar and NIP-87. */}
-        <YStack gap="$2">
-          <XStack justify="space-between" items="center" mb="$1" px="$1">
-            <XStack items="center" gap="$2">
-              <Text {...appTypography.label2} fontWeight="600" color="$gray10">
-                Discover mints
-              </Text>
-              <View bg="$gray4" px="$2" py="$0.5" rounded="$10">
-                <Text {...appTypography.body3} fontWeight="600" color="$gray10">
-                  {filteredDiscoveredMints.length}
-                </Text>
-              </View>
-              {isDiscoverFetching && (
-                <Spinner size="small" color="$gray10" accessibilityLabel="Discovering more mints" />
+                    {isDetectedUrlAlreadyAdded ? (
+                      <XStack
+                        bg="$green3"
+                        px="$2.5"
+                        py="$1.5"
+                        rounded="$10"
+                        items="center"
+                        gap="$1"
+                      >
+                        <Check size={12} color="$green10" />
+                        <Text {...appTypography.body3} fontWeight="600" color="$green10">
+                          Added
+                        </Text>
+                      </XStack>
+                    ) : (
+                      <AppIconButton
+                        variant="default"
+                        shape="circular"
+                        accessibilityLabel="Add mint"
+                        emphasis="secondary"
+                        size="xsmall"
+                        loading={connectingUrl === normalizeUrl(formattedDetectedUrl)}
+                        loadingText="Connecting to mint…"
+                        disabled={!!connectingUrl}
+                        icon={<Plus size={16} strokeWidth={2.5} />}
+                        onPress={() => handleAddMintAction(formattedDetectedUrl)}
+                      />
+                    )}
+                  </XStack>
+                </YStack>
               )}
+            </YStack>
+
+            <XStack gap="$2" flexWrap="wrap" py="$2" mb="$1">
+              <BUIOutlineChip selected={topRanked} onPress={() => setTopRanked((value) => !value)}>
+                Top ranked
+              </BUIOutlineChip>
+              <BUIOutlineChip
+                selected={onchainOnly}
+                onPress={() => setOnchainOnly((value) => !value)}
+              >
+                On-chain
+              </BUIOutlineChip>
+              <BUIOutlineChip
+                selected={testnutsOnly}
+                onPress={() => setTestnutsOnly((value) => !value)}
+              >
+                Testnuts
+              </BUIOutlineChip>
+              <BUIOutlineChip
+                selected={activeOnly}
+                onPress={() => setActiveOnly((value) => !value)}
+              >
+                Active mints
+              </BUIOutlineChip>
             </XStack>
-
-            <TouchableOpacity
-              onPress={() => {
-                refetchDiscover();
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <RefreshCw size={14} color="$gray10" />
-            </TouchableOpacity>
-          </XStack>
-
-          {isDiscoverFetching && filteredDiscoveredMints.length === 0 ? (
+            {topRanked && (
+              <Text {...appTypography.body3} color="$gray10" mb="$2">
+                Ranked by Mint Radar reliability score
+              </Text>
+            )}
+            {connectionError &&
+              isDetectedAsUrl &&
+              connectionError.url === normalizeUrl(formattedDetectedUrl) && (
+                <Text color="$red10" fontSize={11} accessibilityRole="alert" mb="$3">
+                  {connectionError.message}
+                </Text>
+              )}
+          </>
+        }
+        ListEmptyComponent={
+          isDiscoverFetching || checkingCapabilities ? (
             <MintSkeletonList count={6} />
-          ) : isDiscoverError && filteredDiscoveredMints.length === 0 ? (
+          ) : isDiscoverError && allDiscoveredMints.length === 0 ? (
             <YStack py="$5" items="center" justify="center" gap="$2" bg="$gray2" rounded="$6">
               <Text color="$red10" {...appTypography.body2} fontWeight="600">
                 Failed to discover mints
@@ -687,70 +865,46 @@ export default function AddMintScreen() {
                 variant="default"
                 emphasis="primary"
                 size="xxsmall"
-                onPress={() => refetchDiscover()}
+                onPress={handleRefresh}
               >
                 Retry
               </AppButton>
             </YStack>
-          ) : filteredDiscoveredMints.length === 0 ? (
+          ) : (
             <YStack py="$5" items="center" justify="center" gap="$2" bg="$gray2" rounded="$6">
               <Text {...appTypography.body2} fontWeight="600" color="$color">
-                {cleanQuery ? 'No matching mints' : 'No mints found'}
+                {failedCapabilities
+                  ? 'Some mints could not be checked'
+                  : cleanQuery || hasFilters
+                    ? 'No matching mints'
+                    : 'No mints found'}
               </Text>
               <Text {...appTypography.body3} color="$gray10" textAlign="center" px="$4">
-                {cleanQuery
-                  ? 'Try a different keyword or enter the exact mint URL above.'
-                  : 'Connect directly using a Cashu mint URL.'}
+                {failedCapabilities
+                  ? 'Pull to refresh or clear the filters.'
+                  : hasFilters
+                    ? 'Try another filter combination.'
+                    : cleanQuery
+                      ? 'Try a different keyword or enter the exact mint URL above.'
+                      : 'Connect directly using a Cashu mint URL.'}
               </Text>
+              {failedCapabilities && (
+                <AppButton emphasis="secondary" size="small" onPress={handleRefresh}>
+                  Retry
+                </AppButton>
+              )}
               <AppButton
                 emphasis="text"
-                onPress={cleanQuery ? () => setSearchQuery('') : enterMintUrl}
+                onPress={
+                  hasFilters ? clearFilters : cleanQuery ? () => setSearchQuery('') : enterMintUrl
+                }
               >
-                {cleanQuery ? 'Clear search' : 'Enter mint URL'}
+                {hasFilters ? 'Clear filters' : cleanQuery ? 'Clear search' : 'Enter mint URL'}
               </AppButton>
             </YStack>
-          ) : (
-            <YStack>
-              {displayedDiscoveredMints.map((mint, index) => {
-                const isAdded = connectedUrlSet.has(normalizeUrl(mint.url));
-
-                return (
-                  <DiscoveredMintRow
-                    key={mint.url}
-                    mint={mint}
-                    isAdded={isAdded}
-                    connecting={connectingUrl === normalizeUrl(mint.url)}
-                    disabled={!!connectingUrl}
-                    error={
-                      connectionError?.url === normalizeUrl(mint.url)
-                        ? connectionError.message
-                        : undefined
-                    }
-                    onPress={handleDiscoveredMintPress}
-                    onAdd={handleAddMintAction}
-                    showTopSeparator={index > 0}
-                  />
-                );
-              })}
-
-              {/* Load more indicator / button */}
-              {hasMore && (
-                <XStack justify="center" py="$4">
-                  <AppButton
-                    variant="default"
-                    emphasis="secondary"
-                    size="xsmall"
-                    icon={<ChevronDown size={16} />}
-                    onPress={handleLoadMore}
-                  >
-                    {`Load More Mints (${filteredDiscoveredMints.length - visibleCount} remaining)`}
-                  </AppButton>
-                </XStack>
-              )}
-            </YStack>
-          )}
-        </YStack>
-      </ScrollView>
+          )
+        }
+      />
       {connectionSheet}
     </YStack>
   );

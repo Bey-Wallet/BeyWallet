@@ -23,13 +23,20 @@ const mockOpenMint = jest.fn();
 jest.mock('~/features/mints/hooks/useConnectedMintSheet', () => ({
   useConnectedMintSheet: () => ({ openMint: mockOpenMint, mintSheet: null }),
 }));
-let mockDiscoveredMints: { url: string; name: string }[] = [];
+let mockDiscoveredMints: {
+  url: string;
+  name: string;
+  isTestnet?: boolean;
+  radarRank?: number;
+  status?: string | null;
+}[] = [];
 let mockMintMetadata: Record<string, Record<string, unknown>> = {};
 let mockMintErrors: Record<string, Error> = {};
 let mockDeviceOffline = false;
 let mockHideBalance = false;
 let mockSkipDisclaimer = false;
 const mockRecheckMint = jest.fn();
+const mockRefreshDiscovery = jest.fn(async () => ({}));
 const mockInvalidateQueries = jest.fn();
 let mockCheckingMints: string[] = [];
 let mockRemovalEligibility: Record<string, string | null> = {};
@@ -55,7 +62,14 @@ jest.mock('tamagui', () => ({
 jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('@tanstack/react-query', () => ({
   useQueries: ({ queries }: any) =>
-    queries.map(({ queryKey }: any) => ({
+    queries.map(({ queryKey, select }: any) => ({
+      data: mockMintMetadata[queryKey[1]]
+        ? select
+          ? select(mockMintMetadata[queryKey[1]])
+          : mockMintMetadata[queryKey[1]]
+        : undefined,
+      isPending: false,
+      isError: !!mockMintErrors[queryKey[1]],
       error: mockMintErrors[queryKey[1]],
       isFetching: mockCheckingMints.includes(queryKey[1]),
       refetch: (options: unknown) => mockRecheckMint(queryKey[1], options),
@@ -70,6 +84,7 @@ jest.mock('@tanstack/react-query', () => ({
             ? mockRemovalEligibility
             : undefined,
     isLoading: false,
+    refetch: mockRefreshDiscovery,
     error: queryKey[0] === 'mint-metadata' ? mockMintErrors[queryKey[1]] : undefined,
   }),
   useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
@@ -93,7 +108,8 @@ jest.mock('~/state/settingsStore', () => ({
     },
   ),
 }));
-jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
+const mockToast = jest.fn();
+jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: mockToast }) }));
 jest.mock('~/shared/ui/AppBottomSheet', () => ({
   __esModule: true,
   default: require('react').forwardRef(({ children, ...props }: any, ref: any) => {
@@ -112,12 +128,42 @@ jest.mock('~/services/wallet/currencyService', () => ({ currencyService: {} }));
 jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('~/services/api/mintRecommendationService', () => ({ mintRecommendationService: {} }));
 jest.mock('~/storage/sqlite/sqliteStorage', () => ({ sqliteStorage: {} }));
-jest.mock('~/features/explore/components/MintIcon', () => ({ MintIcon: 'MintIcon' }));
+jest.mock('~/features/explore/components/MintIcon', () => ({
+  MintIcon: 'MintIcon',
+  MintIconImage: 'MintIcon',
+}));
+const mockScrollToOffset = jest.fn();
+const mockDiscoveryListRender = jest.fn();
+jest.mock('@legendapp/list/react-native', () => ({
+  LegendList: require('react').forwardRef(
+    ({ data, renderItem, ListHeaderComponent, ListEmptyComponent, ...props }: any, ref: any) => {
+      mockDiscoveryListRender();
+      require('react').useImperativeHandle(ref, () => ({ scrollToOffset: mockScrollToOffset }));
+      return require('react').createElement(
+        'LegendList',
+        { data, renderItem, ...props },
+        ListHeaderComponent,
+        data.length
+          ? data
+              .slice(0, 12)
+              .map((item: any, index: number) =>
+                require('react').createElement(
+                  require('react').Fragment,
+                  { key: item.url },
+                  renderItem({ item, index }),
+                ),
+              )
+          : ListEmptyComponent,
+      );
+    },
+  ),
+}));
 jest.mock('~/shared/ui/RollingNumber', () => ({ RollingNumber: 'RollingNumber' }));
 jest.mock('~/shared/ui/RemoteImage', () => ({ MintImage: 'MintImage' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
+jest.mock('~/shared/ui/BUI/BUIChip', () => ({ BUIOutlineChip: 'FilterChip' }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
 jest.mock('react-native-reanimated', () => ({
   __esModule: true,
@@ -332,6 +378,22 @@ it('clears an unmatched mint search without changing connected mints', async () 
   expect(mockPush).not.toHaveBeenCalled();
 });
 
+it('clears search from its inline control and keeps refresh available without a directory heading', async () => {
+  mockDiscoveredMints = [{ url: 'https://one.example', name: 'One' }];
+  await render();
+  expect(tree.root.findAllByProps({ children: 'Discover mints' })).toHaveLength(0);
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Clear mint search' })).toHaveLength(0);
+  await act(async () => tree.root.findByType('Input' as any).props.onChangeText('One'));
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'Clear mint search' }).props.onPress(),
+  );
+  expect(tree.root.findByType('Input' as any).props.value).toBe('');
+  await act(async () =>
+    tree.root.findByType('LegendList' as any).props.refreshControl.props.onRefresh(),
+  );
+  expect(mockRefreshDiscovery).toHaveBeenCalledTimes(1);
+});
+
 it('opens the trust sheet when submitting an entered URL, preserving its path', async () => {
   await render();
   await act(async () =>
@@ -544,6 +606,44 @@ it('marks connected directory entries with an accessible checkmark and no Added 
   expect(tree.root.findAllByType('MintIcon' as any)).toHaveLength(1);
 });
 
+it.each(['offline', 'archived'])(
+  'blocks %s directory mints and explains with a toast',
+  async (status) => {
+    mockDiscoveredMints = [{ url: 'https://unavailable.example', name: 'Unavailable', status }];
+    await render();
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'Add Unavailable' })).toHaveLength(0);
+    expect(tree.root.findAllByType('CircleOff' as any)).toHaveLength(1);
+    await act(async () =>
+      tree.root
+        .findByProps({ accessibilityLabel: 'Unavailable, unavailable mint' })
+        .props.onPress(),
+    );
+    await act(async () =>
+      tree.root
+        .findByProps({ accessibilityLabel: 'Why Unavailable is unavailable' })
+        .props.onPress({ stopPropagation: jest.fn() }),
+    );
+    expect(mockToast).toHaveBeenCalledTimes(2);
+    expect(mockToast).toHaveBeenLastCalledWith(
+      status === 'archived'
+        ? 'This mint is no longer active'
+        : 'This mint is offline. Try again later.',
+      expect.objectContaining({ kind: 'warning' }),
+    );
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+  },
+);
+
+it.each([null, 'online', 'degraded'])('keeps %s directory mints available', async (status) => {
+  mockDiscoveredMints = [{ url: 'https://available.example', name: 'Available', status }];
+  await render();
+  expect(tree.root.findByProps({ accessibilityLabel: 'Add Available' }).props.disabled).toBe(false);
+  await act(async () => tree.root.findByProps({ accessibilityLabel: 'Available' }).props.onPress());
+  expect(mockPush).toHaveBeenCalled();
+  expect(mockToast).not.toHaveBeenCalled();
+});
+
 it('keeps connected mints in order without recommendation filler or payment badges', async () => {
   const urls = [
     'https://lightning.example',
@@ -669,7 +769,7 @@ it('rejects an invalid mint URL once without starting a wallet operation', async
   expect(hapticService.completion).not.toHaveBeenCalled();
 });
 
-it('makes all discovered mints reachable through Load More', async () => {
+it('passes the full directory to the virtual list and keeps later mint actions reachable', async () => {
   mockDiscoveredMints = Array.from({ length: 36 }, (_, index) => ({
     url: `https://mint${index}.example`,
     name: `Mint ${index}`,
@@ -685,11 +785,139 @@ it('makes all discovered mints reachable through Load More', async () => {
           node.props.children.startsWith('Load More Mints'),
       );
   expect(visibleMints()).toHaveLength(12);
-  await act(async () => loadMore()!.props.onPress());
-  expect(visibleMints()).toHaveLength(24);
-  await act(async () => loadMore()!.props.onPress());
-  expect(visibleMints()).toHaveLength(36);
+  const list = tree.root.findByType('LegendList' as any);
+  expect(list.props.data).toHaveLength(36);
+  const last = list.props.data[35];
+  const laterRow = list.props.renderItem({ item: last, index: 35 });
+  laterRow.props.onPress(last.url);
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(modals)/mint-profile',
+    params: { url: last.url },
+  });
   expect(loadMore()).toBeUndefined();
+});
+
+it('does not rerender discovery for unrelated wallet balance updates', async () => {
+  mockDiscoveredMints = [{ url: 'https://one.example', name: 'One' }];
+  await render();
+  const renders = mockDiscoveryListRender.mock.calls.length;
+  await act(async () => {
+    useWalletStore.setState({ balance: 123, refreshCounter: 1 });
+  });
+  expect(mockDiscoveryListRender).toHaveBeenCalledTimes(renders);
+});
+
+it('combines on-chain, testnuts, active and search filters and can toggle them off', async () => {
+  mockDiscoveredMints = [
+    { url: 'https://normal.example', name: 'Normal' },
+    { url: 'https://test-chain.example', name: 'Test chain', isTestnet: true, status: 'online' },
+    { url: 'https://connected-chain.example', name: 'Connected', status: 'offline' },
+    { url: 'https://test-ln.example', name: 'Test Lightning', isTestnet: true, status: 'online' },
+  ];
+  for (const mint of mockDiscoveredMints) mockMintMetadata[mint.url] = { nuts: {} };
+  mockMintMetadata['https://test-chain.example'] = { nuts: { '30': { supported: true } } };
+  mockMintMetadata['https://connected-chain.example'] = {
+    nuts: {
+      '4': { methods: [{ method: 'onchain' }] },
+      '5': { methods: [{ method: 'onchain' }] },
+    },
+  };
+  useWalletStore.setState({
+    mints: [{ mintUrl: 'https://connected-chain.example/', trusted: true }],
+  });
+  await render();
+  const shown = () =>
+    tree.root.findByType('LegendList' as any).props.data.map((mint: any) => mint.name);
+  const chip = (label: string) =>
+    tree.root.findAllByType('FilterChip' as any).find((node) => node.props.children === label)!;
+  expect(shown()).toHaveLength(4);
+  await act(async () => chip('On-chain').props.onPress());
+  expect(shown()).toEqual(['Test chain', 'Connected']);
+  await act(async () => chip('Active mints').props.onPress());
+  expect(shown()).toEqual(['Test chain']);
+  await act(async () => chip('Testnuts').props.onPress());
+  expect(shown()).toEqual(['Test chain']);
+  await act(async () => chip('On-chain').props.onPress());
+  expect(shown()).toEqual(['Test chain', 'Test Lightning']);
+  await act(async () => tree.root.findByType('Input' as any).props.onChangeText('Lightning'));
+  expect(shown()).toEqual(['Test Lightning']);
+});
+
+it('includes connected online mints in Active mints and excludes unknown or inactive status', async () => {
+  mockDiscoveredMints = ['online', 'offline', 'archived', 'degraded', null].map(
+    (status, index) => ({
+      url: `https://mint${index}.example`,
+      name: `Mint ${index}`,
+      status,
+    }),
+  );
+  useWalletStore.setState({ mints: [{ mintUrl: 'https://mint0.example', trusted: true }] });
+  await render();
+  const chip = () =>
+    tree.root
+      .findAllByType('FilterChip' as any)
+      .find((node) => node.props.children === 'Active mints')!;
+  await act(async () => chip().props.onPress());
+  expect(
+    tree.root.findByType('LegendList' as any).props.data.map((mint: any) => mint.name),
+  ).toEqual(['Mint 0']);
+  await act(async () => chip().props.onPress());
+  expect(tree.root.findByType('LegendList' as any).props.data).toHaveLength(5);
+});
+
+it('clears an empty filter combination and retries failed on-chain checks', async () => {
+  mockDiscoveredMints = [{ url: 'https://unknown.example', name: 'Unknown' }];
+  mockMintErrors['https://unknown.example'] = new Error('Offline');
+  await render();
+  const chip = (label: string) =>
+    tree.root.findAllByType('FilterChip' as any).find((node) => node.props.children === label)!;
+  await act(async () => chip('On-chain').props.onPress());
+  const button = (label: string) =>
+    tree.root.findAllByType('AppButton' as any).find((node) => node.props.children === label)!;
+  await act(async () => button('Retry').props.onPress());
+  expect(mockRefreshDiscovery).toHaveBeenCalledTimes(1);
+  expect(mockRecheckMint).toHaveBeenCalledWith('https://unknown.example', {
+    cancelRefetch: false,
+  });
+  await act(async () => button('Clear filters').props.onPress());
+  expect(chip('On-chain').props.selected).toBe(false);
+  expect(tree.root.findByType('LegendList' as any).props.data).toHaveLength(1);
+});
+
+it('sorts ranked mints, highlights the top three and preserves source ranks when searching', async () => {
+  mockDiscoveredMints = [
+    { url: 'https://four.example', name: 'Four', radarRank: 4 },
+    { url: 'https://unranked.example', name: 'Unranked' },
+    { url: 'https://two.example', name: 'Two', radarRank: 2 },
+    { url: 'https://one.example', name: 'One', radarRank: 1 },
+    { url: 'https://three.example', name: 'Three', radarRank: 3 },
+  ];
+  await render();
+  const ranked = () =>
+    tree.root
+      .findAllByType('FilterChip' as any)
+      .find((node) => node.props.children === 'Top ranked')!;
+  await act(async () => ranked().props.onPress());
+  const list = () => tree.root.findByType('LegendList' as any);
+  expect(list().props.data.map((mint: any) => mint.radarRank)).toEqual([1, 2, 3, 4]);
+  expect(
+    tree.root.findAllByProps({ children: 'Ranked by Mint Radar reliability score' }),
+  ).toHaveLength(1);
+  for (const [name, color] of [
+    ['One', '$green11'],
+    ['Two', '$cyan11'],
+    ['Three', '$orange11'],
+  ] as const) {
+    expect(
+      tree.root.findAllByType('Text' as any).find((text) => text.props.children === name)?.props
+        .color,
+    ).toBe(color);
+  }
+  expect(tree.root.findByProps({ accessibilityLabel: 'Rank 1' }).props.bg).toBeUndefined();
+  await act(async () => tree.root.findByType('Input' as any).props.onChangeText('Four'));
+  expect(list().props.data.map((mint: any) => mint.radarRank)).toEqual([4]);
+  await act(async () => ranked().props.onPress());
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Rank 4' })).toHaveLength(0);
 });
 
 it.each([false, true])(

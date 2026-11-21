@@ -24,11 +24,7 @@ export type CurrencyCode =
   | 'KRW'
   | 'TRY'
   | 'THB'
-  | 'PHP'
-  | 'IDR'
-  | 'VND'
   | 'NGN'
-  | 'ARS'
   | 'AED'
   | 'KWD';
 
@@ -40,43 +36,38 @@ export interface Currency {
   codeSuffix?: boolean;
 }
 
+// Descending 2025 BIS FX turnover (September release, Table 4).
+// KWD and NGN are not individually ranked there and follow alphabetically.
+// https://www.bis.org/publications/202509-commentary-otc-derivatives.pdf
 export const SUPPORTED_CURRENCIES: Currency[] = [
   { code: 'USD', symbol: '$', name: 'US Dollar', locale: 'en-US' },
   { code: 'EUR', symbol: '€', name: 'Euro', locale: 'de-DE' },
-  { code: 'GBP', symbol: '£', name: 'British Pound', locale: 'en-GB' },
-  { code: 'PLN', symbol: 'zł', name: 'Polish Zloty', locale: 'pl-PL' },
-  { code: 'CZK', symbol: 'Kč', name: 'Czech Koruna', locale: 'cs-CZ' },
   { code: 'JPY', symbol: '¥', name: 'Japanese Yen', locale: 'ja-JP' },
+  { code: 'GBP', symbol: '£', name: 'British Pound', locale: 'en-GB' },
+  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan', locale: 'zh-CN' },
+  { code: 'CHF', symbol: 'CHF', name: 'Swiss Franc', locale: 'de-CH' },
   { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', locale: 'en-AU' },
   { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', locale: 'en-CA' },
-  { code: 'CHF', symbol: 'CHF', name: 'Swiss Franc', locale: 'de-CH' },
-  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan', locale: 'zh-CN' },
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee', locale: 'en-IN' },
-  { code: 'BRL', symbol: 'R$', name: 'Brazilian Real', locale: 'pt-BR' },
-  { code: 'RUB', symbol: '₽', name: 'Russian Ruble', locale: 'ru-RU' },
-  { code: 'ZAR', symbol: 'R', name: 'South African Rand', locale: 'en-ZA' },
-  { code: 'MXN', symbol: 'MX$', name: 'Mexican Peso', locale: 'es-MX' },
-  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar', locale: 'en-SG' },
   { code: 'HKD', symbol: 'HK$', name: 'Hong Kong Dollar', locale: 'zh-HK' },
-  { code: 'NZD', symbol: 'NZ$', name: 'New Zealand Dollar', locale: 'en-NZ' },
-  { code: 'SEK', symbol: 'kr', name: 'Swedish Krona', locale: 'sv-SE' },
+  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar', locale: 'en-SG' },
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee', locale: 'en-IN' },
   { code: 'KRW', symbol: '₩', name: 'South Korean Won', locale: 'ko-KR' },
+  { code: 'SEK', symbol: 'kr', name: 'Swedish Krona', locale: 'sv-SE' },
+  { code: 'MXN', symbol: 'MX$', name: 'Mexican Peso', locale: 'es-MX' },
+  { code: 'NZD', symbol: 'NZ$', name: 'New Zealand Dollar', locale: 'en-NZ' },
+  { code: 'BRL', symbol: 'R$', name: 'Brazilian Real', locale: 'pt-BR' },
+  { code: 'ZAR', symbol: 'R', name: 'South African Rand', locale: 'en-ZA' },
+  { code: 'PLN', symbol: 'zł', name: 'Polish Zloty', locale: 'pl-PL' },
   { code: 'TRY', symbol: '₺', name: 'Turkish Lira', locale: 'tr-TR' },
-  { code: 'AED', symbol: 'AED', name: 'UAE Dirham', locale: 'en-US', codeSuffix: true },
-  { code: 'KWD', symbol: 'KWD', name: 'Kuwaiti Dinar', locale: 'en-US', codeSuffix: true },
   { code: 'THB', symbol: '฿', name: 'Thai Baht', locale: 'th-TH' },
-  { code: 'PHP', symbol: '₱', name: 'Philippine Peso', locale: 'en-PH' },
-  { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah', locale: 'id-ID' },
-  { code: 'VND', symbol: '₫', name: 'Vietnamese Dong', locale: 'vi-VN' },
+  { code: 'CZK', symbol: 'Kč', name: 'Czech Koruna', locale: 'cs-CZ' },
+  { code: 'AED', symbol: 'AED', name: 'UAE Dirham', locale: 'en-US', codeSuffix: true },
+  { code: 'RUB', symbol: '₽', name: 'Russian Ruble', locale: 'ru-RU' },
+  { code: 'KWD', symbol: 'KWD', name: 'Kuwaiti Dinar', locale: 'en-US', codeSuffix: true },
   { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', locale: 'en-NG' },
-  { code: 'ARS', symbol: 'AR$', name: 'Argentine Peso', locale: 'es-AR' },
 ];
 
-// Preserve metadata for saved preferences/backups while retiring these picker options.
-const retiredPickerCodes = new Set<CurrencyCode>(['VND', 'PHP', 'IDR', 'ARS']);
-export const SELECTABLE_CURRENCIES = SUPPORTED_CURRENCIES.filter(
-  ({ code }) => !retiredPickerCodes.has(code),
-);
+export const SELECTABLE_CURRENCIES = SUPPORTED_CURRENCIES;
 
 // Caches for Intl.NumberFormat instances to prevent garbage collection churn and constructor overhead during list scrolls.
 const currencyFormatterCache = new Map<string, Intl.NumberFormat>();
@@ -105,8 +96,12 @@ export const currencyService = {
     if (Math.abs(value) > 0 && Math.abs(value) < 0.01) {
       return `${value < 0 ? '-' : ''}<${currencyService.formatValue(0.01, currencyCode)}`;
     }
-    const currency =
-      SUPPORTED_CURRENCIES.find((c) => c.code === currencyCode) || SUPPORTED_CURRENCIES[0];
+    const currency = SUPPORTED_CURRENCIES.find((c) => c.code === currencyCode) || {
+      code: currencyCode,
+      symbol: currencyCode,
+      locale: 'en-US',
+      codeSuffix: true,
+    };
     const useCodeSuffix = currency.codeSuffix === true;
     try {
       const cacheKey = `${currency.locale}_${currency.code}`;
@@ -167,18 +162,7 @@ export const currencyService = {
       }
 
       // Determine symbol position based on currency convention
-      const suffixCurrencies = [
-        'EUR',
-        'PLN',
-        'CZK',
-        'SEK',
-        'RUB',
-        'CHF',
-        'ZAR',
-        'AED',
-        'KWD',
-        'VND',
-      ];
+      const suffixCurrencies = ['EUR', 'PLN', 'CZK', 'SEK', 'RUB', 'CHF', 'ZAR', 'AED', 'KWD'];
       if (useCodeSuffix || suffixCurrencies.includes(currency.code)) {
         return `${decimalPart} ${currency.symbol}`;
       } else {
@@ -188,7 +172,7 @@ export const currencyService = {
   },
 
   getSymbol(currencyCode: CurrencyCode): string {
-    return SUPPORTED_CURRENCIES.find((c) => c.code === currencyCode)?.symbol || '$';
+    return SUPPORTED_CURRENCIES.find((c) => c.code === currencyCode)?.symbol || currencyCode;
   },
 
   async fetchBitcoinPrice(currencyCode: CurrencyCode) {

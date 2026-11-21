@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { useTheme, useThemeName } from 'tamagui';
+import { Check } from '@tamagui/lucide-icons';
 import Animated, {
   Easing,
   interpolateColor,
@@ -51,6 +52,7 @@ export function AppSwitch({
       ? primaryColor
       : foreground;
   const onThumbColor = secondary ? (branded ? primaryColor : foreground) : alternateColor;
+  const checkColor = secondary ? alternateColor : primaryColor;
 
   useEffect(() => {
     progress.value = reducedMotion
@@ -70,6 +72,7 @@ export function AppSwitch({
     transform: [{ translateX: progress.value * 20 }],
     backgroundColor: interpolateColor(progress.value, [0, 1], ['#FFFFFF', onThumbColor]),
   }));
+  const checkStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
   return (
     <AppPressable
@@ -97,7 +100,16 @@ export function AppSwitch({
     >
       {children}
       <Animated.View pointerEvents="none" style={[styles.track, trackStyle]}>
-        <Animated.View style={[styles.thumb, thumbStyle]} />
+        <Animated.View style={[styles.thumb, thumbStyle]}>
+          <Animated.View
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={checkStyle}
+          >
+            <Check size={15} strokeWidth={3} color={checkColor} />
+          </Animated.View>
+        </Animated.View>
       </Animated.View>
     </AppPressable>
   );
@@ -109,6 +121,8 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.18,

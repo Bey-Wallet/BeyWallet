@@ -316,6 +316,45 @@ it('checks once per tap sequence, spins and keeps the status button separate fro
   expect(screen.root.findAllByType('Spinner' as any)).toHaveLength(0);
 });
 
+it('keeps status-check feedback attached to the correct payment when a row is recycled', async () => {
+  const resolvers = new Map<string, (message: string) => void>();
+  jest.mocked(checkHistoryStatus).mockImplementation(
+    (entry) =>
+      new Promise((resolve) => {
+        resolvers.set(entry.id, resolve);
+      }),
+  );
+  let row!: ReactTestRenderer;
+  const renderRow = (id: string) => (
+    <HistoryItem
+      entry={{ ...mockHistory[0], id }}
+      displayAmount={10}
+      position="only"
+      onPress={jest.fn()}
+    />
+  );
+  const check = () =>
+    row.root
+      .findAllByType('AppPressable' as any)
+      .find((node) => node.props.accessibilityLabel?.startsWith('Check status'))!;
+  try {
+    await act(async () => {
+      row = create(renderRow('first'));
+    });
+    await act(async () => check().props.onPress({ stopPropagation: jest.fn() }));
+    expect(check().props.disabled).toBe(true);
+    await act(async () => row.update(renderRow('second')));
+    expect(check().props.disabled).toBe(false);
+    await act(async () => check().props.onPress({ stopPropagation: jest.fn() }));
+    await act(async () => resolvers.get('first')!('Still pending'));
+    expect(check().props.disabled).toBe(true);
+    await act(async () => resolvers.get('second')!('Still pending'));
+    expect(check().props.disabled).toBe(false);
+  } finally {
+    await act(async () => row?.unmount());
+  }
+});
+
 it.each([
   { type: 'mint', state: 'UNPAID', amount: '10 sats', opacity: 0.5 },
   { type: 'mint', state: 'PAID', amount: '10 sats', opacity: 0.5 },

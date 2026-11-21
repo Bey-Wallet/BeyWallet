@@ -74,6 +74,7 @@ export function ListTableRow({
   multiline,
   expandValue = false,
   hideLabel = false,
+  verticalPadding = appSpacing.gap,
   compact: compactProp,
   disabled = false,
   selected,
@@ -98,6 +99,7 @@ export function ListTableRow({
   /** Let long values use all remaining width after the label. */
   expandValue?: boolean;
   hideLabel?: boolean;
+  verticalPadding?: number;
   compact?: boolean;
   disabled?: boolean;
   selected?: boolean;
@@ -144,7 +146,7 @@ export function ListTableRow({
         justify="space-between"
         items="center"
         minHeight={compact ? appDimensions.touchTarget : appDimensions.row}
-        py={appSpacing.gap}
+        py={verticalPadding}
         px={appSpacing.page}
         gap={appSpacing.compact}
       >
