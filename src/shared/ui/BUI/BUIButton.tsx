@@ -94,7 +94,7 @@ export function BUIActionButton({
       <Text
         mt={8}
         fontFamily="$body"
-        fontWeight="500"
+        fontWeight="600"
         fontSize={12}
         letterSpacing={0.12}
         color={appearance ? theme.muted : '$gray10'}

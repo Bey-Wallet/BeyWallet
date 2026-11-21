@@ -275,7 +275,7 @@ export const BUIButtonControl = forwardRef<GetRef<typeof Button>, BUIButtonContr
           {!iconOnly && (
             <Text
               fontFamily="$body"
-              fontWeight="500"
+              fontWeight="600"
               fontSize={resolvedFontSize}
               lineHeight={Math.round(resolvedFontSize * 1.4)}
               letterSpacing={
