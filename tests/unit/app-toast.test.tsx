@@ -1,4 +1,5 @@
 import React from 'react';
+import { Dimensions } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { AppToast } from '~/shared/ui/AppToast';
 import * as Haptics from 'expo-haptics';
@@ -50,10 +51,18 @@ it('uses explicit severity, compact explanatory copy and reduced motion without 
   expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(1);
   expect(tree.root.findByType('ToastTitle' as any).props).toMatchObject({
     children: 'Checking payment',
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '400',
   });
-  expect(tree.root.findByType('Info' as any).props).toMatchObject({ size: 18, strokeWidth: 2.2 });
+  expect(tree.root.findByType('Info' as any).props).toMatchObject({ size: 20, strokeWidth: 2 });
+  expect(tree.root.findByType('Toast' as any).props).toMatchObject({
+    width: 'auto',
+    rounded: '$6',
+    bg: '$gray2',
+    themeInverse: false,
+    minHeight: 48,
+  });
+  expect(tree.root.findByType('ToastDescription' as any).props.numberOfLines).toBeUndefined();
   mockToast = { id: 'two', title: 'Received', kind: 'loading' };
   await act(async () => tree.update(<AppToast />));
   expect(tree.root.findByType('Spinner' as any).props).toMatchObject({
@@ -84,10 +93,15 @@ it('uses the same compact style for action toasts with an accessible View target
   expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(0);
   expect(tree.root.findByType('ToastTitle' as any).props).toMatchObject({
     children: 'Received 10 sat via Nostr',
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '400',
+    color: '$toastSuccessForeground',
   });
-  expect(tree.root.findByType('Check' as any).props).toMatchObject({ size: 18, strokeWidth: 3 });
+  expect(tree.root.findByType('Check' as any).props).toMatchObject({
+    size: 20,
+    strokeWidth: 2.5,
+    color: '$toastSuccessForeground',
+  });
   expect(tree.root.findByType('AppTextButton' as any).props.children).toBe('View');
   await act(async () => tree.unmount());
 });
@@ -108,5 +122,30 @@ it('dismisses the current toast before running an action that may show another t
   await act(async () => tree.root.findByType('AppTextButton' as any).props.onPress());
   expect(calls).toEqual(['hide', 'action']);
   expect(onAction).toHaveBeenCalledTimes(1);
+  await act(async () => tree.unmount());
+});
+
+it('top-aligns measured multiline titles and returns to centered alignment for a single line', async () => {
+  mockToast = { id: 'wrap', title: 'A notice that wraps on a narrow display', kind: 'warning' };
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<AppToast />);
+  });
+  const icon = () => tree.root.findByType('AlertTriangle' as any);
+  const lineHeight = 22 * Dimensions.get('window').fontScale;
+  expect(icon().props.color).toBe('$toastWarningForeground');
+  await act(async () =>
+    tree.root
+      .findByType('ToastTitle' as any)
+      .parent!.props.onLayout({ nativeEvent: { layout: { height: lineHeight * 2 } } }),
+  );
+  expect(icon().parent!.parent!.props.items).toBe('flex-start');
+  expect(tree.root.findByType('ToastTitle' as any).props.color).toBe(icon().props.color);
+  await act(async () =>
+    tree.root
+      .findByType('ToastTitle' as any)
+      .parent!.props.onLayout({ nativeEvent: { layout: { height: lineHeight } } }),
+  );
+  expect(icon().parent!.parent!.props.items).toBe('center');
   await act(async () => tree.unmount());
 });

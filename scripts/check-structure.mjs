@@ -91,6 +91,7 @@ const expectedRoutes = [
   '(tabs)/settings/bui-navigation.tsx',
   '(tabs)/settings/bui-sheets.tsx',
   '(tabs)/settings/bui-menus.tsx',
+  '(tabs)/settings/bui-toasts.tsx',
   '(tabs)/settings/updates.tsx',
   '(tabs)/settings/username.tsx',
   '(tabs)/settings/verify-proofs.tsx',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { X, AlertTriangle, Check, Info } from '@tamagui/lucide-icons';
 import { Toast } from '@tamagui/toast';
@@ -7,17 +7,17 @@ import { Spinner } from './Spinner';
 import { AppTextButton } from './AppTextButton';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 import type { ToastKind } from './AppToast';
+import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 
 // The approved surface, shared by passive notices and operation progress.
 export const toastSurfaceProps = {
-  themeInverse: true,
+  themeInverse: false,
   width: 'auto',
-  minHeight: 54,
-  rounded: 999,
-  px: '$3',
-  pr: '$4',
-  py: '$2',
-  bg: '$background',
+  minHeight: appDimensions.touchTarget,
+  rounded: '$6',
+  px: appSpacing.page,
+  py: appSpacing.compact,
+  bg: '$gray2',
   alignSelf: 'center',
   justify: 'center',
   mx: 0,
@@ -38,49 +38,61 @@ export function ToastContent({
 }) {
   const { fontScale } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
+  const [titleLayout, setTitleLayout] = useState<{
+    title: string;
+    width: number;
+    fontScale: number;
+    multiline: boolean;
+  } | null>(null);
+  const multiline =
+    !!message ||
+    title.includes('\n') ||
+    (titleLayout?.title === title &&
+      titleLayout.width === maxWidth &&
+      titleLayout.fontScale === fontScale &&
+      titleLayout.multiline);
+  const alignment = multiline ? 'flex-start' : 'center';
   const isActionToast = !!action;
   const stackAction =
     isActionToast &&
     (fontScale > 1.3 ||
       (maxWidth < 300 && title.length + (action?.label?.length ?? 0) > 28) ||
       (action?.label?.length ?? 0) > 18);
-  const statusBackground =
+  const statusColor =
     kind === 'success'
-      ? '$toastSuccessBackground'
+      ? '$toastSuccessForeground'
       : kind === 'error'
-        ? '$toastErrorBackground'
+        ? '$toastErrorForeground'
         : kind === 'warning'
-          ? '$toastWarningBackground'
-          : '$toastInfoBackground';
+          ? '$toastWarningForeground'
+          : '$toastInfoForeground';
 
   /*
    * Same icon styling for BOTH default and action toasts.
    */
   const statusIcon =
     kind === 'loading' ? (
-      <Spinner size={22} strokeWidth={3} color="$iconPrimary" reduceMotion={reducedMotion} />
+      <Spinner size={22} strokeWidth={3} color={statusColor} reduceMotion={reducedMotion} />
     ) : kind === 'success' ? (
-      <Check size={18} strokeWidth={3} color="$toastStatusForeground" />
+      <Check size={20} strokeWidth={2.5} color={statusColor} />
     ) : kind === 'error' ? (
-      <X size={18} strokeWidth={2.5} color="$toastStatusForeground" />
+      <X size={20} strokeWidth={2.5} color={statusColor} />
     ) : kind === 'warning' ? (
-      <AlertTriangle size={18} strokeWidth={2.2} color="$toastStatusForeground" />
+      <AlertTriangle size={20} strokeWidth={2} color={statusColor} />
     ) : (
-      <Info size={18} strokeWidth={2.2} color="$toastStatusForeground" />
+      <Info size={20} strokeWidth={2} color={statusColor} />
     );
 
   return (
     <XStack
       flexDirection={stackAction ? 'column' : 'row'}
-      items={stackAction ? 'stretch' : 'center'}
-      gap={stackAction ? '$1' : '$2'}
+      items={stackAction ? 'stretch' : alignment}
+      gap={stackAction ? appSpacing.small : appSpacing.compact}
     >
-      <XStack flexShrink={1} minW={0} gap="$2" items="center">
+      <XStack flexShrink={1} minW={0} gap={appSpacing.compact} items={alignment}>
         <YStack
-          width={32}
-          height={32}
-          rounded={16}
-          bg={kind === 'loading' ? 'transparent' : statusBackground}
+          width={22}
+          height={22}
           flexShrink={0}
           items="center"
           justify="center"
@@ -94,29 +106,34 @@ export function ToastContent({
         <YStack
           flexShrink={1}
           minW={0}
-          gap={2}
+          gap={0}
           justify="center"
           accessibilityLiveRegion="polite"
           aria-live="polite"
+          onLayout={({ nativeEvent }) => {
+            // Leave room for native font padding when identifying a second line.
+            const wrapped =
+              nativeEvent.layout.height > appTypography.body1.lineHeight * fontScale * 1.5;
+            setTitleLayout((current) =>
+              current?.title === title &&
+              current.width === maxWidth &&
+              current.fontScale === fontScale &&
+              current.multiline === wrapped
+                ? current
+                : { title, width: maxWidth, fontScale, multiline: wrapped },
+            );
+          }}
         >
           <Toast.Title
             flexShrink={1}
             fontFamily="$body"
-            fontSize={13}
-            fontWeight="600"
-            color="$iconPrimary"
-            lineHeight={18}
+            {...appTypography.body1}
+            color={statusColor}
           >
             {title}
           </Toast.Title>
           {!!message && (
-            <Toast.Description
-              fontFamily="$body"
-              fontSize={11}
-              lineHeight={16}
-              color="$gray10"
-              numberOfLines={1}
-            >
+            <Toast.Description fontFamily="$body" {...appTypography.body2} color={statusColor}>
               {message}
             </Toast.Description>
           )}
@@ -125,9 +142,9 @@ export function ToastContent({
 
       {isActionToast && (
         <AppTextButton
-          color="$toastAction"
+          color={statusColor}
           maxWidth={stackAction ? maxWidth : maxWidth * 0.4}
-          alignSelf={stackAction ? 'flex-end' : 'center'}
+          alignSelf={stackAction ? 'flex-end' : alignment}
           onPress={() => {
             action?.onPress();
           }}

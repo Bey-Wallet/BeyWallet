@@ -168,6 +168,7 @@ export const settingsTitles: Record<string, string> = {
   'bui-navigation': 'BUI · Headers & navigation',
   'bui-sheets': 'BUI · Sheets & dialogs',
   'bui-menus': 'BUI · Menus & tooltips',
+  'bui-toasts': 'BUI · Toasts',
   ...Object.fromEntries(
     Object.entries(settingsCategories).map(([key, value]) => [key, value.title]),
   ),

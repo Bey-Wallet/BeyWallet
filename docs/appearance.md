@@ -105,7 +105,8 @@ buttons use a **full pill radius** (`appRadii.pill`) at every size. Icon control
 `AppInput`/`AppTextArea` and mode-selector
 triggers default to 12 points (`$5`).
 Cards and grouped lists use **16 points** (`$6`) with clipped child rows; sheets use **20 points**.
-Circular icon controls, avatars, status badges, switch tracks, and the approved toast pill retain
+Toasts use the same `$6` card corners and neutral surfaces; their existing width and top placement
+remain unchanged. Circular icon controls, avatars, status badges and switch tracks retain
 their intentional shapes. Decorative small details may still use 4 or 8 points. Glow cards and
 conversation cards use the shared card radius. Explicit caller shapes remain available for special
 input contexts; their sizing cannot silently change the default radius.

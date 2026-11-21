@@ -7,6 +7,8 @@ import { ConnectedMintsCard } from '~/features/home/components/ConnectedMintsCar
 import { RECOMMENDED_MINTS } from '~/features/home/components/mintPlaceholders';
 import { connectMint } from '~/features/mints/connectMint';
 import { hapticService } from '~/services/platform/hapticService';
+import { useBUIStore } from '~/state/buiStore';
+import { getBUITheme } from '~/shared/ui/BUI/theme';
 
 jest.mock('~/services/platform/hapticService', () => ({
   hapticService: {
@@ -19,6 +21,7 @@ jest.mock('~/services/platform/hapticService', () => ({
 }));
 
 const mockPush = jest.fn();
+let mockWalletTheme = 'dark';
 const mockOpenMint = jest.fn();
 jest.mock('~/features/mints/hooks/useConnectedMintSheet', () => ({
   useConnectedMintSheet: () => ({ openMint: mockOpenMint, mintSheet: null }),
@@ -50,7 +53,7 @@ const mockRouter = { push: mockPush, canGoBack: () => true, back: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: 'Screen' } }));
 jest.mock('@react-navigation/native', () => ({ usePreventRemove: jest.fn() }));
 jest.mock('tamagui', () => ({
-  useThemeName: () => 'dark',
+  useThemeName: () => mockWalletTheme,
   ...Object.fromEntries(
     ['Input', 'Text', 'YStack', 'XStack', 'Paragraph', 'View', 'ScrollView', 'Separator', 'H6'].map(
       (name) => [name, name],
@@ -163,7 +166,13 @@ jest.mock('~/shared/ui/RemoteImage', () => ({ MintImage: 'MintImage' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
-jest.mock('~/shared/ui/BUI/BUIChip', () => ({ BUIOutlineChip: 'FilterChip' }));
+jest.mock('~/shared/ui/BUI/BUIChip', () => ({
+  BUIOutlineChip: (props: any) =>
+    require('react').createElement('FilterChip', {
+      ...props,
+      palette: require('~/shared/ui/BUI/useBUITheme').useBUITheme(),
+    }),
+}));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
 jest.mock('react-native-reanimated', () => ({
   __esModule: true,
@@ -179,6 +188,8 @@ jest.mock('expo-haptics', () => ({
 let tree: ReactTestRenderer;
 beforeEach(() => {
   jest.clearAllMocks();
+  mockWalletTheme = 'dark';
+  useBUIStore.setState({ appearance: 'dark' });
   mockDiscoveredMints = [];
   mockMintMetadata = {};
   mockMintErrors = {};
@@ -883,6 +894,21 @@ it('clears an empty filter combination and retries failed on-chain checks', asyn
   expect(chip('On-chain').props.selected).toBe(false);
   expect(tree.root.findByType('LegendList' as any).props.data).toHaveLength(1);
 });
+
+it.each(['light', 'dark'] as const)(
+  'keeps discovery filter pills on the wallet %s theme when BUI differs',
+  async (appearance) => {
+    mockWalletTheme = appearance;
+    const preview = appearance === 'light' ? 'dark' : 'light';
+    useBUIStore.setState({ appearance: preview });
+    await render();
+    for (const pill of tree.root.findAllByType('FilterChip' as any)) {
+      expect(pill.props.palette.canvas).toBe(getBUITheme(appearance).canvas);
+      expect(pill.props.palette.text).toBe(getBUITheme(appearance).text);
+    }
+    expect(useBUIStore.getState().appearance).toBe(preview);
+  },
+);
 
 it('sorts ranked mints, highlights the top three and preserves source ranks when searching', async () => {
   mockDiscoveredMints = [

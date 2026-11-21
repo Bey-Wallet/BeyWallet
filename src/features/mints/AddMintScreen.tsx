@@ -42,6 +42,7 @@ import { mintUrlKey } from '~/shared/utils/mintUrl';
 import { useQuickMintConnection } from './hooks/useQuickMintConnection';
 import { useQueries } from '@tanstack/react-query';
 import { BUIOutlineChip } from '~/shared/ui/BUI/BUIChip';
+import { BUIAppearanceProvider, useBUIOverlayAppearance } from '~/shared/ui/BUI/useBUITheme';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 
 // ─── Skeleton Loading Components ─────────────────────────────────────────────
@@ -406,6 +407,7 @@ DiscoveredMintRow.displayName = 'DiscoveredMintRow';
 // ─── Main AddMintScreen ─────────────────────────────────────────────────────
 export default function AddMintScreen() {
   const theme = useTheme();
+  const appearance = useBUIOverlayAppearance();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -816,29 +818,34 @@ export default function AddMintScreen() {
               )}
             </YStack>
 
-            <XStack gap="$2" flexWrap="wrap" py="$2" mb="$1">
-              <BUIOutlineChip selected={topRanked} onPress={() => setTopRanked((value) => !value)}>
-                Top ranked
-              </BUIOutlineChip>
-              <BUIOutlineChip
-                selected={onchainOnly}
-                onPress={() => setOnchainOnly((value) => !value)}
-              >
-                On-chain
-              </BUIOutlineChip>
-              <BUIOutlineChip
-                selected={testnutsOnly}
-                onPress={() => setTestnutsOnly((value) => !value)}
-              >
-                Testnuts
-              </BUIOutlineChip>
-              <BUIOutlineChip
-                selected={activeOnly}
-                onPress={() => setActiveOnly((value) => !value)}
-              >
-                Active mints
-              </BUIOutlineChip>
-            </XStack>
+            <BUIAppearanceProvider value={appearance}>
+              <XStack gap="$2" flexWrap="wrap" py="$2" mb="$1">
+                <BUIOutlineChip
+                  selected={topRanked}
+                  onPress={() => setTopRanked((value) => !value)}
+                >
+                  Top ranked
+                </BUIOutlineChip>
+                <BUIOutlineChip
+                  selected={onchainOnly}
+                  onPress={() => setOnchainOnly((value) => !value)}
+                >
+                  On-chain
+                </BUIOutlineChip>
+                <BUIOutlineChip
+                  selected={testnutsOnly}
+                  onPress={() => setTestnutsOnly((value) => !value)}
+                >
+                  Testnuts
+                </BUIOutlineChip>
+                <BUIOutlineChip
+                  selected={activeOnly}
+                  onPress={() => setActiveOnly((value) => !value)}
+                >
+                  Active mints
+                </BUIOutlineChip>
+              </XStack>
+            </BUIAppearanceProvider>
             {topRanked && (
               <Text {...appTypography.body3} color="$gray10" mb="$2">
                 Ranked by Mint Radar reliability score

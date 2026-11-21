@@ -52,12 +52,14 @@ it('keeps concurrent operations visible beyond timeouts and updates only the own
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(2);
   expect(tree.root.findAllByType('ToastDescription' as any)).toHaveLength(0);
   expect(tree.root.findAllByType('ToastTitle' as any)[0].props).toMatchObject({
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '400',
+    color: '$toastInfoForeground',
   });
   expect(tree.root.findAllByType('Spinner' as any)[0].props).toMatchObject({
     size: 22,
     strokeWidth: 3,
+    color: '$toastInfoForeground',
   });
   await act(async () => jest.advanceTimersByTime(120_000));
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(2);
@@ -73,6 +75,10 @@ it('keeps concurrent operations visible beyond timeouts and updates only the own
     duration: Infinity,
     type: 'background',
     pointerEvents: 'none',
+    themeInverse: false,
+    rounded: '$6',
+    bg: '$gray2',
+    minHeight: 48,
   });
   for (const handler of ['onEscapeKeyDown', 'onSwipeStart', 'onSwipeMove', 'onSwipeEnd']) {
     const preventDefault = jest.fn();

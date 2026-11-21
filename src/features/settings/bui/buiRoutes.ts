@@ -13,6 +13,7 @@ export const buiPreviewRoutes = {
   12: '/(tabs)/settings/bui-navigation',
   13: '/(tabs)/settings/bui-sheets',
   14: '/(tabs)/settings/bui-menus',
+  15: '/(tabs)/settings/bui-toasts',
 } as const;
 
 export const buiRouteNames = [

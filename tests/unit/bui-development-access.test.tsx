@@ -75,8 +75,8 @@ it('retains only foundations, core components and navigation/overlays with a rou
     'Navigation & overlays',
   ]);
   const groups = buiCatalog.flatMap((section) => section.items.map((item) => item.number));
-  expect(groups).toHaveLength(14);
-  expect(groups).toEqual(Array.from({ length: 14 }, (_, index) => index + 1));
-  expect(Object.keys(buiPreviewRoutes)).toHaveLength(14);
-  expect(buiRouteNames).toHaveLength(15);
+  expect(groups).toHaveLength(15);
+  expect(groups).toEqual(Array.from({ length: 15 }, (_, index) => index + 1));
+  expect(Object.keys(buiPreviewRoutes)).toHaveLength(15);
+  expect(buiRouteNames).toHaveLength(16);
 });
