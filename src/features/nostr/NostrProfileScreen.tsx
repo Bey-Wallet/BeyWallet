@@ -271,15 +271,17 @@ export default function NostrProfileScreen({ settingsMode = false }: { settingsM
               {!isLightning && verified && (
                 <ListTableRow
                   label="Address"
+                  hideLabel
                   multiline
                   expandValue
                   value={
-                    <XStack gap="$1" items="center" flexShrink={1}>
+                    <XStack gap="$1" items="center" flex={1} minWidth={0}>
                       <Text
                         {...appTypography.label1}
                         color="$color"
                         selectable
-                        textAlign="right"
+                        textAlign="left"
+                        minWidth={0}
                         flexShrink={1}
                       >
                         {highlightAddressDomain(nip05!)}
