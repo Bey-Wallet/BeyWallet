@@ -102,7 +102,6 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        console.log(`[NIP-05] bey.cash returned ${res.status}`);
         setStatus('error');
         return;
       }
@@ -121,7 +120,6 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
 
       if (foundUsername) {
         const fullNip05 = `${foundUsername}@${DOMAIN}`;
-        console.log(`[NIP-05] ✅ Found: ${fullNip05}`);
 
         setUsername(foundUsername);
         setNip05State(fullNip05);
@@ -133,7 +131,6 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
           setNip05(fullNip05);
         }
       } else {
-        console.log(`[NIP-05] No bey.cash username found for this npub`);
         setIsRemote(false);
         setStatus('not_found');
         // If no remote match but we had a stored bey.cash nip05, clear it
@@ -143,7 +140,6 @@ export function useNip05Lookup(autoRefreshMs = 0): Nip05Result {
         }
       }
     } catch (err) {
-      console.log('[NIP-05] Lookup failed (may be offline):', err);
       setIsRemote(false);
       setStatus('error');
     } finally {

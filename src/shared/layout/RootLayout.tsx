@@ -27,6 +27,7 @@ import {
   DatabaseEncryptionUnavailableError,
   WalletDeletionPendingError,
 } from '~/storage/sqlite/encryptedDatabase';
+import { appLogger } from '~/shared/utils/appLogger';
 
 hydrateBitcoinPriceCache(queryClient);
 
@@ -87,11 +88,8 @@ export function RootLayout() {
       const onboarded = await checkOnboardingStatus();
       const exists = await initService.walletExists();
       setWalletExists(exists);
-      console.log(`[RootLayout] Startup check — onboarded: ${onboarded}, walletExists: ${exists}`);
+
       if (exists && !onboarded) {
-        console.log(
-          '[RootLayout] ⚠️ Wallet found but marked as not onboarded. User may see welcome screen.',
-        );
       }
     };
     checkStatus();
@@ -126,14 +124,18 @@ export function RootLayout() {
     if (!storageError && restorePhase === 'idle' && isOnboarded && walletExists) {
       let active = true;
       setStartupFinished(false);
-      console.log('[RootLayout] ✅ Mnemonic found, initializing Coco...');
+
       void (async () => {
         try {
           await initialize();
           // Also permits retry after a transient local settings read failure.
           await useSettingsStore.getState().initialize();
         } catch {
-          console.warn('[RootLayout] Wallet startup unavailable; retry opening wallet.');
+          appLogger.warn(
+            '[RootLayout] Wallet startup unavailable; retry opening wallet.',
+            undefined,
+            'wallet_start',
+          );
         } finally {
           if (active) setStartupFinished(true);
         }

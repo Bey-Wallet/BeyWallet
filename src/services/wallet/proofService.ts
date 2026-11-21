@@ -3,6 +3,8 @@ import { getEncodedToken } from '@cashu/cashu-ts';
 import { cleanToken, decodeToken } from '~/services/wallet/tokenUtils';
 import type { CoreProof } from 'coco-cashu-core';
 import { initService } from '~/services/wallet/initService';
+import { appLogger } from '~/shared/utils/appLogger';
+
 export interface DleqVerificationResult {
   secret: string;
   amount: number;
@@ -26,7 +28,7 @@ async function checkProofStates(cleaned: string) {
       decoded = decodeToken(cleaned);
       decodeCache.set(cleaned, decoded);
     } catch (e) {
-      console.warn('[ProofService] Failed to decode token for check:');
+      appLogger.warn('[ProofService] Failed to decode token for check:', e, 'wallet_sdk');
       return [];
     }
   }
@@ -36,20 +38,14 @@ async function checkProofStates(cleaned: string) {
   }
 
   try {
-    console.log(
-      `[ProofService] Checking state for ${decoded.mint} with ${decoded.proofs.length} proofs`,
-    );
-
     // We instantiate a new Wallet instance for the state check.
     // This is safer than relying on private services in the manager.
     const wallet = new Wallet(decoded.mint);
 
     // The library method handles the Y derivation internally from the secrets
     // It only needs the secret field, which we have in decoded.proofs
-    console.log('[ProofService] Checking state via library...');
-    const states = await wallet.checkProofsStates(decoded.proofs);
 
-    console.log('[ProofService] States received:', states.length);
+    const states = await wallet.checkProofsStates(decoded.proofs);
 
     // Map the states back to a consistent format if needed,
     // though usually they match the NUT-07 response
@@ -58,7 +54,7 @@ async function checkProofStates(cleaned: string) {
       secret: decoded.proofs[i].secret, // Attach secret for UI convenience
     }));
   } catch (err: any) {
-    console.error(`[ProofService] Failed to check proof states at ${decoded.mint}:`);
+    appLogger.error('[ProofService] Failed to check proof states at …:', err, 'wallet_sdk');
     return [];
   }
 }

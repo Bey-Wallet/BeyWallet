@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { appLogger } from '~/shared/utils/appLogger';
 
 const ONBOARDING_KEY = 'bey_wallet_onboarded';
 
@@ -33,10 +34,10 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
         isOnboarded: status === 'true',
         isCheckingOnboarding: false,
       });
-      console.log(`[OnboardingStore] Checked status: ${status === 'true'}`);
+
       return status === 'true';
     } catch (err) {
-      console.error('[OnboardingStore] Error checking status:', err);
+      appLogger.error('[OnboardingStore] Error checking status:', err, 'wallet_start');
       set({ isOnboarded: false, isCheckingOnboarding: false });
       return false;
     }
@@ -59,7 +60,11 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
         generatedMnemonic: null, // Clear mnemonic from memory
       });
     } catch {
-      console.error('[OnboardingStore] Could not save onboarding completion.');
+      appLogger.error(
+        '[OnboardingStore] Could not save onboarding completion.',
+        undefined,
+        'wallet_start',
+      );
       throw new Error('Could not save wallet setup. Please retry.');
     }
   },
@@ -73,7 +78,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
         generatedMnemonic: null,
       });
     } catch (err) {
-      console.error('[OnboardingStore] Error resetting onboarding:', err);
+      appLogger.error('[OnboardingStore] Error resetting onboarding:', err, 'wallet_start');
     }
   },
 }));

@@ -26,6 +26,7 @@ import {
 } from '~/services/wallet/cashuReceiveRecovery';
 import { refreshReceiveKeysets } from '~/services/wallet/cashuReceiveKeysets';
 import { observeDiagnosticOperation } from '~/services/feedback/diagnosticFailures';
+import { appLogger } from '~/shared/utils/appLogger';
 
 // Helper to generate a unique ID for operations since the crypto util import is broken
 const generateSubId = (): string => {
@@ -96,7 +97,7 @@ function extractMintUrlFromToken(cleaned: string): string | null {
       return raw?.mint || raw?.token?.[0]?.mint || null;
     }
   } catch (e: any) {
-    console.warn('[WalletService] extractMintUrlFromToken failed:');
+    appLogger.warn('[WalletService] extractMintUrlFromToken failed:', e, 'wallet_sdk');
     return null;
   }
 }
@@ -131,15 +132,21 @@ async function withKeysetRecovery<T>(
     const msg: string = err?.message ?? '';
     if (msg.includes('Keyset verification failed') || msg.includes('buildKeychain')) {
       if (retryCount >= 1) {
-        console.error(`[WalletService] ❌ Keyset recovery failed after retry for ${mintUrl}`);
+        appLogger.error(
+          '[WalletService] Keyset recovery failed after retry for …',
+          err,
+          'wallet_sdk',
+        );
         throw err;
       }
 
       // Extract keyset ID from message: "Keyset verification failed for ID <id>"
       const idMatch = msg.match(/for ID ([A-Fa-f0-9]+)/);
       const keysetId = idMatch?.[1];
-      console.warn(
-        `[WalletService] ⚠️ Keyset verification failed for ${mintUrl}. Purging and re-initializing…`,
+      appLogger.warn(
+        '[WalletService] Keyset verification failed for …. Purging and re-initializing…',
+        err,
+        'wallet_sdk',
       );
 
       // Purge corrupted keyset from DB
@@ -173,17 +180,24 @@ function isNetworkError(err: any): boolean {
 
 async function handleOfflineReceive(token: string, mintUrl: string | null, error: any) {
   try {
-    console.log('[WalletService] 🔌 Network error during receive. Saving token to history...');
     const decoded = decodeToken(token);
     const finalMintUrl = mintUrl || decoded.mint;
     if (!finalMintUrl) {
-      console.warn('[WalletService] Cannot save offline token: no mint URL found');
+      appLogger.warn(
+        '[WalletService] Cannot save offline token: no mint URL found',
+        undefined,
+        'wallet_sdk',
+      );
       return;
     }
 
     const repo = initService.getRepo();
     if (!repo?.historyRepository) {
-      console.warn('[WalletService] Cannot save offline token: historyRepository not initialized');
+      appLogger.warn(
+        '[WalletService] Cannot save offline token: historyRepository not initialized',
+        undefined,
+        'wallet_sdk',
+      );
       return;
     }
 
@@ -194,9 +208,12 @@ async function handleOfflineReceive(token: string, mintUrl: string | null, error
       try {
         const { mintManager } = require('~/services/wallet/mintManager');
         await mintManager.addMint(finalMintUrl, { trusted: true });
-        console.log('[WalletService] Offline Receive: added/trusted unknown mint:', finalMintUrl);
       } catch (addErr) {
-        console.warn('[WalletService] Offline Receive: failed to auto-add mint in background:');
+        appLogger.warn(
+          '[WalletService] Offline Receive: failed to auto-add mint in background:',
+          addErr,
+          'wallet_sdk',
+        );
       }
     }
 
@@ -209,10 +226,6 @@ async function handleOfflineReceive(token: string, mintUrl: string | null, error
     });
 
     if (exists) {
-      console.log(
-        '[WalletService] Offline Receive: Token already exists in history as ID:',
-        exists.id,
-      );
       throw new Error(
         `Could not connect to mint. This token is already saved in your history (ID: ${exists.id}) to claim later.`,
       );
@@ -234,7 +247,6 @@ async function handleOfflineReceive(token: string, mintUrl: string | null, error
       },
     });
 
-    console.log('[WalletService] Offline token saved as transaction ID:', newEntry.id);
     throw new Error(
       'Could not connect to mint. The token has been saved to your transaction history so you can claim it later when you are online.',
     );
@@ -242,7 +254,7 @@ async function handleOfflineReceive(token: string, mintUrl: string | null, error
     if (saveErr.message.includes('Could not connect to mint')) {
       throw saveErr;
     }
-    console.error('[WalletService] Failed to save offline token:');
+    appLogger.error('[WalletService] Failed to save offline token:', saveErr, 'wallet_sdk');
   }
 }
 
@@ -262,8 +274,6 @@ export const walletService = {
    * @returns Encoded token string (V4) and operation ID
    */
   send: async (mintUrl: string, amount: number): Promise<{ token: string; id: string }> => {
-    console.log(`[WalletService] Sending ${amount} from ${mintUrl}`);
-
     return withKeysetRecovery(mintUrl, async () => {
       const m = mgr();
       let preparedId: string | null = null;
@@ -271,12 +281,10 @@ export const walletService = {
       try {
         const prepared = await m.send.prepareSend(mintUrl, amount);
         preparedId = prepared.id;
-        console.log(`[WalletService] Send prepared: ${preparedId}`);
 
         const { token, operation } = await m.send.executePreparedSend(prepared.id);
         const encoded = encodeToken(token);
 
-        console.log(`[WalletService] Send complete, operation: ${operation.id}`);
         return { token: encoded, id: operation.id };
       } catch (err: any) {
         if (preparedId) {
@@ -284,10 +292,9 @@ export const walletService = {
             const operation = await m.send.getOperation(preparedId);
             if (operation && ['prepared', 'executing', 'pending'].includes(operation.state)) {
               await m.send.rollback(preparedId);
-              console.log(`[WalletService] Rolled back failed send: ${preparedId}`);
             }
           } catch (rollbackErr) {
-            console.warn('[WalletService] Rollback failed:');
+            appLogger.warn('[WalletService] Rollback failed:', rollbackErr, 'wallet_sdk');
           }
         }
         throw err;
@@ -439,9 +446,6 @@ export const walletService = {
         unit: wallet.unit || 'sat',
       };
       const encoded = encodeToken(token);
-      console.log(
-        `[WalletService] ✅ P2PK Send execution complete! Token locked to: ${receiverPubkey}`,
-      );
 
       // Ideally we also create an operation or history log, but coco's internals are slightly opaque
       // For now, this effectively subtracts balance and hands off a token.
@@ -462,9 +466,8 @@ export const walletService = {
             ...(reclaimAt !== undefined ? { reclaimAt, refundPubkey } : {}),
           },
         });
-        console.log(`[WalletService] History tracking injected for P2PK send.`);
       } catch (histErr) {
-        console.warn('[WalletService] Failed to inject history entry:');
+        appLogger.warn('[WalletService] Failed to inject history entry:', histErr, 'wallet_sdk');
       }
 
       return { encoded, token, id: operationId };
@@ -511,7 +514,6 @@ export const walletService = {
   receive: async (token: string): Promise<void> => {
     return observeDiagnosticOperation('ecash_receive', async () => {
       const cleaned = cleanToken(token);
-      console.log('[WalletService] Receiving ecash token');
 
       // V4 (cashuB) tokens store SHORT keyset ID prefixes (8 bytes).
       // The Manager's internal wallet.decodeToken() needs FULL known keyset IDs
@@ -533,10 +535,9 @@ export const walletService = {
             cleaned,
           );
         await receiveWithDuplicateOutputRecovery(() => mgr().wallet.receive(cleaned));
-        console.log('[WalletService] ✅ Token received successfully');
       } catch (err: any) {
         const msg: string = err?.message ?? '';
-        console.error('[WalletService] Receive failed:');
+        appLogger.error('[WalletService] Receive failed:', err, 'wallet_sdk');
 
         if (msg.includes('not trusted') || err?.name === 'UnknownMintError') {
           throw new Error('Mint is not trusted. Please add and trust the mint first.');
@@ -550,8 +551,10 @@ export const walletService = {
 
         // V4 short keyset ID mapping failed — clear wallet cache and retry once
         if (msg.includes("Couldn't map") || msg.includes('short keyset')) {
-          console.warn(
+          appLogger.warn(
             '[WalletService] Short keyset ID mapping failed — clearing wallet cache and retrying...',
+            err,
+            'wallet_sdk',
           );
           try {
             if (typeof unsafeManager.walletService?.clearCache === 'function') {
@@ -560,7 +563,7 @@ export const walletService = {
               unsafeManager.walletService?.clearAllCaches?.();
             }
             await receiveWithDuplicateOutputRecovery(() => mgr().wallet.receive(cleaned));
-            console.log('[WalletService] ✅ Token received (after cache clear)');
+
             return;
           } catch (retryErr: any) {
             if (isNetworkError(retryErr)) {
@@ -604,7 +607,7 @@ export const walletService = {
    */
   receiveP2PK: async (token: string, nostrPrivKey: string | string[]): Promise<void> => {
     const cleaned = cleanToken(token);
-    console.log('[WalletService] Receiving P2PK token');
+
     const m = mgr();
     const unsafeManager = m as any;
 
@@ -619,24 +622,21 @@ export const walletService = {
 
       try {
         await unsafeManager.keyring.addKeyPair(privKeyBytes);
-        console.log('[WalletService] P2PK: ✅ Nostr key registered with coco keyring');
       } catch (keyErr: any) {
         // Key might already be registered — that's fine
         if (!keyErr?.message?.includes('already')) {
-          console.warn('[WalletService] P2PK: keyring.addKeyPair warning:');
+          appLogger.warn('[WalletService] P2PK: keyring.addKeyPair warning:', keyErr, 'wallet_sdk');
         }
       }
 
       // 2. Use coco's standard receive — it now knows the key
-      console.log('[WalletService] P2PK: Receiving via coco standard pipeline...');
+
       const mintUrl = extractMintUrlFromToken(cleaned);
       if (mintUrl)
         await refreshReceiveKeysets(m, initService.getRepo().keysetRepository, mintUrl, cleaned);
       await receiveWithDuplicateOutputRecovery(() => m.wallet.receive(cleaned));
-
-      console.log('[WalletService] ✅ P2PK Token received successfully via coco');
     } catch (err: any) {
-      console.error('[WalletService] P2PK Receive failed:');
+      appLogger.error('[WalletService] P2PK Receive failed:', err, 'wallet_sdk');
       throw err;
     }
   },
@@ -656,7 +656,6 @@ export const walletService = {
    */
   getBalanceForMint: async (mintUrl: string): Promise<number> => {
     const balances = await mgr().wallet.getBalances();
-    console.log('[WalletService] Raw balances:', JSON.stringify(balances));
 
     const normalize = (url: string) => url.replace(/\/$/, '');
     const normalizedTarget = normalize(mintUrl);
@@ -704,12 +703,10 @@ export const walletService = {
 
       const secrets = inflight.map((p) => p.secret);
       await svc.restoreProofsToReady(mintUrl, secrets);
-      console.log(
-        `[WalletService] ✅ Restored ${secrets.length} stuck inflight proofs on ${mintUrl}`,
-      );
+
       return secrets.length;
     } catch (err) {
-      console.warn('[WalletService] Failed to restore inflight proofs:');
+      appLogger.warn('[WalletService] Failed to restore inflight proofs:', err, 'wallet_sdk');
       return 0;
     }
   },
@@ -720,9 +717,7 @@ export const walletService = {
    * Rollback a pending send operation. Used to free stuck proofs.
    */
   rollbackSend: async (operationId: string): Promise<void> => {
-    console.log(`[WalletService] Rolling back send: ${operationId}`);
     await mgr().send.rollback(operationId);
-    console.log(`[WalletService] ✅ Send rolled back: ${operationId}`);
   },
 
   /**

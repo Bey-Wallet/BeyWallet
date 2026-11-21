@@ -27,6 +27,7 @@ import { isNfcIntent } from '~/features/nfc/nativeIntent';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import ActionSelectorSheet from '~/shared/ui/ActionSelectorSheet';
 import { useAppShortcuts } from '~/shared/hooks/useAppShortcuts';
+import { appLogger } from '~/shared/utils/appLogger';
 
 // Lazy-load global checkers — they don't need to mount during the critical startup paint
 const LazyOtaUpdateChecker = React.lazy(() =>
@@ -90,10 +91,6 @@ export function RootLayoutNav() {
             } else if (hashValue.toLowerCase().startsWith('lnbc')) {
               paymentRequestFound = hashValue;
             } else {
-              console.log(
-                '[RootLayoutNav] Deep link parsed request ID, redirecting to receive request screen:',
-                hashValue,
-              );
               router.replace('/(tabs)');
               setTimeout(() => {
                 if (useRecoverySessionStore.getState().session?.phase === 'recovering') return;
@@ -151,7 +148,6 @@ export function RootLayoutNav() {
       }
 
       if (tokenFound) {
-        console.log('[RootLayoutNav] Opening receive flow');
         router.replace('/(tabs)');
         setTimeout(() => {
           if (useRecoverySessionStore.getState().session?.phase === 'recovering') return;
@@ -161,7 +157,6 @@ export function RootLayoutNav() {
           });
         }, 300);
       } else if (paymentRequestFound) {
-        console.log('[RootLayoutNav] Opening send flow');
         router.replace('/(tabs)');
         setTimeout(() => {
           if (useRecoverySessionStore.getState().session?.phase === 'recovering') return;
@@ -179,7 +174,7 @@ export function RootLayoutNav() {
         if (url) handleUrl(url);
       })
       .catch((err) => {
-        console.warn('[RootLayoutNav] Failed to get initial URL:', err);
+        appLogger.warn('[RootLayoutNav] Failed to get initial URL:', undefined, 'wallet_start');
       });
 
     // Listen for new incoming URLs

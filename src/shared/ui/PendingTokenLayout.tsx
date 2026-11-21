@@ -27,6 +27,7 @@ import { BadgeStatus } from '~/shared/ui/StatusBadge';
 import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { PaymentActionsMenu, type PaymentMenuAction } from '~/shared/ui/PaymentActionsMenu';
 import { TokenNostrSheet } from '~/features/payments/send/TokenNostrSheet';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export type PendingPaymentAction = PaymentMenuAction;
 
@@ -157,7 +158,7 @@ export function PendingTokenLayout({
         }
       }
     } catch (e) {
-      console.error('[PendingTokenLayout] Failed to decode token:');
+      appLogger.error('[PendingTokenLayout] Failed to decode token:', e, 'app_runtime');
     }
   }, [currentToken, lockedToNpub]);
 

@@ -289,8 +289,6 @@ export default function ScannerScreen() {
 
       // If explicitly asked to return to a path (e.g. from P2PK Send flow)
       if (params.returnTo) {
-        console.log('[Scanner] returnTo detected:', params.returnTo);
-
         if (params.returnTo === '/receive' || params.returnTo === '/(modals)/receive') {
           // The home scan action historically treated every result as an ecash token. Resolve the
           // input first so unified payment URIs and payment requests reach their payment flow.
@@ -317,7 +315,6 @@ export default function ScannerScreen() {
           return;
         }
 
-        console.log('[Scanner] Returning result to store for:', params.returnTo);
         useWalletStore.getState().setScannerResult(trimmed);
         router.back();
         return;
@@ -325,7 +322,6 @@ export default function ScannerScreen() {
 
       // Use Universal Resolver for robust format detection & redirection
       const result = await resolveUniversalInput(trimmed);
-      console.log('[Scanner] Resolved universal input type:', result.type);
 
       const redirected = handleUniversalRedirect(result, {
         router,
@@ -335,7 +331,6 @@ export default function ScannerScreen() {
 
       if (!redirected) {
         // Fallback: Set result in store and go back
-        console.log('[Scanner] Fallback: returning data to previous screen...');
 
         useWalletStore.getState().setScannerResult(trimmed);
         router.back();

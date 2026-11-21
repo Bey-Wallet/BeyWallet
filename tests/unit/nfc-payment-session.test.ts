@@ -150,7 +150,7 @@ it('distinguishes an unwritable tag from contact loss without logging native dat
     .mockRejectedValueOnce(new Error('tag not writable synthetic bearer data'));
   await expect(session.write('token')).rejects.toThrow('read_only');
   expect(warn).toHaveBeenCalledWith('[NfcPaymentSession] Write failed', {
-    category: 'read_only',
+    type: 'Error',
   });
   expect(JSON.stringify(warn.mock.calls)).not.toContain('synthetic bearer');
   warn.mockRestore();

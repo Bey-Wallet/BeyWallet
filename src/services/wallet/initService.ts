@@ -38,6 +38,7 @@ import { ChangePreparationPlugin } from '~/services/wallet/plugins/ChangePrepara
 import { nostrService } from '~/services/wallet/nostrService';
 import { walletLogger as customLogger } from './walletLogger';
 import { Keyset } from '@cashu/cashu-ts';
+import { appLogger } from '~/shared/utils/appLogger';
 
 // ─── Runtime Compatibility Patches ───────────────────────────
 
@@ -61,8 +62,10 @@ Keyset.prototype.verify = function () {
       this.id.length === 66 &&
       (this.id.startsWith('01') || this.id.startsWith('00'))
     ) {
-      console.warn(
-        `[InitService] 🛠️ KeysetPatch: Bypassing verification for non-standard ID: ${this.id}`,
+      appLogger.warn(
+        '[InitService] KeysetPatch: Bypassing verification for non-standard ID: …',
+        undefined,
+        'wallet_start',
       );
       return true;
     }
@@ -104,7 +107,11 @@ export function getSharedDb(): SQLite.SQLiteDatabase | null {
 export async function purgeCorruptedKeysets(mintUrl: string, keysetId?: string): Promise<void> {
   const db = dbInstance;
   if (!db) {
-    console.warn('[InitService] purgeCorruptedKeysets: db not ready, skipping');
+    appLogger.warn(
+      '[InitService] purgeCorruptedKeysets: db not ready, skipping',
+      undefined,
+      'wallet_start',
+    );
     return;
   }
 
@@ -115,17 +122,14 @@ export async function purgeCorruptedKeysets(mintUrl: string, keysetId?: string):
         mintUrl,
         keysetId,
       );
-      console.log(`[InitService] 🧹 Deleted corrupted keyset ${keysetId} for ${mintUrl}`);
     } else {
       await db.runAsync(`DELETE FROM coco_cashu_keysets WHERE mintUrl = ?`, mintUrl);
-      console.log(`[InitService] 🧹 Deleted ALL keysets for ${mintUrl}`);
     }
 
     // Also clear the counters so the SDK doesn't try to resume from a bad counter
     await db.runAsync(`DELETE FROM coco_cashu_counters WHERE mintUrl = ?`, mintUrl);
-    console.log(`[InitService] 🧹 Cleared counters for ${mintUrl}`);
   } catch (err) {
-    console.warn('[InitService] purgeCorruptedKeysets failed:');
+    appLogger.warn('[InitService] purgeCorruptedKeysets failed:', err, 'wallet_start');
   }
 }
 
@@ -147,14 +151,12 @@ function setupAppStateListener(): void {
 
       try {
         if (nextAppState === 'background' || nextAppState === 'inactive') {
-          console.log('[InitService] App → background, pausing subscriptions');
           await manager.pauseSubscriptions();
         } else if (nextAppState === 'active') {
-          console.log('[InitService] App → foreground, resuming subscriptions');
           await manager.resumeSubscriptions();
         }
       } catch (err) {
-        console.error('[InitService] Subscription lifecycle error:');
+        appLogger.error('[InitService] Subscription lifecycle error:', err, 'wallet_start');
       }
     },
   );
@@ -174,9 +176,8 @@ async function enableWatchers(mgr: Manager, options: { fast?: boolean } = {}): P
     await mgr.enableMintQuoteWatcher({
       watchExistingPendingOnStart: true,
     });
-    console.log('[InitService] ✅ Mint quote watcher enabled');
   } catch (error) {
-    console.warn('[InitService] Mint quote watcher failed:');
+    appLogger.warn('[InitService] Mint quote watcher failed:', error, 'wallet_start');
   }
 
   // Delay between watchers to avoid DB contention
@@ -190,9 +191,8 @@ async function enableWatchers(mgr: Manager, options: { fast?: boolean } = {}): P
       baseRetryDelayMs: 1000,
       initialEnqueueDelayMs: 500,
     });
-    console.log('[InitService] ✅ Mint quote processor enabled');
   } catch (error) {
-    console.warn('[InitService] Mint quote processor failed:');
+    appLogger.warn('[InitService] Mint quote processor failed:', error, 'wallet_start');
   }
 
   if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
@@ -200,15 +200,21 @@ async function enableWatchers(mgr: Manager, options: { fast?: boolean } = {}): P
   // Enable proof state watcher (with retry)
   try {
     await mgr.enableProofStateWatcher();
-    console.log('[InitService] ✅ Proof state watcher enabled');
   } catch (error) {
-    console.warn('[InitService] Proof state watcher failed, retrying once...');
+    appLogger.warn(
+      '[InitService] Proof state watcher failed, retrying once...',
+      error,
+      'wallet_start',
+    );
     try {
       if (delay > 0) await new Promise((resolve) => setTimeout(resolve, 1000));
       await mgr.enableProofStateWatcher();
-      console.log('[InitService] ✅ Proof state watcher enabled on retry');
     } catch (retryError) {
-      console.error('[InitService] Proof state watcher failed on retry:');
+      appLogger.error(
+        '[InitService] Proof state watcher failed on retry:',
+        retryError,
+        'wallet_start',
+      );
     }
   }
 }
@@ -220,17 +226,17 @@ async function disableWatchers(mgr: Manager): Promise<void> {
   try {
     await mgr.disableProofStateWatcher();
   } catch (e) {
-    console.warn('[InitService] Failed to disable proof state watcher:');
+    appLogger.warn('[InitService] Failed to disable proof state watcher:', e, 'wallet_start');
   }
   try {
     await mgr.disableMintQuoteProcessor();
   } catch (e) {
-    console.warn('[InitService] Failed to disable mint quote processor:');
+    appLogger.warn('[InitService] Failed to disable mint quote processor:', e, 'wallet_start');
   }
   try {
     await mgr.disableMintQuoteWatcher();
   } catch (e) {
-    console.warn('[InitService] Failed to disable mint quote watcher:');
+    appLogger.warn('[InitService] Failed to disable mint quote watcher:', e, 'wallet_start');
   }
 }
 
@@ -307,12 +313,9 @@ async function initializeWithMnemonic(
     const { expiryService } = await import('~/services/wallet/expiryService');
     expiryService.startSweeper();
 
-    console.log('[InitService] Manager ready with watchers and processors');
-
     const { startLightningAddress } = await import('./lightningAddressLifecycle');
     await startLightningAddress(repositories, privkey, pubkey);
   } else {
-    console.log('[InitService] Manager ready (quiet mode)');
   }
 
   return manager;
@@ -372,12 +375,10 @@ export const initService = {
    */
   init: async (): Promise<Manager> => {
     if (manager) {
-      console.log('[InitService] Already initialized');
       return manager;
     }
 
     if (isInitializing) {
-      console.log('[InitService] Initialization in progress, waiting...');
       let attempts = 0;
       while (isInitializing && attempts < 50) {
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -473,7 +474,7 @@ export const initService = {
       const { requestLifecycleService: previousRequestLifecycle } =
         await import('./requestLifecycleService');
       previousRequestLifecycle.stop();
-      console.log('[InitService] Performing fast-path re-initialization...');
+
       const mnemonic = await seedService.getMnemonic();
       if (!mnemonic) throw new Error('No mnemonic found');
 
@@ -541,7 +542,7 @@ export const initService = {
 
   createWallet: async (mnemonic: string): Promise<Manager> => {
     await requireNoFileRestore();
-    console.log('[InitService] Creating new wallet, destroying existing wallet first...');
+
     await initService.destroyWallet({ preserveSetup: true });
 
     isInitializing = true;
@@ -675,7 +676,7 @@ export const initService = {
     options: { quiet?: boolean; preserveSetup?: boolean } = {},
   ): Promise<Manager> => {
     await requireNoFileRestore();
-    console.log('[InitService] Restoring wallet, destroying existing wallet first...');
+
     await initService.destroyWallet({ preserveSetup: options.preserveSetup });
 
     await seedService.saveMnemonic(mnemonic);
@@ -686,7 +687,6 @@ export const initService = {
       nostrRestoredAt: Math.floor(Date.now() / 1000),
     });
 
-    console.log(`[InitService] ✅ Wallet initialized (quiet=${options.quiet})`);
     return m;
   },
 
@@ -711,7 +711,7 @@ export const initService = {
         const { feedbackCoordinator } =
           require('~/services/feedback/feedbackCoordinator') as typeof import('~/services/feedback/feedbackCoordinator');
         feedbackCoordinator.clear();
-        console.log('[InitService] Destroying wallet...');
+
         const { resetMintBackup } =
           require('./mintBackupService') as typeof import('./mintBackupService');
         resetMintBackup();
@@ -730,7 +730,6 @@ export const initService = {
         } finally {
           resumeWrites();
         }
-        console.log('[InitService] Wallet destroyed');
       } finally {
         releaseRecoveryLock();
       }

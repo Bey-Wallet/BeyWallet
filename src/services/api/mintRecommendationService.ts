@@ -1,6 +1,7 @@
 import { SimplePool, type Event, type Filter } from 'nostr-tools';
 import { getNostrQueryRelays } from '~/state/nostrRelayStore';
 import { mintHealthService, mintHealthUrl } from './mintHealthService';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export type MintRecommendation = {
   url: string;
@@ -254,7 +255,7 @@ export const mintRecommendationService = {
         });
       await Promise.allSettled([infoPromise, reviewsPromise, radarPromise]);
     } catch (error) {
-      console.error('Error discovering mints:', error);
+      appLogger.error('Error discovering mints:', error, 'app_runtime');
     } finally {
       clearTimeout(updateTimer);
       pool.close(relays);

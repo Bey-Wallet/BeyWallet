@@ -123,6 +123,7 @@ it('discards a failed staged import without installing it', async () => {
 });
 
 it('reports cold-start cleanup failure without losing the failure stage or installing a wallet', async () => {
+  require('~/services/feedback/diagnosticFailures').clearDiagnosticFailures();
   mockPrevious = null;
   const warning = jest.spyOn(console, 'warn').mockImplementation(() => {});
   try {
@@ -132,7 +133,7 @@ it('reports cold-start cleanup failure without losing the failure stage or insta
       phase: 'restart',
       error: expect.stringContaining('Could not pause wallet services'),
     });
-    expect(warning).toHaveBeenCalledWith('[FileRestore] Preparation failed at stage:', 'cleanup');
+    expect(warning).toHaveBeenCalledWith('[FileRestore] Preparation failed at stage:');
     expect(JSON.stringify(warning.mock.calls)).not.toContain('synthetic-private-data');
     expect(fileRestoreJournal.install).not.toHaveBeenCalled();
   } finally {

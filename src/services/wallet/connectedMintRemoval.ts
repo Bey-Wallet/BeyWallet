@@ -1,6 +1,7 @@
 import { ConnectedMintRemovalRepository } from '~/storage/sqlite/repositories/ConnectedMintRemovalRepository';
 import type { MintRemovalBlock } from '~/storage/sqlite/repositories/ConnectedMintRemovalRepository';
 import { recoveryCoordinator } from './recoveryCoordinator';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export const mintRemovalMessages: Record<MintRemovalBlock, string> = {
   funds: 'Transfer funds before removing',
@@ -54,7 +55,11 @@ export async function removeConnectedMints(urls: string[]) {
       try {
         await eventBus.emit('mint:untrusted', { mintUrl: url });
       } catch {
-        console.warn('[MintRemoval] Connection removed; subscription cleanup needs refresh.');
+        appLogger.warn(
+          '[MintRemoval] Connection removed; subscription cleanup needs refresh.',
+          undefined,
+          'wallet_sdk',
+        );
       }
     }
     return { removed, blocked };

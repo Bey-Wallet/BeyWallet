@@ -50,6 +50,7 @@ import { DestinationInputRow } from '~/shared/ui/DestinationInputRow';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 import { MeltQuoteState } from '@cashu/cashu-ts';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export function OnchainMeltFlow() {
   const router = useRouter();
@@ -286,7 +287,7 @@ export function OnchainMeltFlow() {
 
       toast.showFeedback(interactionCopy.addressPastedFromClipboard);
     } catch (e) {
-      console.warn('[OnchainMeltFlow] Clipboard read failed:');
+      appLogger.warn('[OnchainMeltFlow] Clipboard read failed:', e, 'lightning_pay');
     } finally {
       setIsPasting(false);
     }
@@ -350,7 +351,7 @@ export function OnchainMeltFlow() {
       setStep('confirm');
     } catch (err: any) {
       if (generation !== quoteGeneration.current) return;
-      console.error('[OnchainMeltFlow] Melt quote failed:');
+      appLogger.error('[OnchainMeltFlow] Melt quote failed:', err, 'lightning_pay');
       setErrorMsg(err.message || 'Failed to estimate transaction fees');
       setStep('input');
     }
@@ -436,7 +437,11 @@ export function OnchainMeltFlow() {
           },
         });
       } catch (histErr) {
-        console.warn('[OnchainMeltFlow] History injection failed (non-fatal):');
+        appLogger.warn(
+          '[OnchainMeltFlow] History injection failed (non-fatal):',
+          histErr,
+          'lightning_pay',
+        );
       }
 
       // Reconcile change and input proof states through the existing wallet boundary
@@ -444,7 +449,7 @@ export function OnchainMeltFlow() {
       await refreshOnchainPayment().catch(() => setStep('pending'));
       refreshBalance();
     } catch (err: any) {
-      console.error('[OnchainMeltFlow] Payment execution failed:');
+      appLogger.error('[OnchainMeltFlow] Payment execution failed:', err, 'lightning_pay');
 
       setErrorMsg(err.message || 'Failed to send payment');
       setStep('error');

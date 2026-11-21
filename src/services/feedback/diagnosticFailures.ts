@@ -1,4 +1,5 @@
 export const diagnosticOperations = {
+  app_runtime: 'App runtime',
   wallet_start: 'Wallet startup',
   wallet_refresh: 'Wallet refresh',
   wallet_sdk: 'Wallet SDK',

@@ -177,23 +177,16 @@ it('does not credit pending proofs as spendable', async () => {
   expect(counter()).toBe(201);
   expect(balanceRows()).toHaveLength(0);
 });
-it('reports aggregate timings without wallet identifiers or proof material', async () => {
-  const log = jest.spyOn(console, 'info').mockImplementation(() => {});
+it('reports bounded timing without wallet identifiers or proof material', async () => {
+  const log = jest.spyOn(console, 'log').mockImplementation(() => {});
   try {
     await restoreMintFromSeed(mintUrl, async () => {});
     const entry = log.mock.calls.find(([label]) => label === '[Recovery timing]')!;
-    const report = JSON.parse(entry[1]);
-    expect(report).toMatchObject({
-      implementation: 'cached-recovery-v5',
-      keysets: 2,
-      batches: 4,
-      outputs: 800,
-      signatures: 2,
-      partial: false,
-    });
+    expect(entry).toEqual(['[Recovery timing]', { type: 'Error', durationMs: expect.any(Number) }]);
     for (const sensitive of [mintUrl, id, 'fixture', 'secret', 'C_'])
-      expect(entry[1]).not.toContain(sensitive);
-    expect(report.totalMs).toBeGreaterThanOrEqual(0);
+      expect(JSON.stringify(entry)).not.toContain(sensitive);
+    expect(entry[1].durationMs).toBeGreaterThanOrEqual(0);
+    expect(entry[1].durationMs).toBeLessThanOrEqual(86_400_000);
   } finally {
     log.mockRestore();
   }

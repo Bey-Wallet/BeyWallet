@@ -1,5 +1,6 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Alert } from 'react-native';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export const biometricService = {
   /**
@@ -31,7 +32,7 @@ export const biometricService = {
 
       return results.success;
     } catch (error) {
-      console.error('Biometric authentication error:', error);
+      appLogger.error('Biometric authentication error:', error, 'app_runtime');
       return false;
     }
   },
@@ -43,7 +44,7 @@ export const biometricService = {
     try {
       await LocalAuthentication.cancelAuthenticate();
     } catch (error) {
-      console.error('Biometric cancel authentication error:', error);
+      appLogger.error('Biometric cancel authentication error:', error, 'app_runtime');
     }
   },
 

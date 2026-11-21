@@ -21,6 +21,7 @@ import { nip19 } from 'nostr-tools';
 import { finalizeEvent } from 'nostr-tools/pure';
 import { Buffer } from 'buffer';
 import { nostrIdentityService } from '~/services/wallet/nostrIdentityService';
+import { appLogger } from '~/shared/utils/appLogger';
 
 /** Convert hex string to Uint8Array — inline to avoid @noble/hashes/utils export issues */
 function hexToBytes(hex: string): Uint8Array {
@@ -47,7 +48,7 @@ function npubToHex(npub: string): string | null {
         : Buffer.from(decoded.data as unknown as Uint8Array).toString('hex');
     }
   } catch (e) {
-    console.error('[NostrUsername] npub decode error:');
+    appLogger.error('[NostrUsername] npub decode error:', e, 'app_runtime');
   }
   return null;
 }
@@ -64,7 +65,7 @@ function nsecToHex(nsec: string): string | null {
         : Buffer.from(decoded.data as unknown as Uint8Array).toString('hex');
     }
   } catch (e) {
-    console.error('[NostrUsername] nsec decode error:');
+    appLogger.error('[NostrUsername] nsec decode error:', e, 'app_runtime');
   }
   return null;
 }
@@ -120,7 +121,7 @@ async function unregisterUsername(
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const errMsg = data?.error || `Server error ${res.status}`;
-      console.error(`[NostrUsername] Deletion failed (${res.status}).`);
+      appLogger.error('[NostrUsername] Deletion failed (…).', undefined, 'app_runtime');
       return { ok: false, error: errMsg };
     }
 
@@ -215,7 +216,6 @@ export function NostrUsernameScreen({ settingsMode = false }: { settingsMode?: b
 
         // Preserve the current identity until the replacement is confirmed registered.
         if (isEditing && oldUsername && oldUsername.toLowerCase() !== input.toLowerCase()) {
-          console.log(`[NostrUsername] Releasing old username: ${oldUsername}`);
           const deleteResult = await unregisterUsername(oldUsername, hexPub, hexSec);
           if (!deleteResult.ok) {
             oldUsernameReleaseError = deleteResult.error || 'Unknown registry error';

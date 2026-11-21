@@ -1,3 +1,4 @@
+import { appLogger } from '~/shared/utils/appLogger';
 const MAX_DUPLICATE_OUTPUT_RETRIES = 4;
 
 let receiveQueue: Promise<void> = Promise.resolve();
@@ -21,8 +22,10 @@ async function runWithDuplicateOutputRecovery(operation: () => Promise<void>): P
       // Coco reserves and persists a new deterministic-output counter range before
       // each mint request. Retrying therefore advances past outputs the mint has
       // already seen without weakening proof or P2PK validation.
-      console.warn(
-        `[WalletService] Mint rejected a reused output range; retrying with fresh outputs (${attempt + 1}/${MAX_DUPLICATE_OUTPUT_RETRIES})`,
+      appLogger.warn(
+        '[WalletService] Mint rejected a reused output range; retrying with fresh outputs (…/…)',
+        error,
+        'wallet_sdk',
       );
     }
   }

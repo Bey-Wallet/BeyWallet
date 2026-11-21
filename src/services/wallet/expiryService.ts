@@ -5,6 +5,7 @@ import { cleanToken, decodeToken, encodeToken } from '~/services/wallet/tokenUti
 import { AppState } from 'react-native';
 import { seedService } from '~/services/platform/seedService';
 import { recoveryCoordinator } from './recoveryCoordinator';
+import { appLogger } from '~/shared/utils/appLogger';
 
 let sweepInterval: any = null;
 let sweeping = false;
@@ -53,10 +54,6 @@ export const expiryService = {
 
           // Check if expired
           if (Date.now() >= Number(deadline)) {
-            console.log(
-              `[ExpiryService] Found expired pending token: id=${row.id}, opId=${row.operationId}`,
-            );
-
             // Parse token
             let tokenStr: string | null = null;
             if (row.tokenJson) {
@@ -64,28 +61,31 @@ export const expiryService = {
                 const tokenObj = JSON.parse(row.tokenJson);
                 tokenStr = encodeToken(tokenObj);
               } catch (e) {
-                console.warn(`[ExpiryService] Failed to parse/encode token for row ${row.id}:`);
+                appLogger.warn(
+                  '[ExpiryService] Failed to parse/encode token for row …:',
+                  e,
+                  'wallet_sdk',
+                );
               }
             }
 
             if (!tokenStr) continue;
 
             // Check proof states with the mint
-            console.log(`[ExpiryService] Checking proof states at mint for expired token...`);
+
             const states = await proofService.checkProofStates(tokenStr);
             if (
               !states ||
               states.length === 0 ||
               states.length !== decodeToken(cleanToken(tokenStr)).proofs.length
             ) {
-              console.log(`[ExpiryService] Proof states check returned empty/failed. Skipping.`);
               continue;
             }
 
             const allSpent = states.every((s: any) => s.state === 'SPENT');
             if (allSpent) {
               // Recipient has claimed it, update state to claimed
-              console.log(`[ExpiryService] Recipient has claimed the token. Marking as claimed.`);
+
               await repo.historyRepository.updateHistoryEntryState(String(row.id), 'claimed');
 
               // Delete local inflight proofs if any
@@ -98,9 +98,7 @@ export const expiryService = {
               } catch (e) {}
             } else if (states.every((s: any) => s.state === 'UNSPENT')) {
               // Unspent, sweep/refund it!
-              console.log(
-                `[ExpiryService] Token is unspent. Refunding/Sweeping token back to wallet...`,
-              );
+
               try {
                 if (!canReclaim()) return;
                 if (metadata.reclaimAt) {
@@ -112,7 +110,6 @@ export const expiryService = {
                 } else {
                   await walletService.receive(tokenStr);
                 }
-                console.log(`[ExpiryService] ✅ Successfully refunded token to wallet.`);
 
                 // Mark history entry as expired (refunded)
                 await repo.historyRepository.updateHistoryEntryState(
@@ -129,16 +126,16 @@ export const expiryService = {
                   }
                 } catch (e) {}
               } catch (sweepErr: any) {
-                console.error(`[ExpiryService] Sweep failed for row ${row.id}:`);
+                appLogger.error('[ExpiryService] Sweep failed for row …:', sweepErr, 'wallet_sdk');
               }
             }
           }
         } catch (rowErr) {
-          console.error(`[ExpiryService] Error processing row ${row.id}:`);
+          appLogger.error('[ExpiryService] Error processing row …:', rowErr, 'wallet_sdk');
         }
       }
     } catch (err) {
-      console.error('[ExpiryService] Background sweep error:');
+      appLogger.error('[ExpiryService] Background sweep error:', err, 'wallet_sdk');
     } finally {
       sweeping = false;
     }
@@ -180,7 +177,7 @@ export const expiryService = {
         } catch {}
       }
     } catch (e) {
-      console.warn('[ExpiryService] getExpiryBySecrets failed:');
+      appLogger.warn('[ExpiryService] getExpiryBySecrets failed:', e, 'wallet_sdk');
     }
     return null;
   },
@@ -204,16 +201,17 @@ export const expiryService = {
         try {
           await sweep();
         } catch (e) {
-          console.error('[ExpiryService] Sweep error (scheduling next):');
+          appLogger.error('[ExpiryService] Sweep error (scheduling next):', e, 'wallet_sdk');
         }
         scheduleNext();
       }, intervalMs);
     };
 
     // Initial run — fire immediately, then schedule periodic checks
-    sweep().catch((e) => console.error('[ExpiryService] Initial sweep error:'));
+    sweep().catch((e) =>
+      appLogger.error('[ExpiryService] Initial sweep error:', undefined, 'wallet_sdk'),
+    );
     scheduleNext();
-    console.log(`[ExpiryService] Expiry sweeper started with interval ${intervalMs}ms`);
   },
 
   /**
@@ -224,7 +222,6 @@ export const expiryService = {
     if (sweepInterval) {
       clearTimeout(sweepInterval);
       sweepInterval = null;
-      console.log('[ExpiryService] Expiry sweeper stopped');
     }
   },
 };

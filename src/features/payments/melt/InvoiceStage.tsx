@@ -23,6 +23,7 @@ import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { DestinationInputRow } from '~/shared/ui/DestinationInputRow';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
+import { appLogger } from '~/shared/utils/appLogger';
 
 interface InvoiceStageProps {
   mintUrl?: string | null;
@@ -232,7 +233,7 @@ export function InvoiceStage({
         setInvoice(cleaned);
       }
     } catch (e) {
-      console.warn('[MeltScreen] Clipboard read failed:');
+      appLogger.warn('[MeltScreen] Clipboard read failed:', e, 'lightning_pay');
     } finally {
       setIsPasting(false);
     }

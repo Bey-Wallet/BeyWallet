@@ -1,4 +1,5 @@
 import { feedbackCoordinator } from '~/services/feedback/feedbackCoordinator';
+import { appLogger } from '~/shared/utils/appLogger';
 
 /** Scheduling only: this boundary never reads seeds, proofs or wallet repositories. */
 export class RecoveryCoordinator {
@@ -91,15 +92,8 @@ export class RecoveryCoordinator {
     const resume = this.pause();
     const queuedAt = Date.now();
     const result = this.tail.then(async () => {
-      const drainStarted = Date.now();
       await this.drainBackground();
-      console.info(
-        '[Recovery queue timing]',
-        JSON.stringify({
-          queueWaitMs: drainStarted - queuedAt,
-          backgroundWaitMs: Date.now() - drainStarted,
-        }),
-      );
+      appLogger.debug('[Recovery queue timing]', { durationMs: Date.now() - queuedAt });
       return task();
     });
     const finished = result.finally(() => {

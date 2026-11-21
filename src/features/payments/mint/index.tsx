@@ -17,6 +17,7 @@ import { nostrService } from '~/services/wallet/nostrService';
 import { decodeNostrPublicKey } from '~/services/api/nostrProfileService';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import { useSettingsBusy, useSettingsCanLeave } from '~/features/settings/hooks/useSettingsBusy';
+import { appLogger } from '~/shared/utils/appLogger';
 
 type MintStep = 'amount' | 'confirm' | 'payment' | 'result';
 type MintResultStatus = 'success' | 'error' | 'cancelled';
@@ -193,7 +194,7 @@ export default function MintScreen() {
       if (requestRecipient) void sendInvoiceRequest(created);
       else setStep('payment');
     } catch (err: any) {
-      console.error('[MintScreen] Failed to create mint quote:');
+      appLogger.error('[MintScreen] Failed to create mint quote:', err, 'mint_quote');
       setError(err.message || 'Failed to create invoice');
       setStatus('error');
       setStep('result');
@@ -228,13 +229,13 @@ export default function MintScreen() {
             quoteData.quoteId,
             'failed',
           );
-          console.log(
-            '[MintScreen] Marked cancelled mint quote in history as failed:',
-            quoteData.quoteId,
-          );
         }
       } catch (e) {
-        console.warn('[MintScreen] Failed to mark cancelled mint quote in history:');
+        appLogger.warn(
+          '[MintScreen] Failed to mark cancelled mint quote in history:',
+          e,
+          'mint_quote',
+        );
       }
     }
   };

@@ -1,4 +1,5 @@
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export interface BitcoinPriceData {
   price: number;
@@ -98,7 +99,11 @@ export const bitcoinService = {
 
       return parsedData;
     } catch (error) {
-      console.warn(`[BitcoinService] Network fetch failed, falling back to cache...`, error);
+      appLogger.warn(
+        '[BitcoinService] Network fetch failed, falling back to cache...',
+        error,
+        'app_runtime',
+      );
 
       const cached = readCachedPrice(vsCurrency);
       if (cached) return cached;

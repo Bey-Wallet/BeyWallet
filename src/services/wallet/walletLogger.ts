@@ -1,5 +1,7 @@
 import type { Logger } from 'coco-cashu-core';
 import { recordDiagnosticFailure } from '~/services/feedback/diagnosticFailures';
+import { appLogger } from '~/shared/utils/appLogger';
+import type { AppLogMessage } from '~/shared/utils/appLogMessages';
 
 /** Read only a plain numeric protocol code; never evaluate error getters or messages. */
 export function safeMintErrorCode(value: unknown): number | undefined {
@@ -80,20 +82,19 @@ export function safeWalletErrorDiagnostic(value: unknown) {
 // Exact SDK message allowlist. Metadata is deliberately never inspected.
 function traceMeltPreparation(message: string) {
   if (!__DEV__) return;
-  const steps: Record<string, string> = {
-    'Preparing bolt11 melt operation': 'requesting_quote',
-    'Melt quote created': 'quote_created',
-    'Proofs selected for melt': 'proofs_selected',
-    'Proofs reserved': 'proofs_reserved',
-    'Preparing direct melt (no swap)': 'preparing_direct',
-    'Preparing swap-then-melt': 'preparing_swap',
-    'Swap amounts calculated': 'swap_amounts_ready',
-    'Direct melt prepared': 'direct_prepared',
-    'Swap-then-melt prepared': 'swap_prepared',
-    'Melt operation prepared': 'operation_saved',
+  const steps: Record<string, AppLogMessage> = {
+    'Preparing bolt11 melt operation': '[CocoMelt] requesting_quote',
+    'Melt quote created': '[CocoMelt] quote_created',
+    'Proofs selected for melt': '[CocoMelt] proofs_selected',
+    'Proofs reserved': '[CocoMelt] proofs_reserved',
+    'Preparing direct melt (no swap)': '[CocoMelt] preparing_direct',
+    'Preparing swap-then-melt': '[CocoMelt] preparing_swap',
+    'Swap amounts calculated': '[CocoMelt] swap_amounts_ready',
+    'Direct melt prepared': '[CocoMelt] direct_prepared',
+    'Swap-then-melt prepared': '[CocoMelt] swap_prepared',
+    'Melt operation prepared': '[CocoMelt] operation_saved',
   };
-  if (Object.prototype.hasOwnProperty.call(steps, message))
-    console.log('[CocoMelt]', { step: steps[message] });
+  if (Object.prototype.hasOwnProperty.call(steps, message)) appLogger.debug(steps[message]);
 }
 
 /** SDK messages and metadata can contain bearer proofs or keys. Never forward them to console. */
@@ -101,9 +102,7 @@ export const walletLogger: Logger = {
   error: (message: string, metadata?: unknown) => {
     if (message === 'Mint operation error, not retrying') {
       recordDiagnosticFailure('mint_redeem', metadata);
-      console.error('[Coco] Mint rejected issuance; automatic retries stopped.', {
-        code: safeMintErrorCode(metadata) ?? 'unavailable',
-      });
+      appLogger.error('[Coco] Mint rejected issuance; automatic retries stopped.', metadata);
       return;
     }
     if (
@@ -116,17 +115,22 @@ export const walletLogger: Logger = {
       message.includes('Failed to redeem mint quote') ||
       message.includes('had undefined amount') ||
       message.includes('Quote amount undefined')
-    )
+    ) {
+      recordDiagnosticFailure(
+        message.includes('mint quote') ? 'mint_redeem' : 'wallet_sdk',
+        metadata,
+      );
       return;
+    }
     if (message.includes('Failed to fetch mint info')) {
       recordDiagnosticFailure('mint_connection', metadata);
-      console.warn('[Coco] Mint info refresh unavailable.');
+      appLogger.warn('[Coco] Mint info refresh unavailable.', metadata);
       return;
     }
     recordDiagnosticFailure('wallet_sdk', metadata);
-    console.error('[Coco] Wallet operation failed.');
+    appLogger.error('[Coco] Wallet operation failed.', metadata);
   },
-  warn: (message: string) => {
+  warn: (message: string, metadata?: unknown) => {
     if (
       message.includes('WS request error') ||
       message.includes('Polling task error') ||
@@ -134,9 +138,15 @@ export const walletLogger: Logger = {
       message.includes('Quote amount undefined') ||
       message.includes('Failed to process mint quote') ||
       message.includes('Failed to redeem mint quote')
-    )
+    ) {
+      recordDiagnosticFailure(
+        message.includes('mint quote') ? 'mint_redeem' : 'wallet_sdk',
+        metadata,
+      );
       return;
-    console.warn('[Coco] Wallet operation warning.');
+    }
+    recordDiagnosticFailure('wallet_sdk', metadata);
+    appLogger.warn('[Coco] Wallet operation warning.', metadata);
   },
   info: traceMeltPreparation,
   debug: traceMeltPreparation,

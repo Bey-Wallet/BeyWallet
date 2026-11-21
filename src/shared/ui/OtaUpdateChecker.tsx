@@ -25,9 +25,7 @@ export function OtaUpdateChecker() {
         if (update.isAvailable) {
           setHasUpdate(true);
         }
-      } catch (error) {
-        console.log('Error checking for updates', error);
-      }
+      } catch (error) {}
     }
 
     checkUpdates();

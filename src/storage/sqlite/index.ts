@@ -69,7 +69,6 @@ export class ExpoSqliteRepositories implements Repositories {
   async init(): Promise<void> {
     // Ensure schema is up to date
     await ensureSchema(this.db);
-    console.log('[Database] Schema initialized and verified');
   }
 
   async seedMockData(): Promise<void> {

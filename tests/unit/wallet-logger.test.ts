@@ -3,10 +3,15 @@ import {
   safeWalletErrorDiagnostic,
   walletLogger,
 } from '~/services/wallet/walletLogger';
+import {
+  clearDiagnosticFailures,
+  getDiagnosticFailures,
+} from '~/services/feedback/diagnosticFailures';
 
 let warning: jest.SpyInstance;
 let failure: jest.SpyInstance;
 beforeEach(() => {
+  clearDiagnosticFailures();
   warning = jest.spyOn(console, 'warn').mockImplementation(() => {});
   failure = jest.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -18,8 +23,8 @@ it('never forwards SDK messages, exceptions, nested metadata or stacks to consol
   const metadata = { mnemonic: secret, nsec: secret, token: secret, proofs: [{ secret }] };
   walletLogger.error(`SDK failure: ${secret}`, error, metadata);
   walletLogger.warn(`SDK warning: ${secret}`, metadata);
-  expect(failure).toHaveBeenCalledWith('[Coco] Wallet operation failed.');
-  expect(warning).toHaveBeenCalledWith('[Coco] Wallet operation warning.');
+  expect(failure).toHaveBeenCalledWith('[Coco] Wallet operation failed.', { type: 'Error' });
+  expect(warning).toHaveBeenCalledWith('[Coco] Wallet operation warning.', { type: 'Error' });
   expect(JSON.stringify([...failure.mock.calls, ...warning.mock.calls])).not.toContain(secret);
 });
 
@@ -33,7 +38,7 @@ it('does not evaluate or serialize untrusted metadata', () => {
     },
   };
   expect(() => walletLogger.error('failure', metadata)).not.toThrow();
-  expect(failure).toHaveBeenCalledWith('[Coco] Wallet operation failed.');
+  expect(failure).toHaveBeenCalledWith('[Coco] Wallet operation failed.', { type: 'Error' });
 });
 
 it('retains the existing suppression of expected background errors', () => {
@@ -42,13 +47,14 @@ it('retains the existing suppression of expected background errors', () => {
   walletLogger.warn('Polling task error', { secret: 'fixture' });
   expect(failure).not.toHaveBeenCalled();
   expect(warning).not.toHaveBeenCalled();
+  expect(getDiagnosticFailures().length).toBeGreaterThan(0);
 });
 
 it('reports mint refresh failures without forwarding the supplied URL or metadata', () => {
   walletLogger.error('Failed to fetch mint info: fixture-private', {
     mintUrl: 'https://mint.test/fixture-private',
   });
-  expect(warning).toHaveBeenCalledWith('[Coco] Mint info refresh unavailable.');
+  expect(warning).toHaveBeenCalledWith('[Coco] Mint info refresh unavailable.', { type: 'Error' });
   expect(failure).not.toHaveBeenCalled();
 });
 
@@ -59,7 +65,7 @@ it('reports only the numeric mint rejection code, without the supplied detail', 
   });
   expect(failure).toHaveBeenCalledWith(
     '[Coco] Mint rejected issuance; automatic retries stopped.',
-    { code: 20001 },
+    { type: 'Error', code: 20001 },
   );
 });
 
@@ -83,10 +89,7 @@ it('reports only fixed melt checkpoints and ignores SDK metadata and arbitrary m
   walletLogger.info('Direct melt prepared', metadata);
   walletLogger.debug('synthetic-private-proof', metadata);
   walletLogger.debug('constructor', metadata);
-  expect(log.mock.calls).toEqual([
-    ['[CocoMelt]', { step: 'quote_created' }],
-    ['[CocoMelt]', { step: 'direct_prepared' }],
-  ]);
+  expect(log.mock.calls).toEqual([['[CocoMelt] quote_created'], ['[CocoMelt] direct_prepared']]);
 });
 
 it('classifies storage and HTTP errors without exposing messages, stacks or arbitrary names', () => {

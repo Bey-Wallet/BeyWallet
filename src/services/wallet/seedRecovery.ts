@@ -7,6 +7,7 @@ import { ExpoProofRepository } from '~/storage/sqlite/repositories/ProofReposito
 import { ExpoCounterRepository } from '~/storage/sqlite/repositories/CounterRepository';
 import { RecoveryTimings, recoveryNow } from './recoveryTimings';
 import { createRecoveryProofConverter } from './recoveryProofs';
+import { appLogger } from '~/shared/utils/appLogger';
 
 const BATCH_SIZE = 200;
 
@@ -166,7 +167,9 @@ export async function restoreMintFromSeed(mintUrl: string, saved: () => Promise<
     finished = true;
   } finally {
     seed.fill(0);
-    console.info('[Recovery timing]', JSON.stringify(timings.report(partial || !finished)));
+    appLogger.debug('[Recovery timing]', {
+      durationMs: timings.report(!finished || partial).totalMs,
+    });
   }
   return { partial };
 }

@@ -31,6 +31,7 @@ import { generateDeterministicUsername } from '~/shared/utils/username';
 import { nostrIdentityService } from '~/services/wallet/nostrIdentityService';
 import { Flex } from '~/shared/ui/Flex';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export function OnboardingScreen() {
   const { currentStep, setStep, setGeneratedMnemonic, generatedMnemonic, completeOnboarding } =
@@ -132,14 +133,13 @@ export function OnboardingScreen() {
     setIsFinishing(true);
     const resumeRecoveryWork = isImportingFlow ? recoveryCoordinator.pause() : undefined;
     try {
-      console.log('[Onboarding] Resuming saved wallet setup...');
       await initService.init();
       await useSettingsStore.getState().initialize(true);
       await initialize();
       await completeOnboarding();
       useAuthStore.getState().setAuthenticated(true);
     } catch (err) {
-      console.error('[Onboarding] Failed to resume wallet:');
+      appLogger.error('[Onboarding] Failed to resume wallet:', err, 'wallet_start');
       setSetupError('Could not open this wallet. Retry opening it.');
     } finally {
       resumeRecoveryWork?.();
@@ -153,13 +153,12 @@ export function OnboardingScreen() {
     setSavedWalletAction('delete');
     setIsFinishing(true);
     try {
-      console.log('[Onboarding] Deleting existing wallet to start over...');
       await initService.destroyWallet();
       setHasSavedWallet(false);
       setStep('welcome');
       toast.showFeedback(interactionCopy.walletDeleted);
     } catch (err) {
-      console.error('[Onboarding] Failed to delete wallet:');
+      appLogger.error('[Onboarding] Failed to delete wallet:', err, 'wallet_start');
       setSetupError('Wallet deletion did not finish. Restart Bey and review the wallet.');
     } finally {
       setIsFinishing(false);
@@ -272,7 +271,6 @@ export function OnboardingScreen() {
             const { backupService } = require('~/services/wallet/backupService');
             await backupService.importState(tempBackupState);
 
-            console.log('[Onboarding] Refreshing wallet state after import...');
             await initService.reinitFast();
           }
 
@@ -342,7 +340,7 @@ export function OnboardingScreen() {
         })),
       );
       releaseRecoveryPause();
-      console.error('[Onboarding] Onboarding completion failed:');
+      appLogger.error('[Onboarding] Onboarding completion failed:', err, 'wallet_start');
       setSetupError(
         setupPrepared.current
           ? 'Your wallet is saved. Retry connecting, or skip username and mints to open it now.'
@@ -369,8 +367,6 @@ export function OnboardingScreen() {
     setIsImporting(true);
     setImportStatus('Initializing wallet…');
     try {
-      console.log('[Onboarding] Importing wallet from seed...');
-
       // Check Nostr for mint backups
       let nostrMints: string[] = [];
       let keys: any = null;
@@ -386,11 +382,10 @@ export function OnboardingScreen() {
             : 'No backup found. Review the available mints.',
         );
         if (nostrMints.length > 0) {
-          console.log(`[Onboarding] Found ${nostrMints.length} mints in Nostr backup`);
         }
       } catch (err) {
         setDiscoveryMessage('Backup discovery failed. You can retry.');
-        console.warn('[Onboarding] Failed to fetch Nostr backup mints:');
+        appLogger.warn('[Onboarding] Failed to fetch Nostr backup mints:', err, 'wallet_start');
       }
 
       if (!keys) {
@@ -415,11 +410,10 @@ export function OnboardingScreen() {
           }
         }
       } catch (err) {
-        console.warn('[Onboarding] Remote NIP-05 lookup failed:');
+        appLogger.warn('[Onboarding] Remote NIP-05 lookup failed:', err, 'wallet_start');
       }
 
       if (fetchedUsername) {
-        console.log(`[Onboarding] Found remote username: ${fetchedUsername}`);
         setTempUsername(fetchedUsername);
       } else {
         const genName = generateDeterministicUsername(pubkeyHex);
@@ -437,7 +431,7 @@ export function OnboardingScreen() {
       setIsImporting(false);
       setStep('permissions');
     } catch (err) {
-      console.error('[Onboarding] Import failed:');
+      appLogger.error('[Onboarding] Import failed:', err, 'wallet_start');
       setImportStatus('Import failed. Please try again.');
       setSetupError(interactionCopy.importFailedPleaseTryAgain.title);
       setIsImporting(false);

@@ -21,6 +21,7 @@ import { useMintDiscovery } from '~/features/mints/hooks/useMintDiscovery';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';
 import type { MintRecommendation } from '~/services/api/mintRecommendationService';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
+import { appLogger } from '~/shared/utils/appLogger';
 
 const EMPTY_MINTS: MintRecommendation[] = [];
 const EMPTY_DIRECTORY: Record<string, string> = {};
@@ -56,7 +57,7 @@ export default function UniversalSearchScreen() {
         try {
           setRecentSearches(JSON.parse(cached));
         } catch (e) {
-          console.error('[Search] Failed to parse recents:', e);
+          appLogger.error('[Search] Failed to parse recents:', e, 'app_runtime');
         }
       }
     };

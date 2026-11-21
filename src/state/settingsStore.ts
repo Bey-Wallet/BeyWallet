@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { initService } from '~/services/wallet';
 import { seedService } from '~/services/platform/seedService';
 import { walletStorageGeneration } from '~/storage/sqlite/walletStorageLifecycle';
+import { appLogger } from '~/shared/utils/appLogger';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 export const notificationDefaults = {
@@ -198,7 +199,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         } catch {
           // Privacy settings are loaded. Leave identity recovery retryable
           // without keeping the entire app behind its native splash.
-          console.warn('[SettingsStore] Identity cache unavailable; retry from Settings.');
+          appLogger.warn(
+            '[SettingsStore] Identity cache unavailable; retry from Settings.',
+            undefined,
+            'app_runtime',
+          );
         }
       }
 
@@ -208,7 +213,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     } catch {
       // initService retries after local repositories are ready. Never mark
       // defaults as hydrated, or a slow startup permanently loses the keys.
-      console.warn('[SettingsStore] Settings unavailable; initialization can be retried.');
+      appLogger.warn(
+        '[SettingsStore] Settings unavailable; initialization can be retried.',
+        undefined,
+        'app_runtime',
+      );
     }
   },
 
@@ -232,7 +241,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ theme });
     } catch (error) {
-      console.error('[SettingsStore] Failed to set theme:', error);
+      appLogger.error('[SettingsStore] Failed to set theme:', error, 'app_runtime');
       // Still set state so UI reflects choice even if save fails
       set({ theme });
     }
@@ -247,7 +256,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ secondaryCurrency: currency });
     } catch (error) {
-      console.error('[SettingsStore] Failed to set secondary currency:', error);
+      appLogger.error('[SettingsStore] Failed to set secondary currency:', error, 'app_runtime');
       set({ secondaryCurrency: currency });
     }
   },
@@ -261,7 +270,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ primaryCurrency: val });
     } catch (error) {
-      console.error('[SettingsStore] Failed to set primary currency:', error);
+      appLogger.error('[SettingsStore] Failed to set primary currency:', error, 'app_runtime');
       set({ primaryCurrency: val });
     }
   },
@@ -275,7 +284,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ notificationsEnabled: enabled });
     } catch (error) {
-      console.warn('[SettingsStore] Could not save notification preference');
+      appLogger.warn(
+        '[SettingsStore] Could not save notification preference',
+        error,
+        'app_runtime',
+      );
       throw new Error('Could not save notification preference. Try again.');
     }
   },
@@ -297,7 +310,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ biometricEnabled: enabled });
     } catch (error) {
-      console.error('[SettingsStore] Failed to set biometric enabled:', error);
+      appLogger.error('[SettingsStore] Failed to set biometric enabled:', error, 'app_runtime');
       set({ biometricEnabled: enabled });
     }
   },
@@ -311,7 +324,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ nip05: identifier });
     } catch (error) {
-      console.error('[SettingsStore] Failed to set nip05:', error);
+      appLogger.error('[SettingsStore] Failed to set nip05:', error, 'app_runtime');
       set({ nip05: identifier });
     }
   },
@@ -325,7 +338,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ hideBalance: hide });
     } catch (error) {
-      console.error('[SettingsStore] Failed to set hideBalance:', error);
+      appLogger.error('[SettingsStore] Failed to set hideBalance:', error, 'app_runtime');
       set({ hideBalance: hide });
     }
   },
@@ -339,7 +352,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ seedBackedUp: val });
     } catch (error) {
-      console.error('[SettingsStore] Failed to set seedBackedUp:', error);
+      appLogger.error('[SettingsStore] Failed to set seedBackedUp:', error, 'app_runtime');
       set({ seedBackedUp: val });
     }
   },
@@ -353,7 +366,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ backupDismissedAt: val });
     } catch (error) {
-      console.error('[SettingsStore] Failed to set backupDismissedAt:', error);
+      appLogger.error('[SettingsStore] Failed to set backupDismissedAt:', error, 'app_runtime');
       set({ backupDismissedAt: val });
     }
   },
@@ -367,7 +380,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ showBitcoinSymbol: val });
     } catch (error) {
-      console.error('[SettingsStore] Failed to set showBitcoinSymbol:', error);
+      appLogger.error('[SettingsStore] Failed to set showBitcoinSymbol:', error, 'app_runtime');
       set({ showBitcoinSymbol: val });
     }
   },
@@ -381,7 +394,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
       set({ backupDirectoryUri: uri });
     } catch (error) {
-      console.error('[SettingsStore] Failed to set backupDirectoryUri:', error);
+      appLogger.error('[SettingsStore] Failed to set backupDirectoryUri:', error, 'app_runtime');
       set({ backupDirectoryUri: uri });
     }
   },
@@ -393,7 +406,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         await initService.getRepo().settingsRepository.setSetting('homeExpanded', String(expanded));
       }
     } catch {
-      console.warn('[SettingsStore] Could not save expanded Home preference');
+      appLogger.warn(
+        '[SettingsStore] Could not save expanded Home preference',
+        undefined,
+        'app_runtime',
+      );
     }
   },
   setHideMintConnectionDisclaimer: async (hide: boolean) => {
@@ -405,7 +422,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       set({ hideMintConnectionDisclaimer: hide });
     } catch {
       // Keep showing the disclaimer if the preference could not be saved.
-      console.warn('[SettingsStore] Could not save mint disclaimer preference');
+      appLogger.warn(
+        '[SettingsStore] Could not save mint disclaimer preference',
+        undefined,
+        'app_runtime',
+      );
     }
   },
 }));

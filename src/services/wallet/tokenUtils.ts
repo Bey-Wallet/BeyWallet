@@ -8,6 +8,7 @@ import { getEncodedTokenV4, getDecodedToken, PaymentRequest } from '@cashu/cashu
 import type { DecodedTokenPreview } from '~/services/wallet/types';
 import { decode as decodeCbor, Encoder } from 'cbor-x';
 import { Buffer } from 'buffer';
+import { appLogger } from '~/shared/utils/appLogger';
 
 const tokenEncoder = new Encoder({ useRecords: false, tagUint8Array: false });
 
@@ -283,7 +284,7 @@ function decodeV4TokenManually(
     if (!proofs.length || !Number.isSafeInteger(amount)) return null;
     return { mint, proofs, unit, amount, memo: typeof cbor.d === 'string' ? cbor.d : undefined };
   } catch (e: any) {
-    console.warn('[decodeToken] Manual V4 CBOR fallback failed');
+    appLogger.warn('[decodeToken] Manual V4 CBOR fallback failed', e, 'wallet_sdk');
     return null;
   }
 }
@@ -326,10 +327,10 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
     }
 
     const totalAmount = proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
-    console.log('[decodeToken] ✅ cashu-ts OK — mint:', mint, 'proofs:', proofs.length);
+
     return { mint, amount: totalAmount, unit, proofs, memo, raw: decoded };
-  } catch (err1: any) {
-    console.warn('[decodeToken] cashu-ts failed');
+  } catch {
+    // A decoder mismatch is expected while trying supported token formats.
   }
 
   // ── Secondary: coco-cashu-core ───────────────────────────────────────────
@@ -356,10 +357,10 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
     }
 
     const totalAmount = proofs.reduce((acc: number, p: any) => acc + p.amount, 0);
-    console.log('[decodeToken] ✅ coco-cashu-core OK — mint:', mint);
+
     return { mint, amount: totalAmount, unit, proofs, memo, raw: decoded };
-  } catch (err2: any) {
-    console.warn('[decodeToken] coco-cashu-core failed');
+  } catch {
+    // Continue to the manual fallbacks; report only a final decoding failure.
   }
 
   // ── Manual fallback: cashuB (V4) CBOR — no keyset ID mapping needed ────
@@ -369,12 +370,6 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
   if (cleaned.startsWith('cashuB')) {
     const v4Result = decodeV4TokenManually(cleaned);
     if (v4Result) {
-      console.log(
-        '[decodeToken] ✅ Manual V4 CBOR fallback OK — mint:',
-        v4Result.mint,
-        'proofs:',
-        v4Result.proofs.length,
-      );
       return {
         mint: v4Result.mint,
         amount: v4Result.amount,
@@ -394,7 +389,7 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
       if (json.token && Array.isArray(json.token)) {
         const first = json.token[0];
         const proofs = first.proofs || [];
-        console.log('[decodeToken] ✅ Manual V3 fallback OK');
+
         return {
           mint: first.mint,
           amount: proofs.reduce((acc: number, p: any) => acc + p.amount, 0),
@@ -404,8 +399,8 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
           raw: json,
         };
       }
-    } catch (err3: any) {
-      console.warn('[decodeToken] Manual V3 fallback failed');
+    } catch {
+      // Report unsupported input once, after all supported formats are tried.
     }
   }
 
@@ -432,7 +427,7 @@ export function decodeToken(tokenString: string): DecodedTokenPreview {
     throw new Error('This looks like an LNURL. LNURL deposits are not yet supported.');
   }
 
-  console.error('[decodeToken] All token decoders failed');
+  appLogger.error('[decodeToken] All token decoders failed', undefined, 'wallet_sdk');
   throw new Error('Invalid or unsupported cashu token format.');
 }
 
@@ -453,7 +448,7 @@ export function decodePaymentRequest(requestString: string) {
       transports: req.transport,
     };
   } catch (e: any) {
-    console.warn('[tokenUtils] PaymentRequest.fromEncoded failed');
+    appLogger.warn('[tokenUtils] PaymentRequest.fromEncoded failed', e, 'wallet_sdk');
     throw new Error('Invalid payment request format.');
   }
 }

@@ -36,7 +36,7 @@ export const eventService = {
    *
    * @example
    * const unsub = eventService.on('mint-quote:redeemed', (payload) => {
-   *   console.log('Quote redeemed:', payload.quoteId);
+   *   // Update the screen without logging the quote or payment payload.
    * });
    * // Later: unsub();
    */

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { bitcoinService, BitcoinPriceData } from '~/services/api/bitcoinService';
+import { appLogger } from '~/shared/utils/appLogger';
 
 interface BitcoinState {
   data: BitcoinPriceData | null;
@@ -35,7 +36,7 @@ export const useBitcoinStore = create<BitcoinState>((set, get) => ({
         set({ data, lastUpdated: data.updatedAt * 1000 });
       }
     } catch (err) {
-      console.warn('[BitcoinStore] Error loading cache:', err);
+      appLogger.warn('[BitcoinStore] Error loading cache:', err, 'app_runtime');
     }
   },
 }));

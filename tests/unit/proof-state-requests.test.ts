@@ -55,6 +55,7 @@ it('allows a fresh check after a failed network request', async () => {
 });
 
 it('does not log proof material echoed by a mint failure', async () => {
+  require('~/services/feedback/diagnosticFailures').clearDiagnosticFailures();
   const failure = jest.spyOn(console, 'error').mockImplementation(() => {});
   const secret = 'synthetic-private-proof';
   try {

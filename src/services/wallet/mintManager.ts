@@ -6,6 +6,7 @@
 
 import { initService } from '~/services/wallet/initService';
 import type { MintInfo } from '~/services/wallet/types';
+import { appLogger } from '~/shared/utils/appLogger';
 
 function mgr() {
   return initService.getManager();
@@ -20,7 +21,6 @@ export const mintManager = {
    */
   addMint: async (mintUrl: string, options?: { trusted?: boolean }): Promise<void> => {
     await mgr().mint.addMint(mintUrl, options);
-    console.log(`[MintManager] Mint added: ${mintUrl}, trusted: ${options?.trusted ?? false}`);
   },
 
   /**
@@ -28,7 +28,6 @@ export const mintManager = {
    */
   trustMint: async (mintUrl: string): Promise<void> => {
     await mgr().mint.trustMint(mintUrl);
-    console.log(`[MintManager] Mint trusted: ${mintUrl}`);
   },
 
   /**
@@ -36,7 +35,6 @@ export const mintManager = {
    */
   untrustMint: async (mintUrl: string): Promise<void> => {
     await mgr().mint.untrustMint(mintUrl);
-    console.log(`[MintManager] Mint untrusted: ${mintUrl}`);
   },
 
   /**
@@ -54,7 +52,6 @@ export const mintManager = {
     try {
       const db = (repo as any).db;
       if (db && typeof db.run === 'function') {
-        console.log(`[MintManager] Wiping database tables for mint: ${mintUrl}`);
         await db.run('DELETE FROM coco_cashu_keysets WHERE mintUrl = ?', [mintUrl]);
         await db.run('DELETE FROM coco_cashu_counters WHERE mintUrl = ?', [mintUrl]);
         await db.run('DELETE FROM coco_cashu_proofs WHERE mintUrl = ?', [mintUrl]);
@@ -62,10 +59,12 @@ export const mintManager = {
         await db.run('DELETE FROM coco_cashu_melt_quotes WHERE mintUrl = ?', [mintUrl]);
       }
     } catch (dbErr) {
-      console.error('[MintManager] Failed to wipe DB tables for removed mint:');
+      appLogger.error(
+        '[MintManager] Failed to wipe DB tables for removed mint:',
+        dbErr,
+        'wallet_sdk',
+      );
     }
-
-    console.log(`[MintManager] Mint removed: ${mintUrl}`);
   },
 
   /**
@@ -135,10 +134,7 @@ export const mintManager = {
   debugKeysets: async (mintUrl: string) => {
     const repo = initService.getRepo();
     const keysets = await repo.keysetRepository.getKeysetsByMintUrl(mintUrl);
-    console.log('[MintManager] Keysets for', mintUrl);
-    keysets.forEach((k: any) => {
-      console.log(`  - ${k.id}: unit=${k.unit}, active=${k.active}, feePpk=${k.feePpk}`);
-    });
+
     return keysets;
   },
 
@@ -154,7 +150,6 @@ export const mintManager = {
     for (const keyset of keysets) {
       const k = keyset as any;
       if (!k.unit || k.unit === '') {
-        console.log(`[MintManager] Fixing keyset ${k.id} (empty unit → ${unit})`);
         await repo.db.run('UPDATE coco_cashu_keysets SET unit = ? WHERE mintUrl = ? AND id = ?', [
           unit,
           mintUrl,
@@ -165,7 +160,6 @@ export const mintManager = {
     }
 
     if (repaired) {
-      console.log('[MintManager] Keysets repaired');
     }
     return repaired;
   },

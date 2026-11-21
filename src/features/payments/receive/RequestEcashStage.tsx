@@ -40,6 +40,7 @@ import {
   nfcReceiveCoordinator,
   nfcRequestAdvertisement,
 } from '~/services/wallet/nfcReceiveCoordinator';
+import { appLogger } from '~/shared/utils/appLogger';
 
 /** Simple unique ID — avoids a uuid dependency */
 const makeRequestId = () =>
@@ -208,7 +209,7 @@ export function RequestEcashStage({
               target = nprofileEncode({ pubkey: hexPubkey, relays: ['wss://relay.damus.io'] });
             }
           } catch (e) {
-            console.warn('[RequestEcashStage] Failed to decode npub');
+            appLogger.warn('[RequestEcashStage] Failed to decode npub', e, 'ecash_receive');
           }
         }
 
@@ -267,7 +268,11 @@ export function RequestEcashStage({
         setStep('result');
       } catch (err: any) {
         if (savedRequestId) setStep('result');
-        console.error('[RequestEcashStage] PaymentRequest generation failed:');
+        appLogger.error(
+          '[RequestEcashStage] PaymentRequest generation failed:',
+          err,
+          'ecash_receive',
+        );
         setGenerateError(err?.message || 'Failed to generate request');
       } finally {
         generationLock.current = false;
@@ -457,7 +462,7 @@ export function RequestEcashStage({
         );
       }
     } catch (e) {
-      console.warn('[RequestEcashStage] check status error:');
+      appLogger.warn('[RequestEcashStage] check status error:', e, 'ecash_receive');
       toast.showFeedback(interactionCopy.unableToCheckPaymentPleaseTryAgain);
     } finally {
       setIsChecking(false);
