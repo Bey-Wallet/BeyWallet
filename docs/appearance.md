@@ -5,6 +5,8 @@ bottom shadow or an additional native back button. `useScreenHeaderOptions` shar
 defaults between Settings, modals and payment stages. Header actions use `HeaderIconButton`:
 neutral Ghost circular controls with 22-point icons and at least 48-point touch areas.
 Shared bottom sheets use `$sheetBackground` without a border: `#0D0D0F` in dark mode and `#FFFFFF` in light mode. List tables and action buttons retain their existing fills.
+
+Sheet header rows use the compact 48-point height, preserving 48-point control touch targets. Screen headers retain their existing height.
 Pending payment screens use short header titles (at most two words) and a right-side header icon
 for receipt image sharing. Keep existing management actions alongside it and the title centered.
 Both navigation controls stay on the left: `ArrowLeft` returns to a previous screen or editable

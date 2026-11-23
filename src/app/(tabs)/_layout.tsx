@@ -89,7 +89,9 @@ export default function TabLayout() {
           headerTitleAlign: 'center',
           headerLeft: () => <HeaderLeft resolvedTheme={resolvedTheme} />,
           headerTitle: () => <HomeHeaderMintSelector />,
-          tabBarIcon: ({ color, size }) => <BeyIcon size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <BeyIcon size={size} color={color} variant={focused ? 'fill' : 'line'} />
+          ),
           headerRight: () => (
             <XStack
               width={appDimensions.touchTarget + appSpacing.page}

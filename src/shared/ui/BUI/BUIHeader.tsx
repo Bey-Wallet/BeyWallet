@@ -139,16 +139,18 @@ function HeaderTitle({
   variant,
   shrink,
   liveRegion,
+  fontSize,
 }: {
   title: string;
   variant: 'centered' | 'simple' | 'modal';
   shrink: boolean;
   liveRegion?: 'none' | 'polite' | 'assertive';
+  fontSize?: number;
 }) {
   const c = useBUITheme();
   const [available, setAvailable] = useState(0);
   const [measured, setMeasured] = useState({ text: '', width: 0 });
-  const size = variant === 'centered' ? 24 : 20;
+  const size = fontSize ?? (variant === 'centered' ? 24 : 20);
   const scale =
     shrink && measured.text === title ? buiHeaderTitleScale(measured.width, available) : 1;
   return (
@@ -217,7 +219,9 @@ export function BUIHeader({
   navigationLabel,
   horizontalInset = 16,
   transparent = false,
+  compact = false,
   titleLiveRegion,
+  titleSize,
 }: {
   title: string;
   leading?: React.ReactNode;
@@ -226,7 +230,10 @@ export function BUIHeader({
   navigationLabel?: string;
   horizontalInset?: number;
   transparent?: boolean;
+  /** Sheets keep their header within the 48-point control touch area. */
+  compact?: boolean;
   titleLiveRegion?: 'none' | 'polite' | 'assertive';
+  titleSize?: number;
   subtitle?: string;
   variant?: 'centered' | 'simple' | 'modal';
   navigation?: 'back' | 'close' | 'none';
@@ -266,7 +273,13 @@ export function BUIHeader({
       importantForAccessibility={textVisible ? 'auto' : 'no-hide-descendants'}
     >
       {customTitle ?? (
-        <HeaderTitle title={title} variant={variant} shrink={shrink} liveRegion={titleLiveRegion} />
+        <HeaderTitle
+          title={title}
+          variant={variant}
+          shrink={shrink}
+          liveRegion={titleLiveRegion}
+          fontSize={titleSize}
+        />
       )}
       <Animated.View
         style={{
@@ -310,7 +323,7 @@ export function BUIHeader({
   );
   return (
     <YStack width="100%" bg={transparent ? 'transparent' : c.canvas} pt={Math.max(0, topInset)}>
-      <YStack height={64}>
+      <YStack height={compact ? 48 : 64}>
         <YStack
           position="absolute"
           t={0}

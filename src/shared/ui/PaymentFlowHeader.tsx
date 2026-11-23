@@ -30,6 +30,8 @@ export function PaymentFlowHeader({
     return (
       <XStack testID="receipt-header" items="stretch" px={sheet.headerInset ?? 0}>
         <BUIHeader
+          compact
+          transparent
           title={title}
           navigation="none"
           horizontalInset={0}

@@ -45,6 +45,7 @@ interface AppBottomSheetProps {
   maxDynamicContentSize?: number;
   /** Standard BUI sheet chrome; the host measures header, body and insets together. */
   title?: string;
+  titleSize?: number;
   headerActions?: React.ReactNode;
   navigation?: 'back' | 'close';
   navigationLabel?: string;
@@ -74,6 +75,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
       scrollable = false,
       maxDynamicContentSize,
       title,
+      titleSize,
       headerActions,
       navigation = 'close',
       navigationLabel,
@@ -231,14 +233,15 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
           >
             <YStack pl={insets.left} pr={insets.right}>
               <BUIHeader
+                compact
                 title={title}
+                titleSize={titleSize}
                 titleLiveRegion={titleLiveRegion}
                 navigation={navigation}
                 navigationLabel={navigationLabel}
                 navigationDisabled={!canDismiss}
                 onNavigate={canDismiss ? (onNavigate ?? dismissSheet) : undefined}
                 actions={headerActions}
-                divider
                 transparent
               />
             </YStack>

@@ -83,13 +83,13 @@ export const BUISheet = forwardRef<
       {showHeader && (
         <YStack pl={insets.left} pr={insets.right}>
           <BUIHeader
+            compact
             variant={headerVariant}
             title={title}
             actions={actions}
             navigation={navigation}
             onNavigate={canDismiss ? navigate : undefined}
             navigationDisabled={!canDismiss}
-            divider
             transparent
           />
         </YStack>

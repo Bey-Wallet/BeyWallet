@@ -384,9 +384,9 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
         >
           <>
             <BUIHeader
+              compact
               title="Choose mint"
               transparent
-              divider
               navigation="close"
               navigationLabel="Close mint selector"
               navigationDisabled={locked}

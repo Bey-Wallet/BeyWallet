@@ -144,7 +144,8 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
     <AppBottomSheet
       ref={sheetRef}
       backgroundColor="$background"
-      title={titles[state.status]}
+      title="NFC"
+      titleSize={appTypography.title3.fontSize}
       titleLiveRegion="polite"
       navigationLabel="Close NFC"
       onNavigate={close}
@@ -183,6 +184,15 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
             {state.amount !== undefined && (
               <PaymentAmount amount={state.amount} compact size="prominent" />
             )}
+            <Text
+              fontFamily="$heading"
+              {...appTypography.title3}
+              color="$color"
+              textAlign="center"
+              accessibilityLiveRegion="polite"
+            >
+              {titles[state.status]}
+            </Text>
             {state.message !== state.error && (
               <Text
                 fontFamily="$body"
