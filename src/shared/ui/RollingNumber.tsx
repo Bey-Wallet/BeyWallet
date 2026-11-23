@@ -82,7 +82,7 @@ const RollingDigit = ({
         fontSize={fontSize}
         lineHeight={height}
         letterSpacing={0}
-        fontVariant={['proportional-nums']}
+        fontVariant={['tabular-nums']}
         numberOfLines={1}
         style={{ position: 'absolute', opacity: 0, width: 10000 }}
         onTextLayout={({ nativeEvent }) => {
@@ -115,7 +115,7 @@ const RollingDigit = ({
               fontSize={fontSize}
               lineHeight={height}
               text="center"
-              fontVariant={['proportional-nums']}
+              fontVariant={['tabular-nums']}
               letterSpacing={0}
             >
               {num}
@@ -241,7 +241,7 @@ export const RollingNumber = ({
                 fontSize={fontSize}
                 lineHeight={itemHeight}
                 letterSpacing={0}
-                fontVariant={['proportional-nums']}
+                fontVariant={['tabular-nums']}
               >
                 {char}
               </Text>

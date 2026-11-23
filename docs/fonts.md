@@ -16,18 +16,18 @@ role using Inter, not a separate monospace font.
 
 ## Character features
 
-- **Proportional numerals are active for the current test.** Keep `tnum` disabled
-  until the user asks to restore it; native text requests `proportional-nums` and
-  SVG receipts request `pnum`.
-- `cv01`: the upstream alternate 1 is enabled.
+- **Tabular numerals are enabled.** Native text requests `tabular-nums` and
+  SVG receipts request `tnum`.
+- `cv01` is disabled; use the normal upstream 1.
 - `ss02`: disambiguation, with **all zero substitutions removed**. Uppercase I,
   lowercase l and related characters use the upstream disambiguation shapes.
 - Normal punctuation; `ss07` square punctuation is disabled.
-- Zero stays normal and unslashed; no dotted-zero or open-six/nine alternate is enabled.
+- `cv02`, `cv03` and `cv04`: open 4, 6 and 9, including tabular numeral forms.
+- Zero stays normal and unslashed; no dotted-zero alternate is enabled.
 
 The preparation script adds the selected lookup indexes to default-on `ccmp`.
 The selected substitutions are checked to be idempotent. The `tnum` feature is
-not included in default lookups; normal zero is retained. No glyph outlines are redrawn.
+included in default lookups; normal zero is retained. No glyph outlines are redrawn.
 Prepared font name records identify the derivatives as Bey Inter; original
 copyright and license metadata is preserved.
 
@@ -64,7 +64,7 @@ python scripts/prepare-inter-fonts.py --source C:\path\to\Inter-4.1.zip
 ```
 
 The script uses the existing FontTools build tool, checks the source archive,
-applies the approved defaults, verifies proportional advances, alternate 1 and normal zero, then
+applies the approved defaults, verifies equal digit advances, normal 1 and normal zero, then
 writes the three fonts, license and `inter-manifest.json`. The manifest records
 source/output hashes, weights, default lookups and selected glyphs.
 
@@ -77,7 +77,7 @@ source/output hashes, weights, default lookups and selected glyphs.
 - Asset/default-feature tests: `tests/unit/font-assets.test.ts`.
 
 Asset and typography tests check hashes, weights, character coverage, selected
-features, proportional figures, alternate 1, normal zero, registration, weight resolution and native text scaling.
+features, tabular figures, normal 1, normal zero, registration, weight resolution and native text scaling.
 Font-file spacing checks cover numeral pairs, punctuation and currency prefixes.
 Review native rendering, wrapping and exported receipts on device in both themes
 and with larger text. Inter includes Bitcoin and Indian rupee; full-width yen may

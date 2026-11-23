@@ -12,6 +12,7 @@ export const appAccent = {
 export const appColors = {
   dark: {
     canvas: '#000000',
+    sheet: '#0D0D0F',
     surface: '#17171A',
     raised: '#222224',
     pressed: '#2F2F33',
@@ -48,6 +49,7 @@ export const appColors = {
   },
   light: {
     canvas: '#FFFFFF',
+    sheet: '#FFFFFF',
     surface: defaultConfig.themes.light.gray2,
     raised: defaultConfig.themes.light.gray3,
     pressed: defaultConfig.themes.light.gray4,
@@ -237,7 +239,7 @@ export function createAppColorTheme(appearance: keyof typeof appColors) {
     iconTertiary: c.tertiaryText,
     backgroundAlternate: c.alternateCanvas,
     surfaceAlternate: c.alternateSurface,
-    sheetBackground: appearance === 'light' ? c.canvas : c.surface,
+    sheetBackground: c.sheet,
     backgroundTransparent: c.transparentCanvas,
     backgroundHighlighted: c.highlighted,
     overlayStrong: c.overlayStrong,

@@ -78,7 +78,7 @@ it('applies proportional numerals to body text, headings and inputs on web', asy
   );
   for (const id of ['tabular-text', 'tabular-heading', 'tabular-input']) {
     const element = container.querySelector(`[data-testid="${id}"]`)!;
-    expect(getComputedStyle(element).fontVariant).toContain('proportional-nums');
+    expect(getComputedStyle(element).fontVariant).toContain('tabular-nums');
   }
   await act(async () => root.unmount());
   container.remove();

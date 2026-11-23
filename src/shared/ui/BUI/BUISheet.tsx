@@ -11,7 +11,7 @@ import AppBottomSheet, {
 import type { BUIAppearance } from '~/state/buiStore';
 import { BUIHeader } from './BUIHeader';
 import { BUIInput, type BUIInputProps } from './BUIInput';
-import { BUIAppearanceProvider, useBUIOverlayAppearance, useBUITheme } from './useBUITheme';
+import { BUIAppearanceProvider, useBUIOverlayAppearance } from './useBUITheme';
 
 export type BUISheetRef = AppBottomSheetRef;
 
@@ -50,7 +50,6 @@ export const BUISheet = forwardRef<
 ) {
   const inheritedAppearance = useBUIOverlayAppearance();
   const appearance = appearanceOverride ?? inheritedAppearance;
-  const c = useBUITheme(appearance);
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const host = useRef<AppBottomSheetRef>(null);
@@ -91,6 +90,7 @@ export const BUISheet = forwardRef<
             onNavigate={canDismiss ? navigate : undefined}
             navigationDisabled={!canDismiss}
             divider
+            transparent
           />
         </YStack>
       )}
@@ -114,7 +114,7 @@ export const BUISheet = forwardRef<
         <AppBottomSheetThemeProvider value={themeName}>
           <AppBottomSheet
             ref={host}
-            backgroundColor={c.canvas}
+            backgroundColor="$sheetBackground"
             canDismiss={canDismiss}
             scrollable
             maxDynamicContentSize={maxDynamicContentSize ?? height - Math.max(insets.top, 24)}

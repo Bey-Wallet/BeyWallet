@@ -115,21 +115,21 @@ it.each(Object.entries(manifest.fonts))(
     for (const symbol of '$€£¥₿₹₽₩₺₦฿₱₫złKč')
       expect(glyphIndex(font, symbol.codePointAt(0)!)).toBeGreaterThan(0);
     const selected = features(font);
-    const enabled = ['ss02', 'cv01'].flatMap((tag) => selected.get(tag)!);
+    const enabled = ['ss02', 'tnum', 'cv02', 'cv03', 'cv04'].flatMap((tag) => selected.get(tag)!);
     expect(selected.get('ccmp')).toEqual(expected.defaultLookups);
     expect(selected.get('ccmp')).toEqual(expect.arrayContaining(enabled));
-    for (const tag of ['zero', 'tnum', 'ss07'])
+    for (const tag of ['zero', 'cv01', 'ss07'])
       for (const index of selected.get(tag)!) expect(selected.get('ccmp')).not.toContain(index);
     const original = (char: string) => glyphIndex(font, char.codePointAt(0)!);
     const apply = (char: string) => substitute(font, original(char), enabled);
     for (const char of 'Il') expect(apply(char)).not.toBe(original(char));
-    expect(apply('1')).not.toBe(original('1'));
-    expect(apply('0')).toBe(original('0'));
-    for (const char of '!?.,:;') expect(apply(char)).toBe(original(char));
+    const tabular = (char: string) => substitute(font, original(char), selected.get('tnum')!);
+    for (const char of '01!?.,:;') expect(apply(char)).toBe(tabular(char));
+    for (const char of '469') expect(apply(char)).not.toBe(tabular(char));
     const hmtx = tableOffset(font, 'hmtx');
     const metrics = font.readUInt16BE(tableOffset(font, 'hhea') + 34);
-    expect(manifest.numeralMode).toBe('proportional');
-    expect(new Set(expected.digitAdvances).size).toBeGreaterThan(1);
+    expect(manifest.numeralMode).toBe('tabular');
+    expect(new Set(expected.digitAdvances).size).toBe(1);
     for (const [index, char] of [...'0123456789'].entries()) {
       const glyph = apply(char);
       expect(font.readUInt16BE(hmtx + Math.min(glyph, metrics - 1) * 4)).toBe(

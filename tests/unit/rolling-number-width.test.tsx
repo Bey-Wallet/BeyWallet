@@ -53,7 +53,7 @@ it('defaults to compact proportional cells and bounds overly tight spacing', asy
   const margin = () => StyleSheet.flatten(measures()[0].parent!.props.style).marginRight;
   const compact = margin();
   expect(compact).toBeLessThan(0);
-  expect(measures()[0].props.fontVariant).toEqual(['proportional-nums']);
+  expect(measures()[0].props.fontVariant).toEqual(['tabular-nums']);
   await act(async () => {
     tree.update(<RollingNumber value="18" fontSize={44} letterSpacing={-1.4} />);
   });

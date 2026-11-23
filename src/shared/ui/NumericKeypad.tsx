@@ -51,7 +51,7 @@ const NumButton = React.memo(
       <Text
         fontFamily="$display"
         fontSize={29}
-        fontVariant={['proportional-nums']}
+        fontVariant={['tabular-nums']}
         fontWeight="500"
         color="$color"
       >

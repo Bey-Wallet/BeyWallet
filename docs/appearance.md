@@ -4,7 +4,7 @@ Screen headers use centered `ModalHeaderTitle` text and the canvas background, w
 bottom shadow or an additional native back button. `useScreenHeaderOptions` shares these
 defaults between Settings, modals and payment stages. Header actions use `HeaderIconButton`:
 neutral Ghost circular controls with 22-point icons and at least 48-point touch areas.
-Shared bottom sheets use `$background` with a 1-point `$borderColor` top border.
+Shared bottom sheets use `$sheetBackground` without a border: `#0D0D0F` in dark mode and `#FFFFFF` in light mode. List tables and action buttons retain their existing fills.
 Pending payment screens use short header titles (at most two words) and a right-side header icon
 for receipt image sharing. Keep existing management actions alongside it and the title centered.
 Both navigation controls stay on the left: `ArrowLeft` returns to a previous screen or editable
@@ -93,7 +93,7 @@ in idle, hover, and pressed states without an underline. `AppTextButton` is a co
 around that same Text implementation and accepts a custom foreground color. Sizes, icon placement,
 loading, disabled state, and native link semantics remain supported. Switch variants retain their API.
 
-Inter at optical size 14 uses 400/500/600, proportional figures, disambiguation without
+Inter at optical size 14 uses 400/500/600, tabular figures, disambiguation without
 zero alternates, and normal punctuation. See [fonts](fonts.md) for registration and tracking.
 Tracking is tuned by role as documented in [fonts](fonts.md). Common text sizes
 use the committed baseline reduced by 10%, with font sizes and line heights rounded to whole

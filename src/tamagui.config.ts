@@ -15,12 +15,12 @@ import {
 import { buttonThemes } from './shared/theme/buttons';
 import { createBUITamaguiTheme } from './shared/ui/BUI/theme';
 
-const proportionalNumbers: Pick<TextStyle, 'fontVariant'> = { fontVariant: ['proportional-nums'] };
+const tabularNumbers: Pick<TextStyle, 'fontVariant'> = { fontVariant: ['tabular-nums'] };
 
 // Base Text is unnamed in Tamagui, so named config defaults do not reach it.
 // Update its existing defaults before configuring the named text variants below.
 const baseText = Text as unknown as { staticConfig?: { defaultProps?: Record<string, unknown> } };
-Object.assign(baseText.staticConfig?.defaultProps ?? {}, proportionalNumbers, {
+Object.assign(baseText.staticConfig?.defaultProps ?? {}, tabularNumbers, {
   fontFamily: '$body',
 });
 
@@ -54,7 +54,7 @@ const textDefaults: Record<
     'ListItemTitle',
     'ListItemSubtitle',
     'SelectItemText',
-  ].map((name) => [name, { ...proportionalNumbers, fontFamily: '$body' }]),
+  ].map((name) => [name, { ...tabularNumbers, fontFamily: '$body' }]),
 );
 
 const animations = createAnimations(appMotion.animations);

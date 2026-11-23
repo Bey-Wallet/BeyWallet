@@ -92,7 +92,7 @@ export function BUICounter({
           lineHeight: compact ? undefined : 14,
           color: palette.foreground,
           includeFontPadding: false,
-          fontVariant: ['proportional-nums'],
+          fontVariant: ['tabular-nums'],
         }}
         onTextLayout={(event) => {
           const next = event.nativeEvent.lines[0]?.height;

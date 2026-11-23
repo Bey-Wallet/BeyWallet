@@ -168,7 +168,7 @@ it('applies proportional numerals to rendered text variants, inputs, toast title
       .findAll((n) => n.props.testID === id)
       .map((n) => StyleSheet.flatten(n.props.style));
     const styles = renderedStyles.map((style) => style?.fontVariant);
-    expect({ id, styles }).toEqual({ id, styles: expect.arrayContaining([['proportional-nums']]) });
+    expect({ id, styles }).toEqual({ id, styles: expect.arrayContaining([['tabular-nums']]) });
     expect({
       id,
       usesInstrument: renderedStyles.some((style) => style?.fontFamily?.startsWith('Inter')),
@@ -177,7 +177,7 @@ it('applies proportional numerals to rendered text variants, inputs, toast title
   const buttonLabels = tree.root.findAll((n) => n.props.children === 'Pay 123 sat');
   expect(
     buttonLabels.some((n) =>
-      StyleSheet.flatten(n.props.style)?.fontVariant?.includes('proportional-nums'),
+      StyleSheet.flatten(n.props.style)?.fontVariant?.includes('tabular-nums'),
     ),
   ).toBe(true);
   const overrides = tree.root

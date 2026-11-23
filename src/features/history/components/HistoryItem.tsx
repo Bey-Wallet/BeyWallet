@@ -274,7 +274,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
               color="$color"
               opacity={amountDimmed ? 0.5 : 1}
               numberOfLines={1}
-              style={{ fontVariant: ['proportional-nums'] }}
+              style={{ fontVariant: ['tabular-nums'] }}
             >
               {signedValue}
             </Text>

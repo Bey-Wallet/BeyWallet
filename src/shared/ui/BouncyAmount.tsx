@@ -76,7 +76,7 @@ export function BouncyAmount({
       minWidth={0}
       fontFamily="$display"
       fontSize={fontSize}
-      fontVariant={['proportional-nums']}
+      fontVariant={['tabular-nums']}
       fontWeight="600"
       letterSpacing={
         appTypography.display.letterSpacing * (fontSize / appTypography.display.fontSize)

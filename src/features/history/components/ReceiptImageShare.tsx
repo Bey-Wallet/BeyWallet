@@ -156,7 +156,7 @@ export function ReceiptImageShare({
               height={qrValue ? 480 : 300}
               viewBox={`0 0 640 ${imageHeight}`}
               fontFamily="InterRegular"
-              fontFeatureSettings="'pnum'"
+              fontFeatureSettings="'tnum'"
               accessibilityLabel={
                 ecashImage ? 'Ecash sharing image preview' : 'Public receipt image preview'
               }

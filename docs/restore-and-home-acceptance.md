@@ -113,7 +113,7 @@ not remove font resources from an already installed native binary.
 - Body/UI copy: Inter Regular 400; labels/buttons: Medium 500; headings/balances:
   SemiBold 600. Large values use Inter. Only three Inter faces are bundled.
 - Inspect `0123469`, `Il1O0`, `$`, `€`, `₹`, `₿` and other selected currency symbols.
-  Check proportional digits, alternate 1, normal unslashed zero, disambiguation and normal punctuation.
+  Check tabular digits, normal 1, normal unslashed zero, disambiguation and normal punctuation.
 - Review dark/light modes, larger system text, Settings rows, navigation titles, text
   inputs, the Home pill and payment screens. Check for clipping and usable touch targets.
 - Home's numeric tracking follows the current display role in [fonts.md](fonts.md).

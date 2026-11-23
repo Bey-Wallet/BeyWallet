@@ -52,7 +52,7 @@ from Android Google Play. Recheck those external facts before future reuse.
 | Dismiss control         | Shared `HeaderIconButton`, top/right 4 dp, 22-point X, minimum 48 dp touch area         |
 
 Use Inter for UI copy and Inter for large text/amounts, in 400/500/600 with
-`opsz=14`, proportional digits, `ss02` without zero changes, alternate 1 (`cv01`), and normal punctuation. Keep native text scaling, wrap
+`opsz=14`, tabular digits, `ss02` without zero changes, normal 1 (`cv01` disabled), and normal punctuation. Keep native text scaling, wrap
 metadata where necessary, and validate small phones and larger accessibility sizes. The fixed
 art slot and reserved dismiss area must not compress or obscure the headline. See
 [appearance conventions](../appearance.md) for the rest of the design system.

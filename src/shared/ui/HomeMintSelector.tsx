@@ -385,6 +385,7 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
           <>
             <BUIHeader
               title="Choose mint"
+              transparent
               divider
               navigation="close"
               navigationLabel="Close mint selector"
