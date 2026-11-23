@@ -93,6 +93,21 @@ afterEach(async () => {
   await act(async () => tree?.unmount());
 });
 
+it('lets the parent finish preparation without also routing to invoice entry', async () => {
+  ref = React.createRef<UniversalInputCardRef>();
+  const handle = jest.fn(async () => true);
+  await act(async () => {
+    tree = create(<UniversalInputCard ref={ref} onHandleResolved={handle} />);
+  });
+  resolver.mockResolvedValue({ type: 'lightning_invoice', raw: 'lnbc1test', cleaned: 'lnbc1test' });
+  await act(async () => {
+    await ref.current!.process('lnbc1test');
+  });
+  expect(handle).toHaveBeenCalledTimes(1);
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(mockScanner).not.toHaveBeenCalled();
+});
+
 it('shows two full-width input lines above Paste, Clear, and Continue actions', async () => {
   await open();
   expect(field().props).toMatchObject({

@@ -6,9 +6,31 @@ import { decodeToken } from '~/services/wallet/tokenUtils';
 import { useNostrRequestStore } from '~/state/nostrRequestStore';
 import { getHistoryToken, getVerifiedTokenState } from './historyToken';
 import { historyRail, type HistoryListEntry } from './historyList';
+import { historyMetadata } from './transactionPresentation';
 
-/** Refresh is observational: never redeem, execute, refund, or resubmit a payment. */
+/** Never submit a payment. SDK pending checks may reconcile a verified rollback of its original operation. */
 export async function checkHistoryStatus(entry: HistoryListEntry): Promise<string> {
+  if (
+    entry.type === 'melt' &&
+    entry.operationId &&
+    historyMetadata(entry).paymentAttempt === true
+  ) {
+    const manager = initService.getManager();
+    let operation = await manager.quotes.getMeltOperation(entry.operationId);
+    if (operation?.state === 'pending') {
+      // Reconcile the original operation; never execute it or prepare another payment.
+      await manager.quotes.checkPendingMelt(operation.id);
+      operation = await manager.quotes.getMeltOperation(operation.id);
+    }
+    if (operation?.state === 'finalized') return 'Payment sent';
+    if (operation?.state === 'rolled_back') return 'Payment returned or cancelled';
+    if (operation?.state === 'prepared') return 'Payment not submitted';
+    if (operation?.state === 'pending' || operation?.state === 'executing')
+      return 'Payment pending';
+    if (['failed', 'cancelled'].includes(entry.state?.toLowerCase() || ''))
+      return 'Payment not completed';
+    return 'Payment outcome unconfirmed';
+  }
   if (entry.type === 'receive-request') {
     await useNostrRequestStore.getState().loadPendingRequests();
     const request = useNostrRequestStore.getState().requests.find((item) => item.id === entry.id);

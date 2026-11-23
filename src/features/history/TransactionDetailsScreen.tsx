@@ -71,6 +71,7 @@ import {
 import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { appLogger } from '~/shared/utils/appLogger';
+import { appTypography } from '~/shared/theme/appearance';
 
 interface HistoryEntry {
   id: string;
@@ -678,7 +679,10 @@ function TransactionDetailsContent() {
       }
     },
     !!entry &&
-      (isPendingMint || ['pending', 'unpaid', 'prepared', 'unclaimed'].includes(status)) &&
+      (isPendingMint ||
+        ['pending', 'unpaid', 'prepared', 'unclaimed', 'preparing', 'unresolved'].includes(
+          status,
+        )) &&
       !offline &&
       !isReclaiming &&
       !isClaiming,
@@ -1046,6 +1050,8 @@ function TransactionDetailsContent() {
     .getState()
     .mints?.find((item) => item.mintUrl.replace(/\/$/, '') === entry.mintUrl.replace(/\/$/, ''));
   const fee = transferRecord ? transferRecord.feePaid : onchain ? metadata.actualFee : metadata.fee;
+  const lightningReceipt = detail.method === 'Lightning';
+  const paidLightning = lightningReceipt && entry.type === 'melt' && detail.status === 'Confirmed';
   return renderSheet(
     <YStack gap="$4" pb="$3">
       <PaymentFlowHeader
@@ -1065,6 +1071,17 @@ function TransactionDetailsContent() {
                 : receiptStatus
           }
         />
+        {lightningReceipt && (
+          <Text
+            {...appTypography.title3}
+            color="$color"
+            textAlign="center"
+            accessibilityRole="header"
+            accessibilityLiveRegion="polite"
+          >
+            {paidLightning ? 'Payment completed' : title}
+          </Text>
+        )}
         <PaymentAmount amount={displayedAmount} size="prominent" compact />
       </YStack>
       {receivingFeeNotice && (
@@ -1087,9 +1104,15 @@ function TransactionDetailsContent() {
           disabled={offline}
         />
         <ListTableRow label="Date" value={formatPaymentDateTime(entry.createdAt)} />
-        {Number.isFinite(fee) && fee >= 0 && (
-          <ListTableRow label="Fee" value={currencyService.formatSats(fee)} />
+        {(paidLightning || (Number.isFinite(fee) && fee >= 0)) && (
+          <ListTableRow
+            label={paidLightning ? 'Fee paid' : 'Fee'}
+            value={
+              Number.isFinite(fee) && fee >= 0 ? currencyService.formatSats(fee) : 'Unavailable'
+            }
+          />
         )}
+        {lightningReceipt && <ListTableRow label="Method" value="Lightning" />}
         <ListTableRow
           label={metadata.transferId ? 'From mint' : 'Mint'}
           value={
@@ -1114,14 +1137,23 @@ function TransactionDetailsContent() {
         )}
         {detail.recipient && (
           <ListTableRow
-            label={isOutgoing ? 'Recipient' : 'Sender'}
+            label={
+              lightningReceipt ? (isOutgoing ? 'To' : 'From') : isOutgoing ? 'Recipient' : 'Sender'
+            }
             value={detail.recipient}
             isCopyable
             copyValue={detail.recipient}
+            expandValue={lightningReceipt}
+            multiline={lightningReceipt}
           />
         )}
         {detail.description && (
-          <ListTableRow label="Description" value={detail.description} multiline />
+          <ListTableRow
+            label="Description"
+            value={detail.description}
+            multiline
+            expandValue={lightningReceipt}
+          />
         )}
         {notes
           .filter((note) => note.value !== detail.description)
@@ -1167,7 +1199,10 @@ function TransactionDetailsContent() {
           />
         )}
       </ListTable>
-      <ReceiptExtraDetails fields={detail.extra} />
+      <ReceiptExtraDetails
+        fields={detail.extra}
+        presentation={lightningReceipt ? 'sheet' : 'inline'}
+      />
       {renderDeleteBottomSheet()}
     </YStack>,
     false,

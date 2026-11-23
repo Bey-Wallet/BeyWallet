@@ -69,7 +69,9 @@ export function isPendingHistory(
   const state = entry.state?.toLowerCase() || '';
   if (entry.type === 'maintenance') return ['pending', 'review'].includes(state);
   return (
-    ['pending', 'unpaid', 'unclaimed', 'prepared', 'executing'].includes(state) ||
+    ['pending', 'unpaid', 'unclaimed', 'prepared', 'executing', 'preparing', 'unresolved'].includes(
+      state,
+    ) ||
     (entry.type === 'mint' && state === 'paid' && !isOnchainHistory(entry))
   );
 }

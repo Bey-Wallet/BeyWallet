@@ -37,6 +37,8 @@ export interface UniversalInputCardProps {
   placeholder?: string;
   onBeforeRedirect?: () => void;
   onResolved?: (result: UniversalInputResult) => void;
+  /** Return true when the parent owns this input's preparation and navigation. */
+  onHandleResolved?: (result: UniversalInputResult) => Promise<boolean> | boolean;
   autoFocus?: boolean;
   height?: number;
   showBadge?: boolean;
@@ -57,6 +59,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
       placeholder = 'Token, request, invoice, address, LNURL or link',
       onBeforeRedirect,
       onResolved,
+      onHandleResolved,
       autoFocus = false,
       height = 70,
       showBadge = true,
@@ -122,6 +125,9 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         }
 
         setDetectedType(result.type);
+        if (onHandleResolved) setAutomaticProcessing(false);
+        if (await onHandleResolved?.(result)) return true;
+        if (ticket !== generation.current) return false;
         const redirected = handleUniversalRedirect(result, {
           router,
           onBeforeRedirect: () => {

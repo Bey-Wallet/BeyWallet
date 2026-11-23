@@ -7,6 +7,7 @@ import type {
 } from 'coco-cashu-core';
 import { ExpoSqliteDb } from '~/storage/sqlite/db';
 import { MintTransferRepository } from './MintTransferRepository';
+import { hiddenMeltHistoryKey } from './meltHistory';
 
 type MintQuoteState = MintHistoryEntry['state'];
 type MeltQuoteState = MeltHistoryEntry['state'];
@@ -358,7 +359,20 @@ export class ExpoHistoryRepository {
       ids,
     );
     if (pending) throw new Error('Wait for the pending transfer to finish before erasing it.');
-    await this.db.run(`DELETE FROM coco_cashu_history WHERE id IN (${placeholders})`, ids);
+    await this.db.transaction(async (db) => {
+      const attempts = await db.all<{ mintUrl: string; operationId: string }>(
+        `SELECT mintUrl, operationId FROM coco_cashu_history
+         WHERE id IN (${placeholders}) AND type = 'melt' AND operationId IS NOT NULL`,
+        ids,
+      );
+      for (const attempt of attempts) {
+        await db.run('INSERT OR REPLACE INTO coco_cashu_settings (key, value) VALUES (?, ?)', [
+          hiddenMeltHistoryKey(attempt.mintUrl, attempt.operationId),
+          '1',
+        ]);
+      }
+      await db.run(`DELETE FROM coco_cashu_history WHERE id IN (${placeholders})`, ids);
+    });
   }
 
   private async getById(id: number): Promise<HistoryEntry> {
@@ -397,7 +411,9 @@ export class ExpoHistoryRepository {
         quoteId: row.quoteId ?? '',
         state: (row.state ?? 'UNPAID') as MeltQuoteState,
         amount: row.amount,
-      };
+        operationId: row.operationId ?? undefined,
+        paymentRequest: row.paymentRequest ?? undefined,
+      } as MeltHistoryEntry & { operationId?: string; paymentRequest?: string };
     }
     if (row.type === 'send') {
       return {

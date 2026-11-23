@@ -7,6 +7,8 @@ import type { HistoryListEntry } from '~/features/history/historyList';
 const mockUpdate = jest.fn();
 const mockMintCheck = jest.fn();
 const mockMeltCheck = jest.fn();
+const mockOperation = jest.fn();
+const mockPendingMelt = jest.fn();
 jest.mock('@cashu/cashu-ts', () => ({
   ...jest.requireActual('@cashu/cashu-ts'),
   Wallet: jest.fn().mockImplementation(() => ({
@@ -15,7 +17,12 @@ jest.mock('@cashu/cashu-ts', () => ({
   })),
 }));
 jest.mock('~/services/wallet/initService', () => ({
-  initService: { getRepo: () => ({ historyRepository: { updateHistoryEntryState: mockUpdate } }) },
+  initService: {
+    getRepo: () => ({ historyRepository: { updateHistoryEntryState: mockUpdate } }),
+    getManager: () => ({
+      quotes: { getMeltOperation: mockOperation, checkPendingMelt: mockPendingMelt },
+    }),
+  },
 }));
 jest.mock('~/services/wallet/proofService', () => ({
   proofService: { checkProofStates: jest.fn() },
@@ -50,6 +57,38 @@ const entry: HistoryListEntry = {
 };
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+it('reconciles the original pending Lightning operation without making a replacement payment', async () => {
+  mockOperation
+    .mockResolvedValueOnce({ id: 'op', state: 'pending' })
+    .mockResolvedValueOnce({ id: 'op', state: 'finalized' });
+  await expect(
+    checkHistoryStatus({
+      ...entry,
+      type: 'melt',
+      operationId: 'op',
+      quoteId: 'quote',
+      state: 'pending',
+      metadata: { paymentAttempt: true, submitted: true },
+    }),
+  ).resolves.toBe('Payment sent');
+  expect(mockPendingMelt).toHaveBeenCalledWith('op');
+  expect(mockMeltCheck).not.toHaveBeenCalled();
+});
+
+it('does not downgrade an unconfirmed Lightning attempt after a failed status observation', async () => {
+  mockOperation.mockRejectedValueOnce(new Error('offline'));
+  await expect(
+    checkHistoryStatus({
+      ...entry,
+      type: 'melt',
+      operationId: 'op',
+      state: 'unresolved',
+      metadata: { paymentAttempt: true, submitted: true },
+    }),
+  ).rejects.toThrow('offline');
+  expect(mockUpdate).not.toHaveBeenCalled();
 });
 
 it.each([

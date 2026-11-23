@@ -14,6 +14,11 @@ export function historyStatusLabel(entry: PaymentHistory, delivered = false): st
   if (state === 'expired') return 'Expired';
   if (['cancelled', 'canceled'].includes(state)) return 'Cancelled';
   if (['failed', 'error', 'rolled_back', 'rolledback'].includes(state)) return 'Failed';
+  if (historyMetadata(entry).paymentAttempt === true) {
+    if (state === 'preparing') return 'Preparing';
+    if (state === 'prepared') return 'Ready to pay';
+    if (state === 'unresolved') return 'Unconfirmed';
+  }
   if (entry.type === 'send') {
     if (state === 'claimed') return 'Claimed';
     if (['pending', 'unclaimed', 'prepared', 'executing'].includes(state))
@@ -70,6 +75,8 @@ export function historyDisplayAmount(entry: PaymentHistory & { amount: number })
 /** Amount signs reflect credited funds or outgoing/reserved funds, never an unpaid request. */
 export function historyBalanceEffect(entry: PaymentHistory): 'credit' | 'debit' | 'none' {
   const state = entry.state?.trim().toLowerCase() || '';
+  const attempt = historyMetadata(entry);
+  if (attempt.paymentAttempt === true && attempt.submitted !== true) return 'none';
   if (['send', 'melt'].includes(entry.type)) {
     if (
       ['Failed', 'Cancelled', 'Expired', 'Refunded'].includes(historyStatusLabel(entry)) ||

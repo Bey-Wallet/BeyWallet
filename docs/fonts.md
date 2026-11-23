@@ -23,6 +23,7 @@ role using Inter, not a separate monospace font.
   lowercase l and related characters use the upstream disambiguation shapes.
 - Normal punctuation; `ss07` square punctuation is disabled.
 - `cv02`, `cv03` and `cv04`: open 4, 6 and 9, including tabular numeral forms.
+- `cv09`: flat-top alternate 3, including its tabular form.
 - Zero stays normal and unslashed; no dotted-zero alternate is enabled.
 
 The preparation script adds the selected lookup indexes to default-on `ccmp`.

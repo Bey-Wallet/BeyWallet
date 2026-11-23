@@ -28,7 +28,7 @@ def main():
         'source': 'Inter 4.1 / extras/ttf / Inter',
         'sourceUrl': 'https://github.com/rsms/inter/releases/tag/v4.1',
         'sourceSha256': SOURCE_HASH,
-        'features': ['ss02 without zero', 'tnum', 'cv02', 'cv03', 'cv04'],
+        'features': ['ss02 without zero', 'tnum', 'cv02', 'cv03', 'cv04', 'cv09'],
         'numeralMode': 'tabular',
         'opticalSize': 14,
         'fonts': {},
@@ -48,7 +48,7 @@ def main():
                         if 'zero' not in source.lower() and 'zero' not in target.lower()
                     }
             enabled = sorted({
-                index for tag in ['ss02', 'tnum', 'cv02', 'cv03', 'cv04']
+                index for tag in ['ss02', 'tnum', 'cv02', 'cv03', 'cv04', 'cv09']
                 for index in features[tag].LookupListIndex
             })
             defaults = features['ccmp']
@@ -67,6 +67,7 @@ def main():
             assert len(set(advances)) == 1, 'All tabular numerals must have equal advances'
             assert digits[1] == apply_features([cmap[ord('1')]])[0] and 'ss01' not in digits[1]
             assert 'slash' not in digits[0] and 'dot' not in digits[0]
+            assert digits[3] == 'three.1.tf', 'The tabular flat-top three must be enabled'
             for digit in [4, 6, 9]:
                 assert 'ss01' in digits[digit], 'Open numeral variants must be enabled'
             sample = apply_features([cmap[ord(char)] for char in 'Il01!?,.:;ß'])
@@ -102,7 +103,7 @@ def main():
     (ASSETS / 'inter-manifest.json').write_text(
         json.dumps(manifest, indent=2) + '\n', encoding='utf-8',
     )
-    print('Prepared 3 Inter faces: opsz 14, tabular figures, open 4/6/9, normal 1 and zero')
+    print('Prepared 3 Inter faces: opsz 14, tabular figures, flat-top 3, open 4/6/9, normal 1 and zero')
 
 
 if __name__ == '__main__':

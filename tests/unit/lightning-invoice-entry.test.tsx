@@ -2,6 +2,12 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { AppState } from 'react-native';
 import MeltScreen from '~/features/payments/melt';
+import { LightningPayment } from '~/services/wallet/lightningPayment';
+import {
+  saveLightningReview,
+  clearLightningReviews,
+} from '~/services/wallet/lightningReviewSession';
+jest.mock('expo-crypto', () => ({ randomUUID: () => 'review-id' }));
 jest.mock('~/shared/ui/PaymentInfoHeader', () => ({
   PaymentInfoHeader: require('~/shared/ui/PaymentFlowHeader').PaymentFlowHeader,
 }));
@@ -48,7 +54,7 @@ jest.mock('~/state/walletStore', () => ({
 }));
 jest.mock('~/state/settingsStore', () => ({
   useSettingsStore: Object.assign(() => mockSettings, {
-    getState: () => ({ biometricEnabled: false }),
+    getState: () => ({ biometricEnabled: false, npub: 'wallet-id' }),
   }),
 }));
 jest.mock('~/services/wallet/lightningPayment', () => ({
@@ -146,7 +152,45 @@ async function settle() {
     await jest.advanceTimersByTimeAsync(300);
   });
 }
-const payButton = () => tree.root.findByProps({ children: 'Pay' });
+const payButton = () => tree.root.findByProps({ accessibilityLabel: 'Pay Lightning' });
+
+it('keeps the fee and total unknown while a replacement mint quote is loading', async () => {
+  await open();
+  await enter('lnbc20n1invoice');
+  await settle();
+  let finish!: (value: ReturnType<typeof quote>) => void;
+  mockPreview.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+  await act(async () => {
+    tree.root.findByType('PaymentMintRow' as any).props.onSelect('mint-b');
+  });
+  await settle();
+  const fee = tree.root.findByProps({ label: 'Maximum fee' });
+  const total = tree.root.findByProps({ label: 'Maximum total' });
+  expect(fee.props.value).toBe('Calculating…');
+  expect(total.props.value.props.children).toBe('Calculating…');
+  expect(payButton().props.disabled).toBe(true);
+  expect(mockPay).not.toHaveBeenCalled();
+  await act(async () => finish({ ...quote(), fee_reserve: 3 }));
+  expect(tree.root.findByProps({ label: 'Maximum fee' }).props.value).toBe('3 sat');
+  expect(tree.root.findByProps({ label: 'Maximum total' }).props.value.props.children).toBe(
+    '23 sat',
+  );
+  expect(payButton().props.children).toBe('Pay 20 sat');
+  expect(payButton().props.disabled).toBe(false);
+});
+
+it('shows available funds with a clear mint-change hint when the quote exceeds the balance', async () => {
+  mockWallet.balances['mint-a'] = 21;
+  await open();
+  await enter('lnbc20n1invoice');
+  await settle();
+  expect(tree.root.findByProps({ label: 'Available' }).props.value).toBe('21 sat');
+  expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
+    'Not enough balance. Choose another paying mint.',
+  );
+  expect(payButton().props.disabled).toBe(true);
+  expect(mockPay).not.toHaveBeenCalled();
+});
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -178,9 +222,28 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => tree?.unmount());
+  clearLightningReviews();
   jest.useRealTimers();
   jest.restoreAllMocks();
   mockAppListeners.clear();
+});
+
+it('adopts the sheet quote on its first frame without preparing or paying again', async () => {
+  const prepared = new LightningPayment('mint-b', 'lnbc20n1invoice');
+  const preview = await prepared.preview();
+  mockRouteParams = { reviewId: saveLightningReview('wallet-id', prepared, preview) };
+  await open();
+  expect(tree.root.findAllByType('DestinationInputRow' as any)).toHaveLength(0);
+  expect(tree.root.findByProps({ label: 'Maximum fee' }).props.value).toBe('2 sat');
+  expect(tree.root.findByType('PaymentMintRow' as any).props.mintUrl).toBe('mint-b');
+  expect(payButton().props.disabled).toBe(false);
+  await settle();
+  expect(mockPayments).toHaveLength(1);
+  expect(mockPreview).toHaveBeenCalledTimes(1);
+  expect(mockPay).not.toHaveBeenCalled();
+  expect(prepared.dispose).not.toHaveBeenCalled();
+  await act(async () => payButton().props.onPress());
+  expect(mockPay).toHaveBeenCalledTimes(1);
 });
 
 async function startPendingPayment() {
@@ -213,6 +276,27 @@ it('reconciles a pending Lightning receipt on foreground return without submitti
   expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['transaction'] });
   await act(async () => jest.advanceTimersByTimeAsync(10000));
   expect(mockRefresh).toHaveBeenCalledTimes(2);
+});
+
+it('shows processing for an in-flight submission and follows the same payment into pending', async () => {
+  let finish!: (value: string) => void;
+  mockPay.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+  await open();
+  await enter('lnbc20n1invoice');
+  await settle();
+  let submission!: Promise<void>;
+  await act(async () => {
+    submission = payButton().props.onPress();
+  });
+  expect(receipt().props.status).toBe('processing');
+  expect(tree.root.findAllByProps({ accessibilityLabel: 'Pay Lightning' })).toHaveLength(0);
+  expect(mockPay).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    finish('pending');
+    await submission;
+  });
+  expect(receipt().props.status).toBe('pending');
+  expect(mockPay).toHaveBeenCalledTimes(1);
 });
 
 it('pauses unresolved receipt checks offline and reconciles on reconnection', async () => {
@@ -408,7 +492,7 @@ it.each(['user@example.com', 'lnurlp://example.com/pay'])(
     await act(async () => keypad().props.onValueChange('20'));
     await act(async () => keypad().props.onConfirm());
     expect(mockRequestInvoice).toHaveBeenCalledWith(address, 20);
-    expect(tree.root.findByProps({ label: 'Recipient' }).props.value).toBe(address);
+    expect(tree.root.findByProps({ label: 'To' }).props.value).toBe(address);
     expect(payButton()).toBeTruthy();
   },
 );

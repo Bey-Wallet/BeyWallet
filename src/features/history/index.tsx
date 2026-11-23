@@ -195,6 +195,10 @@ export function HistoryScreen({
     };
     const unsubs = [
       eventService.on('history:updated', handleUpdate),
+      eventService.on('melt-op:prepared', handleUpdate),
+      eventService.on('melt-op:pending', handleUpdate),
+      eventService.on('melt-op:finalized', handleUpdate),
+      eventService.on('melt-op:rolled-back', handleUpdate),
       eventService.on('receive:created', handleUpdate),
       eventService.on('send:created', handleUpdate),
       eventService.on('mint-quote:redeemed', handleUpdate),

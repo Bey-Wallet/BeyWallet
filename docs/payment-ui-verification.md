@@ -17,6 +17,33 @@ return and unlock. Confirm that the original receipt updates to its settled stat
 History contains one payment and the balance changes once. Repeat with a network
 interruption; an unverified outcome must remain pending/unresolved until reconciled.
 
+## Durable outgoing Lightning attempts
+
+The SQLite melt-operation repository writes a minimal History projection in the same
+transaction as each operation create/update. One operation ID owns one receipt. Init
+cleanup retains a failed receipt; rollback before submission records cancellation;
+rollback after execution records failure only after the SDK confirms/reclaims it.
+Executing/pending operations remain pending, and incomplete rollback stays unconfirmed.
+No proof secrets, output data or signing keys are copied into History. Draft/cancelled
+attempts do not display as debits. History status checks reconcile the original operation
+without preparing or submitting a replacement payment.
+
+Wallet initialization backfills missing receipts from existing local operations, without
+network calls or rewriting receipts already present. Attempts whose operations were deleted
+before this feature cannot be reconstructed. Deliberately erased receipts are marked in the
+existing encrypted settings table so backfill and later operation updates do not resurrect them.
+
+SQLite integration tests cover lifecycle persistence, failed preparation, cancellation,
+confirmed rollback, repeated backfill, legacy quote adoption, deletion and atomic write failure.
+Still verify on an Android dev client:
+
+- Open a valid invoice review and go Back: History retains one cancelled attempt, without a debit.
+- Trigger a mint/preparation failure: the failed attempt remains visible after reopening.
+- Submit a small test payment and interrupt the connection: History retains one pending or
+  unconfirmed attempt; reconnect/check status without paying it again.
+- Force-close during submission, reopen and confirm reconciliation updates the existing row.
+- Delete a terminal receipt, reopen and confirm the deletion is respected.
+
 ## Mint quote redemption coordination
 
 The pinned Coco patch coordinates foreground and background redemption by mint and quote.
@@ -186,3 +213,17 @@ Device checks for this change:
 
 Reclaim adds a sender refund spending path; it does not invalidate recipient signatures
 at the deadline. See [Cashu NUT-11](https://github.com/cashubtc/nuts/blob/main/11.md).
+
+## Lightning invoice preparation in the action sheet
+
+- Paste a fixed-amount BOLT11 invoice into Send. The action sheet replaces its input
+  and choices with the existing spinner and a compact preparing state, then opens
+  confirmation directly. No second input screen or second quote request should appear.
+- Confirm the paying mint, amount, maximum fee and total, then tap Pay and authenticate.
+  Preparing the invoice must never submit a payment automatically.
+- Try an offline, expired or unreachable-mint invoice. The sheet must retain the input
+  and show an error so it can be edited or retried.
+- Background the app during preparation, then return. It must not open confirmation
+  from a stale response; the unsubmitted operation must release through existing cleanup.
+- On confirmation, change the mint and check that the original preparation releases
+  before the replacement quote is used. Cancel and verify the funds remain available.

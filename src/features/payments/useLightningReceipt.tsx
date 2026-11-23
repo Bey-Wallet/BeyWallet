@@ -14,6 +14,7 @@ export function useLightningReceipt({
   incoming,
   state,
   amount,
+  extraDetailsPresentation = 'inline',
 }: {
   mintUrl?: string;
   quoteId?: string;
@@ -22,6 +23,7 @@ export function useLightningReceipt({
   incoming: boolean;
   state: string;
   amount: number;
+  extraDetailsPresentation?: 'inline' | 'sheet';
 }) {
   const wallet = useSettingsStore((settings) => settings.npub);
   const { data } = useQuery({
@@ -53,6 +55,8 @@ export function useLightningReceipt({
         )}
       </>
     ),
-    extraDetails: <ReceiptExtraDetails fields={detail.extra} />,
+    extraDetails: (
+      <ReceiptExtraDetails fields={detail.extra} presentation={extraDetailsPresentation} />
+    ),
   };
 }

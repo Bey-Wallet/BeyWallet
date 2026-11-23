@@ -1,5 +1,6 @@
 import type { MeltOperationRepository } from 'coco-cashu-core';
 import { ExpoSqliteDb, getUnixTimeSeconds } from '~/storage/sqlite/db';
+import { projectMeltHistory } from './meltHistory';
 
 type MeltOperation = NonNullable<Awaited<ReturnType<MeltOperationRepository['getById']>>>;
 type MeltOperationState = Parameters<MeltOperationRepository['getByState']>[0];
@@ -129,6 +130,13 @@ export class ExpoMeltOperationRepository implements MeltOperationRepository {
   }
 
   async create(operation: MeltOperation): Promise<void> {
+    await this.db.transaction(async (db) => {
+      await new ExpoMeltOperationRepository(db).createStored(operation);
+      await projectMeltHistory(db, operation);
+    });
+  }
+
+  private async createStored(operation: MeltOperation): Promise<void> {
     if (operation.state === 'failed') {
       throw new Error('Cannot persist failed melt operation');
     }
@@ -151,6 +159,13 @@ export class ExpoMeltOperationRepository implements MeltOperationRepository {
   }
 
   async update(operation: MeltOperation): Promise<void> {
+    await this.db.transaction(async (db) => {
+      await new ExpoMeltOperationRepository(db).updateStored(operation);
+      await projectMeltHistory(db, operation);
+    });
+  }
+
+  private async updateStored(operation: MeltOperation): Promise<void> {
     if (operation.state === 'failed') {
       throw new Error('Cannot persist failed melt operation');
     }
@@ -246,6 +261,39 @@ export class ExpoMeltOperationRepository implements MeltOperationRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.db.run('DELETE FROM coco_cashu_melt_operations WHERE id = ?', [id]);
+    await this.db.transaction(async (db) => {
+      const operation = await new ExpoMeltOperationRepository(db).getById(id);
+      // SDK init cleanup happens only before execute; retain the failed attempt after cleanup.
+      if (operation?.state === 'init') await projectMeltHistory(db, operation, true);
+      await db.run('DELETE FROM coco_cashu_melt_operations WHERE id = ?', [id]);
+    });
+  }
+
+  async reconcileHistory(): Promise<void> {
+    await this.db.transaction(async (db) => {
+      const rows = await db.all<MeltOperationRow>(
+        `SELECT op.id, op.mintUrl, op.state, op.createdAt, op.updatedAt, op.method, op.methodDataJson, op.error,
+          op.quoteId, op.amount, op.fee_reserve, op.swap_fee FROM coco_cashu_melt_operations op
+          WHERE op.method = 'bolt11' AND NOT EXISTS (
+            SELECT 1 FROM coco_cashu_history h WHERE h.type = 'melt'
+              AND h.mintUrl = op.mintUrl AND h.operationId = op.id
+          )`,
+      );
+      for (const row of rows) {
+        await projectMeltHistory(db, {
+          id: row.id,
+          mintUrl: row.mintUrl,
+          state: row.state,
+          method: row.method,
+          methodData: JSON.parse(row.methodDataJson),
+          createdAt: row.createdAt * 1000,
+          quoteId: row.quoteId ?? undefined,
+          amount: row.amount ?? undefined,
+          fee_reserve: row.fee_reserve ?? undefined,
+          swap_fee: row.swap_fee ?? undefined,
+          error: row.error ?? undefined,
+        });
+      }
+    });
   }
 }
