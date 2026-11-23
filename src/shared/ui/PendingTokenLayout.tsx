@@ -7,7 +7,7 @@ import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { BUIList as ListTable, BUIListItem as ListTableRow } from '~/shared/ui/BUI/BUIList';
-import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { PaymentAmountRow } from '~/shared/ui/PaymentAmountRow';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useRef } from 'react';
 import { YStack, useThemeName } from 'tamagui';
@@ -28,10 +28,13 @@ import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { PaymentActionsMenu, type PaymentMenuAction } from '~/shared/ui/PaymentActionsMenu';
 import { TokenNostrSheet } from '~/features/payments/send/TokenNostrSheet';
 import { appLogger } from '~/shared/utils/appLogger';
+import { PaymentTechnicalDetails } from '~/features/payments/PaymentTechnicalDetails';
 
 export type PendingPaymentAction = PaymentMenuAction;
 
 export interface PendingTokenLayoutProps {
+  /** Newly created sends provide their owning flow's header dismissal. */
+  onClose?: () => void;
   navigationAction?: 'back' | 'close';
   token: string;
   amount: number | string;
@@ -59,10 +62,11 @@ export interface PendingTokenLayoutProps {
 }
 
 export function PendingTokenLayout({
+  onClose,
   navigationAction = 'back',
   token,
   amount,
-  fee = 0,
+  fee: savedFee,
   mintUrl,
   onReclaim,
   isReclaiming = false,
@@ -81,6 +85,7 @@ export function PendingTokenLayout({
   menuActions = [],
   extraDetails,
 }: PendingTokenLayoutProps) {
+  const fee = savedFee ?? 0;
   const toast = useAppToast();
   const npub = useSettingsStore((state) => state.npub);
   const { setLockDisabled } = useAuthStore();
@@ -189,7 +194,7 @@ export function PendingTokenLayout({
     }
   };
 
-  const displayFee = Number.isFinite(fee) ? fee : 0;
+  const knownFee = savedFee != null && Number.isSafeInteger(savedFee) && savedFee >= 0;
 
   const displayNpub = lockedToNpub || parsedNpub;
 
@@ -265,6 +270,7 @@ export function PendingTokenLayout({
   ];
   const details = (
     <ListTable compact variant="filled">
+      <PaymentAmountRow amount={Number(amount)} />
       <PaymentStatusRow
         status={
           headerStatus === 'failed' ? 'error' : headerStatus === 'success' ? 'success' : 'pending'
@@ -280,15 +286,20 @@ export function PendingTokenLayout({
         }
         disabled={offline || busy}
       />
+      {!onClose && (
+        <ListTableRow
+          label="Token"
+          value={
+            currentToken.length > 24
+              ? `${currentToken.slice(0, 12)}…${currentToken.slice(-8)}`
+              : currentToken
+          }
+        />
+      )}
       <ListTableRow
-        label="Token"
-        value={
-          currentToken.length > 24
-            ? `${currentToken.slice(0, 12)}…${currentToken.slice(-8)}`
-            : currentToken
-        }
+        label={onClaim ? 'Receiving fee' : 'Creation fee'}
+        value={knownFee ? `${savedFee.toLocaleString()} sat` : 'Unavailable'}
       />
-      {displayFee > 0 && <ListTableRow label="Mint fee" value={`${displayFee} sat`} />}
       {!!reclaimAt && (
         <ListTableRow label="Reclaim eligible" value={formatPaymentDateTime(reclaimAt)} />
       )}
@@ -312,6 +323,7 @@ export function PendingTokenLayout({
       <PaymentFlowHeader
         title={pendingTitle}
         navigationAction={navigationAction}
+        onBack={onClose}
         disabled={busy}
         headerRight={() => <PaymentActionsMenu actions={actions} busy={busy} />}
       />
@@ -322,11 +334,6 @@ export function PendingTokenLayout({
             {headerStatus !== 'pending' && (
               <PaymentStatusIcon status={headerStatus === 'success' ? 'success' : 'error'} />
             )}
-            <PaymentAmount
-              amount={Number(amount)}
-              size={headerStatus === 'pending' ? 'standard' : 'prominent'}
-              compact
-            />
             <PaymentQRFrame accessibilityLabel="Ecash QR code">
               {(size) => <EcashTokenQRCode token={cleanToken(currentToken)} size={size} />}
             </PaymentQRFrame>
@@ -347,6 +354,26 @@ export function PendingTokenLayout({
         }
       >
         {!hideDetails && details}
+        {!hideDetails && onClose && (
+          <PaymentTechnicalDetails
+            entry={{
+              id: '',
+              type: onClaim ? 'receive' : 'send',
+              amount: Number(amount),
+              unit: 'sat',
+              mintUrl: mintUrl || '',
+              operationId,
+              createdAt: 0,
+              metadata: savedFee != null ? { fee: savedFee } : undefined,
+              state:
+                headerStatus === 'success'
+                  ? 'claimed'
+                  : headerStatus === 'failed'
+                    ? 'failed'
+                    : 'unclaimed',
+            }}
+          />
+        )}
       </PaymentStageLayout>
       <BUISheet
         ref={detailsSheet}

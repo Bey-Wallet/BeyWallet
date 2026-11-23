@@ -4,7 +4,7 @@ import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
-import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { PaymentAmountRow } from '~/shared/ui/PaymentAmountRow';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef } from 'react';
 import { Text, YStack, useThemeName } from 'tamagui';
@@ -145,7 +145,6 @@ export function PendingMintInvoiceLayout({
         }
         hero={
           <>
-            <PaymentAmount amount={entry.amount} compact />
             {(paid || timeLeft === 0) && (
               <Text fontSize={13} fontWeight="500" color="$gray10">
                 {paid ? 'Payment received' : 'Invoice expired'}
@@ -162,6 +161,7 @@ export function PendingMintInvoiceLayout({
         }
       >
         <ListTable compact variant="filled">
+          <PaymentAmountRow amount={entry.amount} />
           <PaymentStatusRow
             status={!paid && timeLeft === 0 ? 'cancelled' : 'pending'}
             value={paid ? 'Awaiting ecash' : timeLeft === 0 ? 'Expired' : 'Awaiting payment'}

@@ -1,4 +1,5 @@
 import React from 'react';
+jest.mock('~/shared/ui/PaymentAmountRow', () => ({ PaymentAmountRow: 'AmountRow' }));
 jest.mock('~/features/history/components/ReceiptImageShare', () => ({
   ReceiptImageShare: 'ReceiptShare',
 }));
@@ -24,7 +25,9 @@ jest.mock('~/state/walletStore', () => ({
   useWalletStore: (select: any) => select({ mints: [] }),
 }));
 
-jest.mock('tamagui', () => ({ Text: 'Text' }));
+jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack', useThemeName: () => 'dark' }));
+jest.mock('~/shared/ui/BUI/BUISheet', () => ({ BUISheet: 'Sheet' }));
+jest.mock('~/shared/ui/PaymentActionsMenu', () => ({ PaymentActionsMenu: 'PaymentMenu' }));
 jest.mock('~/shared/ui/PaymentStageLayout', () => ({
   PaymentStageLayout: ({ hero, footer, children }: any) => (
     <>
@@ -73,10 +76,17 @@ it('shows a paid top-up as awaiting ecash, removes its QR and cancel action, and
   });
   expect(tree.root.findAllByType('QR' as any)).toHaveLength(0);
   expect(tree.root.findByType('Status' as any).props.value).toBe('Awaiting ecash');
+  expect((tree.root.findByType('Table' as any).children[0] as any).type).toBe('AmountRow');
   const buttons = tree.root.findAllByType('Button' as any);
-  expect(buttons.map((button) => button.props.children)).toEqual(['Collect ecash']);
+  expect(buttons.map((button) => button.props.children)).toEqual(['Copy']);
   expect(props.onPaid).not.toHaveBeenCalled();
-  await act(async () => buttons[0].props.onPress());
+  await act(async () =>
+    tree.root
+      .findByType('Header' as any)
+      .props.headerRight()
+      .props.actions.find((action: any) => action.id === 'refresh')
+      .onPress(),
+  );
   expect(props.onPaid).toHaveBeenCalledTimes(1);
   expect(props.onCancel).not.toHaveBeenCalled();
 });
@@ -90,7 +100,7 @@ it('preserves an unpaid invoice QR and refresh without an extra check button', a
   expect(tree.root.findByType('QR' as any).props.value).toBe(props.savedInvoice);
   expect(tree.root.findByType('Status' as any).props.value).toBe('Awaiting payment');
   expect(tree.root.findAllByType('Button' as any).map((button) => button.props.children)).toEqual([
-    'Cancel',
+    'Copy',
   ]);
 });
 
@@ -108,12 +118,10 @@ it('puts live Lightning receipt sharing in the header instead of the action area
     );
   });
   const header = tree.root.findByType('Header' as any);
-  const share = header.props.headerRight();
+  const menu = header.props.headerRight();
   expect(header.props.title.split(/\s+/).length).toBeLessThanOrEqual(2);
-  expect(share.type).toBe('ReceiptShare');
-  expect(share.props.iconOnly).toBe(true);
-  expect(share.props.receipt).toMatchObject({ method: 'Lightning', status: 'Pending' });
-  expect(tree.root.findAllByType('ReceiptShare' as any)).toHaveLength(0);
+  expect(menu.props.actions.some((action: any) => action.id === 'receipt-image')).toBe(true);
+  expect(tree.root.findByType('ReceiptShare' as any).props.hideTrigger).toBe(true);
 });
 
 it.each([true, false])('blocks collection while offline=%s or busy', async (offline) => {
@@ -122,7 +130,9 @@ it.each([true, false])('blocks collection while offline=%s or busy', async (offl
       <PendingMintInvoiceLayout {...props} offline={offline} isCheckingPaid={!offline} />,
     );
   });
-  expect(tree.root.findByType('Button' as any).props.disabled).toBe(true);
+  const menu = tree.root.findByType('Header' as any).props.headerRight();
+  expect(menu.props.actions.find((action: any) => action.id === 'refresh').disabled).toBe(offline);
+  expect(menu.props.busy).toBe(!offline);
   expect(props.onPaid).not.toHaveBeenCalled();
 });
 
@@ -150,7 +160,11 @@ it('checks a live invoice silently and prevents a simultaneous manual redemption
   let checking!: Promise<void>;
   await act(async () => {
     checking = Promise.resolve(mockAutomaticCheck());
-    await tree.root.findByType('Status' as any).props.onRefresh();
+    tree.root
+      .findByType('Header' as any)
+      .props.headerRight()
+      .props.actions.find((action: any) => action.id === 'refresh')
+      .onPress();
   });
   expect(onPaid).toHaveBeenCalledTimes(1);
   await act(async () => {

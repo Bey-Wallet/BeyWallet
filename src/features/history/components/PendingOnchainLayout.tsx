@@ -13,6 +13,7 @@ import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import QRCode from '~/shared/ui/PaymentQRCode';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { PaymentAmountRow } from '~/shared/ui/PaymentAmountRow';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { BUIList as ListTable, BUIListItem as ListTableRow } from '~/shared/ui/BUI/BUIList';
@@ -137,7 +138,7 @@ export function PendingOnchainLayout({
                 Payment pending
               </Text>
             )}
-            {(!deposit || amount > 0) && <PaymentAmount amount={amount} compact />}
+            {!deposit && <PaymentAmount amount={amount} compact />}
             {deposit && !!address && (
               <PaymentQRFrame accessibilityLabel="Bitcoin deposit QR code">
                 {(size) => (
@@ -163,6 +164,7 @@ export function PendingOnchainLayout({
         }
       >
         <ListTable compact variant="filled">
+          {deposit && amount > 0 && <PaymentAmountRow amount={amount} />}
           <PaymentStatusRow
             status="pending"
             value={deposit ? (amount > 0 ? 'Payment detected' : 'Awaiting payment') : 'Pending'}

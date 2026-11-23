@@ -5,6 +5,9 @@ jest.mock('~/shared/ui/PaymentInfoHeader', () => ({
   PaymentInfoHeader: require('~/shared/ui/PaymentFlowHeader').PaymentFlowHeader,
 }));
 import { OFFLINE_CHANGE_REQUIRED } from '~/shared/utils/offlineSendUtils';
+jest.mock('~/features/payments/send/EcashPaymentStatus', () => ({
+  EcashPaymentStatus: 'EcashStatus',
+}));
 
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
 jest.mock('~/shared/ui/PaymentStageLayout', () => ({
@@ -65,7 +68,7 @@ it('offers both nearest amounts without enabling creation or sending on selectio
   });
   expect(buttons().map((button) => button.props.children)).toEqual([
     'Prepare change',
-    'Create ecash',
+    'Create ₿20',
   ]);
   expect(options().map((option) => option.props.accessibilityLabel)).toEqual([
     'Lower: ₿16',
@@ -93,13 +96,9 @@ it('omits a missing side and disables every action during creation', async () =>
       />,
     );
   });
-  expect(buttons().map((button) => button.props.children)).toEqual([
-    'Prepare change',
-    'Create ecash',
-  ]);
-  expect(options().map((option) => option.props.accessibilityLabel)).toEqual(['Higher: ₿32']);
-  expect(options().every((option) => option.props.disabled)).toBe(true);
-  expect(buttons().every((button) => button.props.disabled)).toBe(true);
+  expect(buttons()).toHaveLength(0);
+  expect(options()).toHaveLength(0);
+  expect(tree.root.findByType('EcashStatus' as any).props.status).toBe('processing');
 });
 
 it('shows exact offline readiness without replacement actions', async () => {
@@ -114,7 +113,7 @@ it('shows exact offline readiness without replacement actions', async () => {
       />,
     );
   });
-  expect(buttons().map((button) => button.props.children)).toEqual(['Create ecash']);
+  expect(buttons().map((button) => button.props.children)).toEqual(['Create ₿20']);
   expect(buttons()[0].props.disabled).toBe(false);
   expect(
     tree.root
@@ -135,7 +134,7 @@ it('hides offline choices immediately on reconnect, even before the previous che
     );
   });
   expect(options()).toHaveLength(0);
-  expect(buttons().map((button) => button.props.children)).toEqual(['Create ecash']);
+  expect(buttons().map((button) => button.props.children)).toEqual(['Create ₿20']);
   expect(
     tree.root
       .findAllByType('Text' as any)

@@ -1,7 +1,7 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
-import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { PaymentAmountRow } from '~/shared/ui/PaymentAmountRow';
 import React, { useState, useEffect, useRef } from 'react';
 import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
@@ -224,7 +224,6 @@ export function PaymentStage({
           <>
             {pos && (
               <YStack items="center" gap="$2" width="100%">
-                <PaymentAmount amount={sats} compact size="prominent" testID="mint-payment" />
                 {!!note && (
                   <Text fontSize={13} color="$color" textAlign="center">
                     {note}
@@ -237,7 +236,6 @@ export function PaymentStage({
                 )}
               </YStack>
             )}
-            {!pos && <PaymentAmount amount={sats} compact testID="mint-payment" />}
             {isExpired && (
               <Text fontSize={13} fontWeight="500" color="$gray10">
                 Invoice expired
@@ -287,6 +285,7 @@ export function PaymentStage({
           </Text>
         )}
         <ListTable compact variant="filled">
+          <PaymentAmountRow amount={sats} />
           <PaymentStatusRow
             status={isExpired ? 'cancelled' : 'pending'}
             value={isExpired ? 'Expired' : paymentObserved ? 'Issuing ecash…' : 'Awaiting payment'}

@@ -1,4 +1,7 @@
 import React from 'react';
+import * as Clipboard from 'expo-clipboard';
+jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }));
+jest.mock('~/shared/ui/PaymentAmountRow', () => ({ PaymentAmountRow: 'AmountRow' }));
 jest.mock('~/features/history/components/ReceiptImageShare', () => ({
   ReceiptImageShare: 'ReceiptShare',
 }));
@@ -10,7 +13,9 @@ import {
   onchainMeltOutcome,
 } from '~/features/history/transactionPresentation';
 
-jest.mock('tamagui', () => ({ Text: 'Text' }));
+jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack', useThemeName: () => 'dark' }));
+jest.mock('~/shared/ui/BUI/BUISheet', () => ({ BUISheet: 'Sheet' }));
+jest.mock('~/shared/ui/PaymentActionsMenu', () => ({ PaymentActionsMenu: 'PaymentMenu' }));
 jest.mock('~/shared/icons', () => ({ RefreshCw: 'RefreshCw' }));
 jest.mock('~/shared/ui/PaymentStageLayout', () => ({
   PaymentStageLayout: ({ hero, children, footer }: any) => (
@@ -113,11 +118,18 @@ it('shows an outgoing pending receipt with status refresh, full address copy and
   expect(row.props.value).toBe('Pending');
   expect(tree.root.findAllByType('Row' as any)[0].props.label).toBe('Status');
   expect(row.props.valueColor).toBe('$orange10');
-  await act(async () => row.props.rightContent.props.onPress());
+  await act(async () =>
+    tree.root
+      .findByType('Header' as any)
+      .props.headerRight()
+      .props.actions.find((action: any) => action.id === 'refresh')
+      .onPress(),
+  );
   expect(props.onRefresh).toHaveBeenCalledTimes(1);
   const destination = tree.root.findByProps({ label: 'Destination' });
-  expect(destination.props.isCopyable).toBe(true);
-  expect(destination.props.copyValue).toBe(address);
+  expect(destination.props.isCopyable).toBeUndefined();
+  await act(async () => tree.root.findByType('Button' as any).props.onPress());
+  expect(Clipboard.setStringAsync).toHaveBeenCalledWith(address);
 });
 
 it('keeps a deposit QR as Bitcoin and copies the full destination', async () => {
@@ -133,7 +145,17 @@ it('keeps a deposit QR as Bitcoin and copies the full destination', async () => 
   });
   expect(tree.root.findByType('QRCode' as any).props.value).toBe(`bitcoin:${address}?amount=0.01`);
   expect(tree.root.findByProps({ label: 'Status' }).props.value).toBe('Awaiting payment');
-  expect(tree.root.findByProps({ label: 'Address' }).props.copyValue).toBe(address);
+  await act(async () => tree.root.findByType('Button' as any).props.onPress());
+  expect(Clipboard.setStringAsync).toHaveBeenCalledWith(address);
+  expect(tree.root.findAllByType('Amount' as any)).toHaveLength(0);
+});
+it('moves a known deposit amount into the first details row with no amount above its QR', async () => {
+  await act(async () => {
+    tree = create(<PendingOnchainLayout {...props} direction="deposit" />);
+  });
+  const first = tree.root.findByType('Table' as any).children[0] as any;
+  expect(first.type).toBe('AmountRow');
+  expect(first.props.amount).toBe(250);
   expect(tree.root.findAllByType('Amount' as any)).toHaveLength(0);
 });
 jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => false }));

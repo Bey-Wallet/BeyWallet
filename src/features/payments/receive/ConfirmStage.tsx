@@ -19,6 +19,7 @@ import { useWalletStore } from '~/state/walletStore';
 import { mintManager, proofService } from '~/services/wallet';
 import { useSettingsStore } from '~/state/settingsStore';
 import { appLogger } from '~/shared/utils/appLogger';
+import { ReceiveResultStage } from './ReceiveResultStage';
 
 interface TokenInfo {
   mint: string;
@@ -57,7 +58,7 @@ export function ConfirmStage({
   const npub = useSettingsStore((state) => state.npub);
   const toast = useAppToast();
   const [isSavingLater, setIsSavingLater] = React.useState(false);
-  const [estimatedFee, setEstimatedFee] = React.useState(0);
+  const [estimatedFee, setEstimatedFee] = React.useState<number | null>(null);
 
   // ── Proof state verification (NUT-07) ────────────────────────────
   type ProofStatus = 'checking' | 'valid' | 'spent' | 'pending' | 'unknown';
@@ -156,8 +157,9 @@ export function ConfirmStage({
 
   // Fetch fee for this mint
   React.useEffect(() => {
+    let cancelled = false;
+    setEstimatedFee(null);
     if (offline) {
-      setEstimatedFee(0);
       return;
     }
     if (tokenInfo.mint) {
@@ -165,10 +167,13 @@ export function ConfirmStage({
         .getFeePpk(tokenInfo.mint)
         .then((feePpk) => {
           const fee = feePpk > 0 ? Math.ceil((tokenInfo.proofCount * feePpk) / 1000) : 0;
-          setEstimatedFee(fee);
+          if (!cancelled && Number.isSafeInteger(fee) && fee >= 0) setEstimatedFee(fee);
         })
-        .catch(() => setEstimatedFee(0));
+        .catch(() => {});
     }
+    return () => {
+      cancelled = true;
+    };
   }, [tokenInfo.mint, tokenInfo.proofCount, offline]);
 
   // Check if mint is trusted
@@ -195,6 +200,20 @@ export function ConfirmStage({
     hapticService.acknowledge();
   };
 
+  if (isLoading || isSavingLater) {
+    return (
+      <ReceiveResultStage
+        status="success"
+        amount={String(tokenInfo.amount)}
+        mintUrl={tokenInfo.mint}
+        note={tokenInfo.memo}
+        isLoading
+        saving={isSavingLater || offline}
+        onClose={onBack}
+      />
+    );
+  }
+
   return (
     <>
       <PaymentInfoHeader
@@ -206,7 +225,7 @@ export function ConfirmStage({
       />
       <PaymentStageLayout
         disabled={isLoading || isSavingLater}
-        hero={<PaymentAmount amount={tokenInfo.amount} size="prominent" label="You're receiving" />}
+        hero={<PaymentAmount amount={tokenInfo.amount} size="prominent" compact />}
         footer={
           <AppButton
             haptic
@@ -312,8 +331,11 @@ export function ConfirmStage({
               />
             }
           />
-          {!offline && estimatedFee > 0 && (
-            <ListTableRow label="Estimated fee" value={`${estimatedFee} sat`} />
+          {!offline && (
+            <ListTableRow
+              label="Estimated fee"
+              value={estimatedFee == null ? 'Unavailable' : `${estimatedFee} sat`}
+            />
           )}
           {tokenInfo.p2pkNpub && (
             <ListTableRow

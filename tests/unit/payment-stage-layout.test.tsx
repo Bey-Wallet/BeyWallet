@@ -85,7 +85,7 @@ it.each(['confirm', 'qr', 'receipt'] as const)(
   },
 );
 
-it('matches the mint QR frame with a 280px cap and 20px quiet margin on each side', async () => {
+it('uses a compact 240px QR cap and preserves the 20px quiet margin on each side', async () => {
   let size = 0;
   const tree = await render(
     <PaymentQRFrame accessibilityLabel="Request QR">
@@ -102,7 +102,7 @@ it('matches the mint QR frame with a 280px cap and 20px quiet margin on each sid
   const style = StyleSheet.flatten(surface.props.style) || {};
   expect(surface.props.p ?? style.padding ?? style.paddingLeft).toBe(20);
   await act(async () => frame.props.onLayout({ nativeEvent: { layout: { width: 600 } } }));
-  expect(size).toBe(280);
+  expect(size).toBe(240);
   await act(async () => tree.unmount());
 });
 

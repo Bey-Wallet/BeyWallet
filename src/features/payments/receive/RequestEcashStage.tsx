@@ -10,7 +10,7 @@ import { InfoSheet } from '~/shared/components/info-sheets/InfoSheet';
 import type { BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { CircleHelp } from '~/shared/icons';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
-import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { PaymentAmountRow } from '~/shared/ui/PaymentAmountRow';
 import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
 import { buildShareableReceipt } from '~/features/history/shareableReceipt';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
@@ -569,7 +569,6 @@ export function RequestEcashStage({
           <>
             {merchant && (
               <YStack items="center" gap="$2" width="100%">
-                <PaymentAmount amount={merchant.amount} size="prominent" compact />
                 {!!merchant.note && (
                   <Text color="$color" fontSize={13} textAlign="center">
                     {merchant.note}
@@ -630,6 +629,7 @@ export function RequestEcashStage({
           </Text>
         )}
         <ListTable compact>
+          {merchant && <PaymentAmountRow amount={merchant.amount} />}
           {creqString && (
             <PaymentStatusRow
               status={

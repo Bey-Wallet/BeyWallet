@@ -227,3 +227,79 @@ at the deadline. See [Cashu NUT-11](https://github.com/cashubtc/nuts/blob/main/1
   from a stale response; the unsubmitted operation must release through existing cleanup.
 - On confirmation, change the mint and check that the original preparation releases
   before the replacement quote is used. Cancel and verify the funds remain available.
+
+## Approved payment layout: ecash send
+
+- Standard, locked/P2PK and Nostr sends share compact confirmation amounts, paying
+  mint, creation fee and total. An unavailable fee must never appear as zero.
+- During submission, the header says Processing payment and the bottom button shows
+  Processing with the existing spinner. Editing, dismissal and duplicate submission
+  stay blocked by the existing flow guards.
+- A created or published token remains unclaimed: keep its QR, Copy/share/NFC controls
+  and pending state. Copy is the only bottom action; the header closes the screen.
+  Show the creation fee, including known zero fees; unknown fees stay unavailable.
+  Operation IDs and full mint URLs use the technical-details sheet's Copy and Share actions.
+- Confirm an actual recipient claim before showing Ecash claimed. A failure result
+  must not invent a fee paid or offer an automatic second payment.
+- For Cashu requests, check manual delivery, relay failure/retry, awaiting recipient
+  and unconfirmed receipt. Check status observes the existing payment; retry delivery
+  keeps the existing guarded delivery method and cannot replace its operation.
+- Device checks: a small standard send and claim, a locked token, a Nostr send, an
+  exact offline send, and interrupted request delivery. Verify balances and History
+  after closing or backgrounding each flow.
+
+Next layout passes: Lightning receive/top-up, on-chain send/receive,
+mint-to-mint Transfer, then the NFC/POS-specific sheet layouts.
+
+## Ecash receive layout
+
+- Review retains proof-state checks, mint trust consent, recipient locks and offline saving.
+  The compact amount sits above the existing details. Estimated fees include known zero;
+  failed or offline estimates remain unavailable rather than implying a free claim.
+- Claiming and saving replace review with a locked receipt layout: status in the header,
+  amount above details and a disabled Receiving/Saving button with the existing spinner.
+  There is no second loader or actionable retry during the operation.
+- Received, awaiting-claim and failed results share the payment hierarchy and primary Done
+  action. Claim/retry is a small explicit action above details. Offline saving never shows
+  a completed claim or a credited balance.
+- A matching saved receive receipt supplies the timestamp, recorded fee and technical
+  details. Unknown fees remain unavailable; opening a result does not invent a timestamp.
+- Device checks: receive a small bearer token and a token locked to this wallet; inspect
+  an already-spent token; save offline and claim after reconnecting. Interrupt a receive,
+  background/return and verify the existing operation guards and History reconciliation.
+  Check both themes, large text, copyable notes and technical-detail Copy/Share actions.
+
+## Pending QR amount placement
+
+- Pending ecash, live/saved Lightning invoices, known on-chain deposits, and POS
+  ecash/Lightning requests put Amount first in their details list, below the QR.
+  The primary value is right-aligned in the primary text color; its secondary
+  equivalent follows in parentheses using muted text. Currency ordering follows
+  Settings. A missing exchange rate must not become a zero fiat equivalent.
+- Unknown deposit amounts retain their existing amount-free state. Outgoing
+  on-chain receipts without a QR retain their receipt amount presentation.
+- QR codes cap at 240 points, retaining the 20-point white quiet margin and
+  responsive sizing on narrow screens. Check scanning a Lightning invoice,
+  static ecash and animated ecash on a phone, plus both POS payment methods.
+
+## Grouped technical details
+
+- Open technical details from a live Lightning result, newly created ecash, a Cashu
+  request payment, and the same saved History entry. All use the shared receipt builder:
+  Transaction, Quote, Payment, and Request sections appear only when applicable.
+- Transaction facts include real History/operation IDs, method, direction, saved
+  status, date, amount, known fee, and full mint URL. Quote facts show the local quote's
+  state, amount, reserve, mint swap fee, request and expiry where available. Quote state
+  and operation state remain separate. Never infer a paid fee from a reserve.
+- Reads use exact mint/type/operation-or-quote references and safe SQL columns. Opening
+  details never fetches a new quote or payment, and local reads work while offline.
+  Missing IDs/dates are not fabricated; missing fee or quote data remains unavailable.
+- Copy and Share sit side by side as equal secondary actions. Their text includes section
+  headings, complete reference values and UTC timestamps, even when the on-screen value
+  is shortened or localized. Row copying retains complete values.
+- Exports exclude bearer tokens, proof secrets, change outputs and signing keys.
+  Lightning payment proofs still require matching the invoice payment hash. Actual
+  settlement fees or proofs absent from saved data are not reconstructed or invented.
+- Device checks: compare the same payment in result and History, copy/share details,
+  return with the header back button, and repeat in airplane mode. Verify no invoice/token
+  contents enter logs.

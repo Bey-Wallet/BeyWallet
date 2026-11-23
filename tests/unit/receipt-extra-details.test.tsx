@@ -1,4 +1,5 @@
 import React from 'react';
+import { Share } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ReceiptExtraDetails } from '~/features/history/components/ReceiptExtraDetails';
 const mockPresent = jest.fn();
@@ -20,14 +21,23 @@ jest.mock('~/shared/ui/BUI/BUISheet', () => ({
     return require('react').createElement('Sheet', props, props.children);
   }),
 }));
-jest.mock('tamagui', () => ({ YStack: 'YStack' }));
-jest.mock('~/shared/icons', () => ({ ChevronDown: 'Down', ChevronUp: 'Up', Copy: 'Copy' }));
+jest.mock('tamagui', () => ({ YStack: 'YStack', XStack: 'XStack', Text: 'Text' }));
+jest.mock('~/shared/icons', () => ({
+  ChevronDown: 'Down',
+  ChevronUp: 'Up',
+  Copy: 'Copy',
+  Share2: 'Share',
+}));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'Table', ListTableRow: 'Row' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 let tree: ReactTestRenderer;
+beforeEach(() => {
+  jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
+});
 afterEach(async () => {
   await act(async () => tree?.unmount());
   jest.clearAllMocks();
+  jest.restoreAllMocks();
 });
 
 it('opens technical references in a separate sheet and returns to the receipt on Back', async () => {
@@ -58,20 +68,45 @@ it('copies all technical details from the bottom button using complete values', 
       <ReceiptExtraDetails
         presentation="sheet"
         fields={[
-          { label: 'Invoice', value: 'short', copyValue: 'complete invoice' },
-          { label: 'Quote ID', value: 'quote-id' },
+          { section: 'Quote', label: 'Invoice', value: 'short', copyValue: 'complete invoice' },
+          { section: 'Quote', label: 'Quote ID', value: 'quote-id' },
+          {
+            section: 'Transaction',
+            label: 'Date',
+            value: 'local date',
+            fullValue: '2026-01-01T00:00:00.000Z',
+          },
         ]}
       />,
     );
   });
-  const button = tree.root.findByProps({ children: 'Copy details' });
-  expect(button.props).toMatchObject({ fullWidth: true, size: 'large', emphasis: 'primary' });
+  const button = tree.root.findByProps({ children: 'Copy' });
+  expect(button.props).toMatchObject({
+    fullWidth: false,
+    flex: 1,
+    size: 'medium',
+    emphasis: 'secondary',
+  });
   await act(async () => button.props.onPress());
   expect(mockCopy).toHaveBeenCalledWith(
-    'Invoice: complete invoice\n\nQuote ID: quote-id',
+    'Quote\nInvoice: complete invoice\nQuote ID: quote-id\n\nTransaction\nDate: 2026-01-01T00:00:00.000Z',
     expect.anything(),
   );
   expect(mockFeedback).toHaveBeenCalledTimes(1);
+  const share = tree.root.findByProps({ children: 'Share' });
+  expect(share.parent).toBe(button.parent);
+  expect(share.props).toMatchObject({
+    fullWidth: false,
+    flex: 1,
+    size: 'medium',
+    emphasis: 'secondary',
+  });
+  await act(async () => share.props.onPress());
+  expect(Share.share).toHaveBeenCalledWith({
+    title: 'Payment details',
+    message: mockCopy.mock.calls[0][0],
+  });
+  expect(tree.root.findAllByProps({ children: 'Done' })).toHaveLength(0);
 });
 it('omits the disclosure when no additional fields exist', async () => {
   await act(async () => {
@@ -83,6 +118,7 @@ it('keeps identifiers hidden until requested and preserves complete copy values'
   await act(async () => {
     tree = create(
       <ReceiptExtraDetails
+        presentation="inline"
         fields={[{ label: 'Invoice', value: 'short', copyValue: 'complete invoice' }]}
       />,
     );

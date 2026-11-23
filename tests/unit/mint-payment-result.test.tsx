@@ -4,6 +4,12 @@ jest.mock('~/shared/ui/PaymentFlowHeader', () => ({
 }));
 jest.mock('~/shared/ui/PaymentActionsMenu', () => ({ PaymentActionsMenu: 'PaymentMenu' }));
 import React from 'react';
+jest.mock('~/shared/ui/BUI/BUISheet', () => ({
+  BUISheet: require('react').forwardRef((props: any, ref: any) => {
+    require('react').useImperativeHandle(ref, () => ({ present: jest.fn(), dismiss: jest.fn() }));
+    return require('react').createElement('Sheet', { ...props, children: undefined });
+  }),
+}));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
 import { PaymentStage } from '~/features/payments/mint/PaymentStage';
@@ -122,16 +128,10 @@ it.each(['SATS', 'FIAT'])(
         onClose={jest.fn()}
       />,
     );
-    expect(
-      amountText(
-        payment.root.findByProps({ testID: 'mint-payment-primary-amount' }).props.children,
-      ),
-    ).toBe(primary);
-    expect(
-      amountText(
-        payment.root.findByProps({ testID: 'mint-payment-secondary-amount' }).props.children,
-      ),
-    ).toBe(secondary);
+    const row = payment.root.findByProps({ label: 'Amount' });
+    expect(amountText(row.props.value)).toBe(
+      `${primary} (${currency === 'SATS' ? '$10.00' : '10,000 sat'})`,
+    );
     expect(
       amountText(result.root.findByProps({ testID: 'mint-result-primary-amount' }).props.children),
     ).toBe(primary);
@@ -149,7 +149,7 @@ it.each(['SATS', 'FIAT'])(
       ['Time', formatPaymentDateTime(Date.now()), undefined],
       ['Method', 'Lightning', undefined],
     ]);
-    expect(button(result, 'Show details').props).toMatchObject({
+    expect(button(result, 'Technical details').props).toMatchObject({
       emphasis: 'secondary',
       size: 'small',
       fullWidth: false,

@@ -593,7 +593,7 @@ it('allows switching a zero request to fiat, shows its sat equivalent and saves 
     tree = create(<RequestAmountEditor amount={0} onChange={onChange} />);
   });
   await act(async () => tree.root.findByProps({ label: 'Amount' }).props.onPress());
-  expect(tree.root.findByType('AppBottomSheet' as any).props.bottomInset).toBe(24);
+  expect(tree.root.findByType('AppBottomSheet' as any).props.title).toBe('Request amount');
   await act(async () =>
     tree.root.findByProps({ accessibilityLabel: 'Switch amount currency' }).props.onPress(),
   );

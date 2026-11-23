@@ -99,6 +99,8 @@ export function MeltResultStage({
     extraDetailsPresentation: 'sheet',
     state: status === 'success' ? 'paid' : status,
     amount,
+    time,
+    feeSats,
   });
   const knownFee = Number.isSafeInteger(feeSats) && feeSats! >= 0;
   return (

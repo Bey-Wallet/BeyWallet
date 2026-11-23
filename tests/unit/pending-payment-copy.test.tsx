@@ -1,4 +1,5 @@
 import React from 'react';
+jest.mock('~/shared/ui/PaymentAmountRow', () => ({ PaymentAmountRow: 'AmountRow' }));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
 import { PendingMintInvoiceLayout } from '~/features/history/components/PendingMintInvoiceLayout';

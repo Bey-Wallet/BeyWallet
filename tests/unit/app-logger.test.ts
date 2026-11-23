@@ -10,12 +10,12 @@ it('keeps development checkpoints out of release output and rejects non-allowlis
   const output = jest.fn();
   let development = false;
   const log = createAppLogger({ development: () => development, output });
-  log.debug('[CocoMelt] quote_created');
+  log.debug('[Coco] Wallet operation warning.');
   log.error('synthetic-private-bearer-material' as any);
   expect(output).not.toHaveBeenCalled();
   development = true;
-  log.debug('[CocoMelt] quote_created');
-  expect(output).toHaveBeenCalledWith('debug', '[CocoMelt] quote_created');
+  log.debug('[Coco] Wallet operation warning.');
+  expect(output).toHaveBeenCalledWith('debug', '[Coco] Wallet operation warning.');
 });
 
 it('never forwards raw error messages, stacks, keys, tokens, proofs or custom serialization', () => {
@@ -95,18 +95,18 @@ it('does not allow a broken logging transport to change operation behavior', () 
     },
   });
   expect(() => log.error('[Coco] Wallet operation failed.')).not.toThrow();
-  expect(() => log.debug('[CocoMelt] quote_created')).not.toThrow();
+  expect(() => log.debug('[Coco] Wallet operation warning.')).not.toThrow();
 });
 
 it('retains only fixed diagnostic hints and bounded timing in development metadata', () => {
   const output = jest.fn();
   const log = createAppLogger({ development: () => true, output });
-  log.debug('[CocoMelt] quote_created', {
+  log.debug('[Coco] Wallet operation warning.', {
     hint: 'counter',
     durationMs: 42,
     token: 'synthetic-private',
   });
-  expect(output).toHaveBeenCalledWith('debug', '[CocoMelt] quote_created', {
+  expect(output).toHaveBeenCalledWith('debug', '[Coco] Wallet operation warning.', {
     type: 'Error',
     hint: 'counter',
     durationMs: 42,

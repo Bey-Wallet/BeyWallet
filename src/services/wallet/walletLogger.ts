@@ -1,7 +1,6 @@
 import type { Logger } from 'coco-cashu-core';
 import { recordDiagnosticFailure } from '~/services/feedback/diagnosticFailures';
 import { appLogger } from '~/shared/utils/appLogger';
-import type { AppLogMessage } from '~/shared/utils/appLogMessages';
 
 /** Read only a plain numeric protocol code; never evaluate error getters or messages. */
 export function safeMintErrorCode(value: unknown): number | undefined {
@@ -79,24 +78,6 @@ export function safeWalletErrorDiagnostic(value: unknown) {
   };
 }
 
-// Exact SDK message allowlist. Metadata is deliberately never inspected.
-function traceMeltPreparation(message: string) {
-  if (!__DEV__) return;
-  const steps: Record<string, AppLogMessage> = {
-    'Preparing bolt11 melt operation': '[CocoMelt] requesting_quote',
-    'Melt quote created': '[CocoMelt] quote_created',
-    'Proofs selected for melt': '[CocoMelt] proofs_selected',
-    'Proofs reserved': '[CocoMelt] proofs_reserved',
-    'Preparing direct melt (no swap)': '[CocoMelt] preparing_direct',
-    'Preparing swap-then-melt': '[CocoMelt] preparing_swap',
-    'Swap amounts calculated': '[CocoMelt] swap_amounts_ready',
-    'Direct melt prepared': '[CocoMelt] direct_prepared',
-    'Swap-then-melt prepared': '[CocoMelt] swap_prepared',
-    'Melt operation prepared': '[CocoMelt] operation_saved',
-  };
-  if (Object.prototype.hasOwnProperty.call(steps, message)) appLogger.debug(steps[message]);
-}
-
 /** SDK messages and metadata can contain bearer proofs or keys. Never forward them to console. */
 export const walletLogger: Logger = {
   error: (message: string, metadata?: unknown) => {
@@ -148,6 +129,6 @@ export const walletLogger: Logger = {
     recordDiagnosticFailure('wallet_sdk', metadata);
     appLogger.warn('[Coco] Wallet operation warning.', metadata);
   },
-  info: traceMeltPreparation,
-  debug: traceMeltPreparation,
+  info: () => {},
+  debug: () => {},
 };

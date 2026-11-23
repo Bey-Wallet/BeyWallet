@@ -65,9 +65,9 @@ import {
 } from './receiptDetails';
 import {
   readLightningRecipient,
-  readLightningReceiptSnapshot,
   removeLightningRecipient,
 } from '~/services/wallet/lightningReceiptContext';
+import { readPaymentReceiptContext } from '~/services/wallet/paymentReceiptContext';
 import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { appLogger } from '~/shared/utils/appLogger';
@@ -234,6 +234,8 @@ function TransactionDetailsContent() {
   const { data: receiptSnapshot, isPending: receiptSnapshotLoading } = useQuery<ReceiptSnapshot>({
     queryKey: ['receiptSnapshot', entry?.id, entry?.state, entry?.mintUrl, entry?.quoteId, npub],
     enabled: !!entry,
+    networkMode: 'always',
+    retry: false,
     queryFn: async () => {
       if (!entry) return {};
       const recipient = readLightningRecipient(
@@ -242,12 +244,15 @@ function TransactionDetailsContent() {
         entry.quoteId,
       );
       if (onchain || !entry.quoteId) return { recipient };
-      return readLightningReceiptSnapshot(
-        npub,
-        entry.mintUrl,
-        entry.quoteId,
-        entry.type === 'mint',
-      );
+      return (
+        await readPaymentReceiptContext({
+          wallet: npub,
+          mintUrl: entry.mintUrl,
+          type: entry.type,
+          quoteId: entry.quoteId,
+          operationId: entry.operationId,
+        })
+      ).snapshot;
     },
   });
 
@@ -1199,10 +1204,7 @@ function TransactionDetailsContent() {
           />
         )}
       </ListTable>
-      <ReceiptExtraDetails
-        fields={detail.extra}
-        presentation={lightningReceipt ? 'sheet' : 'inline'}
-      />
+      <ReceiptExtraDetails fields={detail.extra} presentation="sheet" />
       {renderDeleteBottomSheet()}
     </YStack>,
     false,

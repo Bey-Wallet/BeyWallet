@@ -11,7 +11,7 @@ export function PaymentQRFrame({
   placeholder?: boolean;
 }) {
   const [width, setWidth] = useState(0);
-  const size = Math.max(0, Math.min(280, width - 40));
+  const size = Math.max(0, Math.min(240, width - 40));
   return (
     <YStack
       width="100%"

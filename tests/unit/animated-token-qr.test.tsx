@@ -1,4 +1,5 @@
 import React from 'react';
+jest.mock('~/shared/ui/PaymentAmountRow', () => ({ PaymentAmountRow: 'AmountRow' }));
 import { AppState, Share } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
@@ -9,6 +10,10 @@ import SendMethodSelector from '~/shared/ui/SendMethodSelector';
 import { ResultStage } from '~/features/payments/send/ResultStage';
 
 const mockHeader = jest.fn(() => null);
+jest.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: undefined }) }));
+jest.mock('~/features/history/components/ReceiptExtraDetails', () => ({
+  ReceiptExtraDetails: 'TechnicalDetails',
+}));
 const mockNextPart = jest.fn();
 const mockEncoder = jest.fn();
 const mockRemoveListener = jest.fn();
@@ -50,6 +55,9 @@ jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
 jest.mock('~/shared/ui/PaymentStatusIcon', () => ({ PaymentStatusIcon: 'Status' }));
 jest.mock('~/shared/ui/PaymentStatusRow', () => ({ PaymentStatusRow: 'StatusRow' }));
 jest.mock('~/shared/ui/PaymentReceipt', () => ({ PaymentReceipt: 'Receipt' }));
+jest.mock('~/features/payments/send/EcashPaymentStatus', () => ({
+  EcashPaymentStatus: 'EcashStatus',
+}));
 jest.mock('~/features/history/components/ReceiptImageShare', () => ({
   ReceiptImageShare: 'ReceiptShare',
 }));
@@ -185,13 +193,14 @@ it('places the receipt action in the shared pending payment menu', async () => {
 });
 
 it('offers an explicit pending ecash image from a newly created send without marking it paid', async () => {
+  const close = jest.fn();
   await render(
     <ResultStage
       status="success"
       amount="1"
       token="cashu:cashuBsynthetic"
       mintUrl="https://mint.test"
-      onClose={jest.fn()}
+      onClose={close}
     />,
   );
   const share = tree.root.findByType('ReceiptShare' as any);
@@ -206,6 +215,23 @@ it('offers an explicit pending ecash image from a newly created send without mar
   expect(
     tree.root.findByType('PaymentMenu' as any).props.actions.map((action: any) => action.id),
   ).toContain('receipt-image');
+  expect(tree.root.findAllByType('Amount' as any)).toHaveLength(0);
+  expect(tree.root.findAllByType('AmountRow' as any)[0].props.amount).toBe(1);
+  expect(tree.root.findByType('TechnicalDetails' as any).props.presentation).toBe('sheet');
+  expect(tree.root.findAllByProps({ label: 'Token' })).toHaveLength(0);
+  expect(tree.root.findAllByProps({ children: 'Done' })).toHaveLength(0);
+  expect(tree.root.findAllByType('Button' as any).map((node) => node.props.children)).toEqual([
+    'Copy',
+  ]);
+  expect(close).not.toHaveBeenCalled();
+});
+
+it.each([0, 2, undefined])('shows the creation fee honestly when it is %s', async (fee) => {
+  await render(<PendingTokenLayout token="cashuBsynthetic" amount={20} fee={fee} />);
+  // The same details list is available on screen and in the details sheet.
+  const rows = tree.root.findAllByProps({ label: 'Creation fee' });
+  expect(rows.length).toBeGreaterThan(0);
+  for (const row of rows) expect(row.props.value).toBe(fee == null ? 'Unavailable' : `${fee} sat`);
 });
 
 it('switches between static and animated tokens without retaining an old frame or timer', async () => {

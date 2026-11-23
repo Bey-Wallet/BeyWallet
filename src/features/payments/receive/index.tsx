@@ -24,6 +24,7 @@ import * as ClipboardAPI from 'expo-clipboard';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { usePreventRemove } from '@react-navigation/native';
 import { appLogger } from '~/shared/utils/appLogger';
+import type { ReceiptEntry } from '~/features/history/receiptDetails';
 
 type ReceiveStep = 'input' | 'confirm' | 'result';
 
@@ -71,6 +72,7 @@ export function ReceiveModalScreen() {
   const fetchMintInfo = useWalletStore((s) => s.fetchMintInfo);
   const mints = useWalletStore((s) => s.mints);
   const [isReceiveLater, setIsReceiveLater] = useState(false);
+  const [receipt, setReceipt] = useState<ReceiptEntry>();
 
   // Keep a stable ref to mints so handleDecodeToken never needs mints in its deps
   // (avoids infinite re-render when background fetchMintInfo updates the store)
@@ -93,6 +95,7 @@ export function ReceiveModalScreen() {
       setIsDecoding(true);
       setError(null);
       setIsReceiveLater(false);
+      setReceipt(undefined);
 
       try {
         let tokenToParse = targetToken.trim();
@@ -420,7 +423,8 @@ export function ReceiveModalScreen() {
       // Reserve presentation only after the existing receive has saved an exact receipt.
       try {
         const receipt = await findTokenReceiveReceipt(token.trim());
-        if (receipt)
+        if (receipt) {
+          setReceipt({ ...receipt, id: String(receipt.id) });
           await publishWalletFeedback({
             entity: { type: 'receipt', id: String(receipt.id) },
             parentOperationId: presentationId.current,
@@ -430,6 +434,7 @@ export function ReceiveModalScreen() {
             target: { type: 'transaction', id: String(receipt.id) },
             details: { amount: receipt.amount },
           });
+        }
       } catch {
         /* Presentation verification cannot undo a successful receive. */
       }
@@ -566,6 +571,7 @@ export function ReceiveModalScreen() {
           offline={offline}
           isLoading={isReceiving}
           onClaimNow={handleReceive}
+          receipt={receipt}
           onClose={handleClose}
           title={
             status === 'success'

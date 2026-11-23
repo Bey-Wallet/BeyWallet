@@ -32,6 +32,8 @@ export function ResultStage({
     incoming: true,
     state: status === 'success' ? 'issued' : status,
     amount: Number(amount),
+    time,
+    feeSats,
   });
 
   return (

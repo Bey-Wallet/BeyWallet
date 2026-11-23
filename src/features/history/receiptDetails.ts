@@ -5,9 +5,12 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { historyMetadata, historyStatusLabel, isOnchainHistory } from './transactionPresentation';
 
 export interface ReceiptField {
+  section?: 'Transaction' | 'Quote' | 'Payment' | 'Request';
   label: string;
   value: string;
   copyValue?: string;
+  /** Copy-all form for plain values such as timestamps; does not enable row copying. */
+  fullValue?: string;
 }
 export interface ReceiptEntry {
   id: string;
@@ -30,6 +33,11 @@ export interface ReceiptSnapshot {
   state?: string;
   recipient?: string;
   amount?: number;
+  operationId?: string;
+  operationState?: string;
+  quoteId?: string;
+  swapFee?: number;
+  cashuRequest?: string;
 }
 const text = (value: unknown) =>
   typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -98,6 +106,14 @@ export function buildReceiptDetails(entry: ReceiptEntry, snapshot: ReceiptSnapsh
   const transfer = !!metadata.transferId;
   const lightning = !onchain && !transfer && ['mint', 'melt'].includes(entry.type);
   const request = text(snapshot.request) || text(entry.paymentRequest);
+  // Receipt exports accept public payment requests, never bearer-token payloads.
+  const onchainAddress = onchain ? request?.replace(/^bitcoin:/i, '').split('?')[0] : undefined;
+  const publicRequest =
+    lightning && request && /^(lightning:)?ln(bc|tb|bcrt)[a-z0-9]+$/i.test(request)
+      ? request
+      : onchainAddress && /^(bc1|tb1|bcrt1|[13mn2])[a-z0-9]+$/i.test(onchainAddress)
+        ? onchainAddress
+        : undefined;
   const decoded = lightning ? invoiceDisplayDetails(request) : {};
   const candidateProof = text(snapshot.payment_preimage);
   const proof =
@@ -108,49 +124,101 @@ export function buildReceiptDetails(entry: ReceiptEntry, snapshot: ReceiptSnapsh
       ? candidateProof
       : undefined;
   const extra: ReceiptField[] = [];
-  const add = (label: string, value: unknown, copy = true) => {
+  const add = (
+    section: ReceiptField['section'],
+    label: string,
+    value: unknown,
+    copy = true,
+    shorten = true,
+  ) => {
     const full = text(value);
     if (full)
-      extra.push({ label, value: copy ? short(full) : full, ...(copy ? { copyValue: full } : {}) });
+      extra.push({
+        section,
+        label,
+        value: copy && shorten ? short(full) : full,
+        ...(copy ? { copyValue: full } : {}),
+      });
   };
-  add('Transaction ID', entry.id);
-  add('Quote ID', entry.quoteId);
-  add('Operation ID', entry.operationId);
-  add('Mint URL', entry.mintUrl);
+  const date = (section: ReceiptField['section'], label: string, millis?: number) => {
+    if (!millis || !Number.isFinite(millis) || millis <= 0 || millis >= 8640000000000000) return;
+    const value = new Date(millis);
+    extra.push({ section, label, value: value.toLocaleString(), fullValue: value.toISOString() });
+  };
+  const amount = (value: unknown) =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+      ? `${value.toLocaleString()} ${entry.unit}`
+      : 'Unavailable';
+  const status = historyStatusLabel(entry) || 'Unverified';
+  const method = transfer
+    ? 'Transfer'
+    : onchain
+      ? 'Bitcoin on-chain'
+      : lightning
+        ? 'Lightning'
+        : 'Ecash';
+  if (entry.id && entry.id !== entry.quoteId) add('Transaction', 'Transaction ID', entry.id);
+  add('Transaction', 'Operation ID', entry.operationId || snapshot.operationId);
   add(
+    'Transaction',
     'Method',
-    transfer ? 'Transfer' : onchain ? 'Bitcoin on-chain' : lightning ? 'Lightning' : 'Ecash',
+    lightning && /^lightning:ln|^ln(bc|tb|bcrt)/i.test(request || '')
+      ? 'Lightning (BOLT11)'
+      : method,
     false,
   );
-  add('Direction', ['send', 'melt'].includes(entry.type) ? 'Outgoing' : 'Incoming', false);
-  if (snapshot.state) add('Quote state', snapshot.state, false);
-  if (Number.isFinite(snapshot.amount))
-    add('Quote amount', `${snapshot.amount} ${entry.unit}`, false);
-  if (lightning) {
-    add('Invoice', request);
-    add('Payment hash', decoded.paymentHash);
-    add('Description hash', decoded.descriptionHash);
-    add('Payment proof', proof);
+  add(
+    'Transaction',
+    'Direction',
+    ['send', 'melt'].includes(entry.type) ? 'Outgoing' : 'Incoming',
+    false,
+  );
+  add('Transaction', 'Status', status, false);
+  add('Transaction', 'Operation state', snapshot.operationState || metadata.operationState, false);
+  date('Transaction', 'Date', entry.createdAt);
+  add('Transaction', 'Amount', amount(entry.amount), false);
+  add('Transaction', 'Fee', amount(metadata.actualFee ?? metadata.fee), false);
+  add('Transaction', 'Mint URL', entry.mintUrl, true, false);
+  const quoteId = entry.quoteId || snapshot.quoteId;
+  if (quoteId) {
+    add('Quote', 'Quote ID', quoteId);
+    add('Quote', 'Type', entry.type === 'mint' ? 'Mint quote' : 'Melt quote', false);
+    add('Quote', 'Request', publicRequest);
+    add('Quote', 'State', snapshot.state || 'Unavailable', false);
+    add('Quote', 'Quote amount', amount(snapshot.amount), false);
+    if (entry.type === 'melt') {
+      add('Quote', 'Fee reserve', amount(snapshot.fee_reserve), false);
+      if (snapshot.swapFee != null) add('Quote', 'Mint swap fee', amount(snapshot.swapFee), false);
+    }
   }
   const expiry = snapshot.expiry ?? decoded.expiry;
-  if (expiry && Number.isFinite(expiry) && expiry > 0 && expiry < 253402300800)
-    add('Expiry', new Date(expiry * 1000).toLocaleString(), false);
-  const maximumFee = snapshot.fee_reserve ?? metadata.feeReserve;
-  if (Number.isFinite(maximumFee) && maximumFee >= 0)
-    add('Maximum fee', `${maximumFee} sat`, false);
+  if (quoteId) {
+    if (expiry && Number.isFinite(expiry) && expiry > 0 && expiry < 253402300800)
+      date('Quote', 'Expiry', expiry * 1000);
+    else add('Quote', 'Expiry', expiry === 0 ? 'Never' : 'Unavailable', false);
+  }
+  if (lightning) {
+    if (!quoteId) add('Payment', 'Invoice', publicRequest);
+    add('Payment', 'Payment hash', decoded.paymentHash);
+    add('Payment', 'Description hash', decoded.descriptionHash);
+    add('Payment', 'Payment proof', proof);
+  }
+  if (onchain) {
+    const txid = text(metadata.txid);
+    if (txid && /^[a-f0-9]{64}$/i.test(txid)) add('Payment', 'Transaction ID', txid);
+  }
+  if (snapshot.cashuRequest && /^(cashu:)?creq[A-Z]/.test(snapshot.cashuRequest)) {
+    add('Request', 'Request ID', metadata.requestId);
+    add('Request', 'Method', 'Cashu Request', false);
+    add('Request', 'Request', snapshot.cashuRequest);
+  }
   const recipient =
     text(metadata.recipient) || text(metadata.lnAddress) || text(snapshot.recipient);
   const contact = text(metadata.nostrUsername) || text(metadata.nostrPubkey);
   const address = onchain ? text(metadata.address) || text(entry.paymentRequest) : undefined;
   return {
-    method: transfer
-      ? 'Transfer'
-      : onchain
-        ? 'Bitcoin on-chain'
-        : lightning
-          ? 'Lightning'
-          : 'Ecash',
-    status: historyStatusLabel(entry) || 'Unverified',
+    method,
+    status,
     recipient: recipient || contact,
     description: text(metadata.description) || text(decoded.description),
     proof,
