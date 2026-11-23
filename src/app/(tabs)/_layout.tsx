@@ -5,7 +5,7 @@ import React from 'react';
 import { router, Tabs } from 'expo-router';
 import { XStack, Text, useTheme, H1 } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Clock, Nfc, AtSign } from '@tamagui/lucide-icons';
+import { Clock, Nfc, AtSign } from '~/shared/icons';
 import { useAppTheme } from '~/shared/theme/ThemeContext';
 import { useAuthStore } from '~/state/authStore';
 import HomeHeaderMintSelector from '~/shared/ui/HomeMintSelector';
@@ -13,7 +13,6 @@ import SettingsIcon from '~/shared/icons/Settings';
 import WalletIcon from '~/shared/icons/Wallet';
 import BeyIcon from '~/shared/icons/BeyIcon';
 import LockIcon from '~/shared/icons/Lock';
-import NFCFillIcon from '~/shared/icons/NFC-fill';
 import HomeIcon from '~/shared/icons/Home';
 import Blockies from '~/shared/ui/Blockies';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -116,8 +115,8 @@ export default function TabLayout() {
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ color, size }) => (
-            <Clock size={size} strokeWidth={2.5} color={color as any} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Clock size={size} weight={focused ? 'fill' : 'bold'} color={color} />
           ),
         }}
       />
@@ -127,8 +126,8 @@ export default function TabLayout() {
         options={{
           title: 'People',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <AtSign size={size} strokeWidth={2.5} color={color as any} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AtSign size={size} weight={focused ? 'fill' : 'bold'} color={color} />
           ),
         }}
       />

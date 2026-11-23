@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import manifest from '../../src/assets/fonts/allo-manifest.json';
+import manifest from '../../src/assets/fonts/inter-manifest.json';
 
 function tableOffset(font: Buffer, tag: string) {
   for (let i = 0; i < font.readUInt16BE(4); i++) {
@@ -52,60 +52,108 @@ function glyphIndex(font: Buffer, codePoint: number) {
   return 0;
 }
 
+function features(font: Buffer) {
+  const gsub = tableOffset(font, 'GSUB');
+  const list = gsub + font.readUInt16BE(gsub + 6);
+  const result = new Map<string, number[]>();
+  for (let i = 0; i < font.readUInt16BE(list); i++) {
+    const record = list + 2 + i * 6;
+    const feature = list + font.readUInt16BE(record + 4);
+    result.set(
+      font.toString('ascii', record, record + 4),
+      Array.from({ length: font.readUInt16BE(feature + 2) }, (_, j) =>
+        font.readUInt16BE(feature + 4 + j * 2),
+      ),
+    );
+  }
+  return result;
+}
+
+function coverageIndex(font: Buffer, start: number, glyph: number) {
+  const count = font.readUInt16BE(start + 2);
+  if (font.readUInt16BE(start) === 1)
+    return Array.from({ length: count }, (_, i) => font.readUInt16BE(start + 4 + i * 2)).indexOf(
+      glyph,
+    );
+  expect(font.readUInt16BE(start)).toBe(2);
+  for (let i = 0; i < count; i++) {
+    const range = start + 4 + i * 6;
+    const first = font.readUInt16BE(range);
+    if (glyph >= first && glyph <= font.readUInt16BE(range + 2))
+      return font.readUInt16BE(range + 4) + glyph - first;
+  }
+  return -1;
+}
+
+function substitute(font: Buffer, glyph: number, indexes: number[]) {
+  const gsub = tableOffset(font, 'GSUB');
+  const list = gsub + font.readUInt16BE(gsub + 8);
+  for (const index of [...new Set(indexes)].sort((a, b) => a - b)) {
+    const lookup = list + font.readUInt16BE(list + 2 + index * 2);
+    expect(font.readUInt16BE(lookup)).toBe(1);
+    for (let i = 0; i < font.readUInt16BE(lookup + 4); i++) {
+      const table = lookup + font.readUInt16BE(lookup + 6 + i * 2);
+      const position = coverageIndex(font, table + font.readUInt16BE(table + 2), glyph);
+      if (position < 0) continue;
+      glyph =
+        font.readUInt16BE(table) === 1
+          ? (glyph + font.readInt16BE(table + 4)) & 0xffff
+          : font.readUInt16BE(table + 6 + position * 2);
+      break;
+    }
+  }
+  return glyph;
+}
+
 it.each(Object.entries(manifest.fonts))(
-  'bundles %s with currency coverage, normal zero and approved feature defaults',
+  'prepares %s with the approved optical cut and feature defaults',
   (filename, expected) => {
-    const font = readFileSync(path.join(process.cwd(), 'src/assets/fonts', filename));
-    expect(font.readUInt16BE(tableOffset(font, 'OS/2') + 4)).toBe(expected.weight);
-    for (const symbol of '$€£¥₿₹₽₩₺￥₦฿₱₫złKč') {
-      expect({ symbol, covered: glyphIndex(font, symbol.codePointAt(0)!) !== 0 }).toEqual({
-        symbol,
-        covered: true,
-      });
-    }
-    const gsub = tableOffset(font, 'GSUB');
-    const list = gsub + font.readUInt16BE(gsub + 6);
-    const features = new Map<string, number[]>();
-    for (let i = 0; i < font.readUInt16BE(list); i++) {
-      const record = list + 2 + i * 6;
-      const table = list + font.readUInt16BE(record + 4);
-      features.set(
-        font.toString('ascii', record, record + 4),
-        Array.from({ length: font.readUInt16BE(table + 2) }, (_, j) =>
-          font.readUInt16BE(table + 4 + j * 2),
-        ),
-      );
-    }
-    const defaults = features.get('ccmp');
-    expect(defaults).toEqual(expected.defaultLookups);
-    for (const feature of manifest.features) {
-      expect(features.get(feature)?.length).toBeGreaterThan(0);
-      expect(defaults).toEqual(expect.arrayContaining(features.get(feature)!));
-    }
-    expect(expected.zeroGlyph).toBe('zero.tf');
-    expect(expected.oneGlyph).toBe('one.foot.tf');
-    expect(expected.roundness).toBe(0);
-    expect(expected.sixGlyph).toBe('six.tf.ss01');
-    expect(expected.nineGlyph).toBe('nine.tf.ss01');
-    for (const feature of ['zero', 'ss02', 'cv02', 'cv05']) {
-      expect(defaults?.some((index) => features.get(feature)?.includes(index))).toBe(false);
-    }
+    const font = readFileSync(path.join('src/assets/fonts', filename));
     expect(createHash('sha256').update(font).digest('hex')).toBe(expected.sha256);
+    expect(font.readUInt16BE(tableOffset(font, 'OS/2') + 4)).toBe(expected.weight);
+    expect(manifest.opticalSize).toBe(14);
+    for (const symbol of '$€£¥₿₹₽₩₺₦฿₱₫złKč')
+      expect(glyphIndex(font, symbol.codePointAt(0)!)).toBeGreaterThan(0);
+    const selected = features(font);
+    const enabled = ['ss02', 'cv01'].flatMap((tag) => selected.get(tag)!);
+    expect(selected.get('ccmp')).toEqual(expected.defaultLookups);
+    expect(selected.get('ccmp')).toEqual(expect.arrayContaining(enabled));
+    for (const tag of ['zero', 'tnum', 'ss07'])
+      for (const index of selected.get(tag)!) expect(selected.get('ccmp')).not.toContain(index);
+    const original = (char: string) => glyphIndex(font, char.codePointAt(0)!);
+    const apply = (char: string) => substitute(font, original(char), enabled);
+    for (const char of 'Il') expect(apply(char)).not.toBe(original(char));
+    expect(apply('1')).not.toBe(original('1'));
+    expect(apply('0')).toBe(original('0'));
+    for (const char of '!?.,:;') expect(apply(char)).toBe(original(char));
+    const hmtx = tableOffset(font, 'hmtx');
+    const metrics = font.readUInt16BE(tableOffset(font, 'hhea') + 34);
+    expect(manifest.numeralMode).toBe('proportional');
+    expect(new Set(expected.digitAdvances).size).toBeGreaterThan(1);
+    for (const [index, char] of [...'0123456789'].entries()) {
+      const glyph = apply(char);
+      expect(font.readUInt16BE(hmtx + Math.min(glyph, metrics - 1) * 4)).toBe(
+        expected.digitAdvances[index],
+      );
+      expect(substitute(font, glyph, enabled)).toBe(glyph);
+    }
   },
 );
 
-it('bundles and registers exactly the six approved Allo faces', () => {
+it('bundles and registers exactly the three Inter faces with their license', () => {
+  const filenames = Object.keys(manifest.fonts).sort();
   expect(
     readdirSync('src/assets/fonts')
       .filter((name) => /\.(ttf|otf)$/.test(name))
       .sort(),
-  ).toEqual(Object.keys(manifest.fonts).sort());
+  ).toEqual(filenames);
   const app = JSON.parse(readFileSync('app.json', 'utf8'));
   const embedded = app.expo.plugins.find((plugin: unknown[]) => plugin[0] === 'expo-font')[1].fonts;
-  expect(embedded.map((name: string) => path.basename(name)).sort()).toEqual(
-    Object.keys(manifest.fonts).sort(),
-  );
+  expect(embedded.map((name: string) => path.basename(name)).sort()).toEqual(filenames);
   const runtime = readFileSync('src/shared/layout/RootLayout.tsx', 'utf8');
-  for (const name of Object.keys(manifest.fonts)) expect(runtime).toContain(name);
-  expect(runtime).not.toMatch(/InterText|InterDisplay|BeyFunnel|Mono\.otf/);
+  for (const [filename, expected] of Object.entries(manifest.fonts))
+    expect(runtime).toContain(`${expected.runtimeFamily}: require('~/assets/fonts/${filename}')`);
+  const license = readFileSync('src/assets/fonts/Inter-OFL.txt');
+  expect(createHash('sha256').update(license).digest('hex')).toBe(manifest.licenseSha256);
+  expect(license.toString()).toContain('The Inter Project Authors');
 });

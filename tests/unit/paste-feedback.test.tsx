@@ -21,7 +21,7 @@ jest.mock('tamagui', () => ({
   TextArea: 'TextArea',
   ScrollView: 'ScrollView',
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Scan: 'Scan',
   Nfc: 'Nfc',
   AlertCircle: 'AlertCircle',

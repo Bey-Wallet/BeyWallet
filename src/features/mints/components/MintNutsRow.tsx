@@ -1,7 +1,7 @@
 import { MintDetailRow } from './MintUI';
 import { BUICounter } from '~/shared/ui/BUI/BUIBadge';
 import React, { useState } from 'react';
-import { Check, ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
+import { Check, ChevronDown, ChevronUp } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 
 // Names follow https://github.com/cashubtc/nuts; only advertised entries are rendered.

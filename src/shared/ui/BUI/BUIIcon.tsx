@@ -11,7 +11,7 @@ import {
   CheckCircle2,
   BadgeCheck,
   Wallet,
-} from '@tamagui/lucide-icons';
+} from '~/shared/icons';
 import { YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { useBUITheme } from './useBUITheme';

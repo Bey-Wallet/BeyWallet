@@ -88,7 +88,7 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('expo-clipboard', () => ({ getStringAsync: () => mockClipboard() }));
 jest.mock('tamagui', () => ({ YStack: 'YStack', XStack: 'XStack', Text: 'Text' }));
-jest.mock('@tamagui/lucide-icons', () => ({ Zap: 'Zap', ArrowUpDown: 'ArrowUpDown' }));
+jest.mock('~/shared/icons', () => ({ Zap: 'Zap', ArrowUpDown: 'ArrowUpDown' }));
 jest.mock('@tanstack/react-query', () => ({
   useQuery: () => ({ data: undefined }),
   useQueryClient: () => ({ invalidateQueries: mockInvalidate }),

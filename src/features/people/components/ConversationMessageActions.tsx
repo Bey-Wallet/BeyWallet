@@ -2,7 +2,7 @@ import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import { useWindowDimensions, type TextInput as NativeTextInput } from 'react-native';
 import { TextInput } from 'react-native-gesture-handler';
 
-import { Copy, Info, RefreshCw, TextSelect } from '@tamagui/lucide-icons';
+import { Copy, Info, RefreshCw, TextSelect } from '~/shared/icons';
 import { Text, XStack, YStack, useTheme } from 'tamagui';
 import { AppButton } from '~/shared/ui/AppButton';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
@@ -77,7 +77,7 @@ export const ConversationMessageActions = forwardRef<
                 onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
                 style={{
                   color: String(theme.color.val),
-                  fontFamily: 'AlloTextRegular',
+                  fontFamily: 'InterRegular',
                   fontSize: 14,
                   lineHeight: 21,
                   minHeight: 48,

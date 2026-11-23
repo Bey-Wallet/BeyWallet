@@ -10,7 +10,7 @@ import {
   RefreshCw,
   Coins,
   RotateCcw,
-} from '@tamagui/lucide-icons';
+} from '~/shared/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -274,7 +274,7 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
               color="$color"
               opacity={amountDimmed ? 0.5 : 1}
               numberOfLines={1}
-              style={{ fontVariant: ['tabular-nums'] }}
+              style={{ fontVariant: ['proportional-nums'] }}
             >
               {signedValue}
             </Text>

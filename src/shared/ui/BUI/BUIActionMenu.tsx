@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Animated, I18nManager, Modal } from 'react-native';
-import { Check, MoreHorizontal } from '@tamagui/lucide-icons';
+import { Check, MoreHorizontal } from '~/shared/icons';
 import { ScrollView, Theme, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUIText } from './BUIText';

@@ -88,7 +88,6 @@ jest.mock('~/features/nfc/nfcFlow', () => ({
   },
 }));
 jest.mock('~/services/platform/nfcService', () => ({ nfcService: {} }));
-jest.mock('~/shared/icons/NfcIcon', () => 'NfcIcon');
 jest.mock('~/services/wallet/nostrClaimService', () => ({
   nostrClaimService: { enqueue: (...args: [string]) => mockEnqueue(...args) },
 }));
@@ -180,7 +179,7 @@ jest.mock('~/services/wallet/currencyService', () => ({
   },
   SUPPORTED_CURRENCIES: [{ code: 'USD', symbol: '$' }],
 }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, key) => String(key) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, key) => String(key) }));
 jest.mock('tamagui', () => ({
   useTheme: () => ({
     color: { val: '#000' },

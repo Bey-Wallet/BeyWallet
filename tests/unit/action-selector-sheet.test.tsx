@@ -25,7 +25,7 @@ jest.mock('tamagui', () => ({
   Text: 'Text',
   View: 'View',
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   ChevronLeft: 'ChevronLeft',
   ChevronRight: 'ChevronRight',
   X: 'X',

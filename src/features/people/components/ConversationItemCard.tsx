@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, Check, Clock3, X, ArrowDownLeft, ArrowUpRight } from '@tamagui/lucide-icons';
+import { AlertCircle, Check, Clock3, X, ArrowDownLeft, ArrowUpRight } from '~/shared/icons';
 import { Text, XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';

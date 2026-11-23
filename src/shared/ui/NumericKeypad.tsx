@@ -4,7 +4,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton, type AppButtonIcon } from '~/shared/ui/AppButton';
 import React, { useCallback, useMemo } from 'react';
 import { YStack, XStack, Text, View } from 'tamagui';
-import { Delete } from '@tamagui/lucide-icons';
+import { Delete } from '~/shared/icons';
 
 interface NumericKeypadProps {
   appearance?: 'default' | 'pos';
@@ -51,7 +51,7 @@ const NumButton = React.memo(
       <Text
         fontFamily="$display"
         fontSize={29}
-        fontVariant={['tabular-nums']}
+        fontVariant={['proportional-nums']}
         fontWeight="500"
         color="$color"
       >

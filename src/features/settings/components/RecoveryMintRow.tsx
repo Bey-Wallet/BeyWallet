@@ -1,6 +1,6 @@
 import { hapticService } from '~/services/platform/hapticService';
 import React from 'react';
-import { CheckCircle2, AlertCircle } from '@tamagui/lucide-icons';
+import { CheckCircle2, AlertCircle } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppText } from '~/shared/ui/AppText';

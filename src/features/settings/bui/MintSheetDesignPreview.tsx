@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { Keyboard } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import { Landmark } from '@tamagui/lucide-icons';
+import { Landmark } from '~/shared/icons';
 import { YStack } from 'tamagui';
 import { AppText } from '~/shared/ui/AppText';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -119,7 +119,7 @@ export function MintSheetDesignPreview() {
                         selectTextOnFocus
                         returnKeyType="done"
                         style={{
-                          fontFamily: 'AlloTextSemiBold',
+                          fontFamily: 'InterSemiBold',
                           fontSize: 18,
                           lineHeight: 25,
                           textAlign: 'center',

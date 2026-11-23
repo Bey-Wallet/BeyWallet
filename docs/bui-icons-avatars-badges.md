@@ -6,7 +6,7 @@ Catalog groups4 and5 are Preview, not approved for production rollout.
 
 Reusable components live in `src/shared/ui/BUI/`:
 
-- `BUIIcon`, `BUIIconButton`, `BUICircleIcon`: existing Lucide icons, semantic BUI
+- `BUIIcon`, `BUIIconButton`, `BUICircleIcon`: existing Phosphor icons, semantic BUI
   tints, defaults16/28, stroke1.8,36-point circle/20-point glyph and32-point action
   circle/16-point glyph. Interactive targets remain at least48; disabled actions
   block presses. Back and chevron cues mirror for RTL.
@@ -22,14 +22,14 @@ Reusable components live in `src/shared/ui/BUI/`:
 - `BUIAvatarStack`:4-point overlap and2-point cutouts, with selectable stacking order.
 - `BUILabel`: H20/R4, horizontal5/top4/bottom5, uppercase10 Medium/tracking0.1.
   Neutral uses contentTint; other tones use a16% tint of BUI's corresponding color.
-  An11-point Allo line box fits the fixed-height sample.
+  An11-point Inter line box fits the fixed-height sample.
 - `BUICounter`: body14/line14 or compact10/SemiBold, bottom1, width based on text
   width plus one quarter of measured height with a circular minimum. Null/empty
   values are omitted; zero remains visible;99+ is explicit text rather than an
   automatic cap. Error fill uses BUI error rather than hardcoded pure red.
 - `BUIBadgeButton`: full pill, contentTint, padding16 × 8, gap6, Label2 14 Medium,
   optional leading/trailing content and an optional press callback.
-- `BUIVerificationBadge`: Lucide BadgeCheck at16 or12, using BUI primary.
+- `BUIVerificationBadge`: Phosphor BadgeCheck at16 or12, using BUI primary.
 - `BUISpamBadge`: warning fill, R8, padding8 × 4 and uppercase Label2 14 Medium.
 - `BUIInlineLabel`: reserves trailing badge width while ellipsizing the main label.
 
@@ -38,12 +38,12 @@ Geometry follows the Android design reference pinned at `70abb50`, particularly
 `MoonBadgeButton.kt` and `MoonBadgedLayout.kt`. Account images44/badge20 and shelf
 images56 match the inspected call sites.
 
-The user selected **Lucide instead of copied icon vectors**. No copied icon data
+The user selected **Phosphor instead of copied icon vectors**. No copied icon data
 or source-icon license file is retained. Existing Bitcoin artwork is a local sample;
 real mint/person artwork is accepted without recoloring. No external image requests
 are needed by the playground. BUI colors intentionally replace source accent tints.
 
-Allo replaces source fonts, and the inline label uses a React Native row rather
+Inter replaces source fonts, and the inline label uses a React Native row rather
 than an Android ReplacementSpan. Glyphs, font baselines, natural line heights and
 inline-span behavior therefore differ even where component dimensions match.
 Tests cover route rendering, both themes, overlay placement/density, mask IDs,

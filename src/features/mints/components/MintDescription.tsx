@@ -75,14 +75,14 @@ export function MintDescription({ description }: { description: string }) {
 
 const styles = StyleSheet.create({
   body: {
-    fontFamily: 'AlloTextRegular',
+    fontFamily: 'InterRegular',
     fontSize: appTypography.body2.fontSize,
     lineHeight: appTypography.body2.lineHeight,
     letterSpacing: appTypography.body2.letterSpacing,
     includeFontPadding: false,
   },
   link: {
-    fontFamily: 'AlloTextRegular',
+    fontFamily: 'InterRegular',
     fontSize: appTypography.body3.fontSize,
     letterSpacing: appTypography.body3.letterSpacing,
   },

@@ -2,7 +2,7 @@ import React, { forwardRef, useState } from 'react';
 import { Alert, Share } from 'react-native';
 import * as Linking from 'expo-linking';
 
-import { Info, RefreshCw, Share2, Trash2, UserX } from '@tamagui/lucide-icons';
+import { Info, RefreshCw, Share2, Trash2, UserX } from '~/shared/icons';
 import { Text, XStack, YStack } from 'tamagui';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';

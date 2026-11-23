@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, YStack } from 'tamagui';
-import { Landmark } from '@tamagui/lucide-icons';
+import { Landmark } from '~/shared/icons';
 import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';

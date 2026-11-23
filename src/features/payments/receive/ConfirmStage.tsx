@@ -10,7 +10,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
 import { Text, XStack } from 'tamagui';
-import { AlertTriangle, RefreshCw } from '@tamagui/lucide-icons';
+import { AlertTriangle, RefreshCw } from '~/shared/icons';
 
 import { hapticService } from '~/services/platform/hapticService';
 

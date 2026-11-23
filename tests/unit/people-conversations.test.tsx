@@ -92,7 +92,7 @@ jest.mock('~/shared/ui/AppIconButton', () => ({
   AppIconButton: ({ icon: _icon, ...props }: any) =>
     require('react').createElement('AppIconButton', props),
 }));
-jest.mock('@tamagui/lucide-icons', () =>
+jest.mock('~/shared/icons', () =>
   Object.fromEntries(
     [
       'Search',

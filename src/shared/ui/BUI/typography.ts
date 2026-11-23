@@ -1,4 +1,4 @@
-// BUI study measurements. Allo uses the app's six registered static faces.
+// BUI study measurements. Inter uses the app's three registered static faces.
 // Heading requests at 700 map to the available 600 face.
 import { appTypography } from '~/shared/theme/appearance';
 export const buiTypography = {

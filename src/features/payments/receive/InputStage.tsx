@@ -6,7 +6,7 @@ import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
 import { router } from 'expo-router';
 import { YStack, XStack, Text, View, ScrollView } from 'tamagui';
-import { Scan, Nfc, AlertCircle, ClipboardPaste } from '@tamagui/lucide-icons';
+import { Scan, Nfc, AlertCircle, ClipboardPaste } from '~/shared/icons';
 
 import * as ClipboardAPI from 'expo-clipboard';
 

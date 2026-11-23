@@ -10,7 +10,7 @@ import {
   RefreshCw,
   Trash2,
   X,
-} from '@tamagui/lucide-icons';
+} from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppText } from '~/shared/ui/AppText';

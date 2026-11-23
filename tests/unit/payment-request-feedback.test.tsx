@@ -86,7 +86,7 @@ jest.mock('@tamagui/toast', () => ({
     Description: 'ToastDescription',
   }),
 }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, key) => String(key) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, key) => String(key) }));
 jest.mock('tamagui', () => ({
   YStack: 'YStack',
   XStack: 'XStack',

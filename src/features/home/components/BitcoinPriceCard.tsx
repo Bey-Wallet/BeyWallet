@@ -1,7 +1,7 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { Spinner } from '~/shared/ui/Spinner';
 import React, { useMemo } from 'react';
-import { ChevronDown, ChevronUp, RefreshCcw } from '@tamagui/lucide-icons';
+import { ChevronDown, ChevronUp, RefreshCcw } from '~/shared/icons';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { H2, Text, View, XStack, YStack, Stack } from 'tamagui';
 import { Image } from 'expo-image';
@@ -11,6 +11,7 @@ import { hapticService } from '~/services/platform/hapticService';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useSettingsStore } from '~/state/settingsStore';
 import { currencyService, CurrencyCode } from '~/services/wallet/currencyService';
+import { appTypography } from '~/shared/theme/appearance';
 
 export default function BitcoinPriceCard() {
   const { secondaryCurrency } = useSettingsStore();
@@ -183,7 +184,10 @@ export default function BitcoinPriceCard() {
                   <Text
                     fontSize={22}
                     fontWeight={800}
-                    letterSpacing={-0.15}
+                    letterSpacing={
+                      appTypography.amountSmall.letterSpacing *
+                      (22 / appTypography.amountSmall.fontSize)
+                    }
                     color="$accent4"
                     lineHeight={32}
                   >
@@ -194,7 +198,10 @@ export default function BitcoinPriceCard() {
                     showDecimals={false}
                     fontSize={22}
                     fontWeight={800}
-                    letterSpacing={-0.15}
+                    letterSpacing={
+                      appTypography.amountSmall.letterSpacing *
+                      (22 / appTypography.amountSmall.fontSize)
+                    }
                     color="$accent4"
                     lineHeight={32}
                   >

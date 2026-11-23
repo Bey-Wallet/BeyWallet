@@ -39,7 +39,7 @@ jest.mock('expo-router', () => ({
   useFocusEffect: (callback: () => void) => require('react').useEffect(callback, [callback]),
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Copy: 'Copy',
   EyeOff: 'EyeOff',
   FileDown: 'FileDown',

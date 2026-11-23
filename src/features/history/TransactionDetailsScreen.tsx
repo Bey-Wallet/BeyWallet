@@ -28,7 +28,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { YStack, XStack, Text, useThemeName } from 'tamagui';
-import { Trash2 } from '@tamagui/lucide-icons';
+import { Trash2 } from '~/shared/icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { formatPaymentDateTime } from '~/shared/utils/time';

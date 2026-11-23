@@ -26,7 +26,7 @@ import {
   ArrowLeft,
   Sparkles,
   Sprout,
-} from '@tamagui/lucide-icons';
+} from '~/shared/icons';
 import { useRouter } from 'expo-router';
 import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { useQuery, useQueryClient } from '@tanstack/react-query';

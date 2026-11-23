@@ -2,7 +2,7 @@ import { RemoteImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, DeviceEventEmitter } from 'react-native';
-import { ArrowDownLeft, Landmark, ShieldCheck, User, XCircle } from '@tamagui/lucide-icons';
+import { ArrowDownLeft, Landmark, ShieldCheck, User, XCircle } from '~/shared/icons';
 import { Separator, Text, View, XStack, YStack } from 'tamagui';
 
 import { useQuery } from '@tanstack/react-query';

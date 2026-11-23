@@ -1,7 +1,7 @@
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Stack, useRouter } from 'expo-router';
-import { ArrowLeft, CircleHelp } from '@tamagui/lucide-icons';
+import { ArrowLeft, CircleHelp } from '~/shared/icons';
 import { useTheme } from 'tamagui';
 import { useScreenHeaderOptions } from '~/shared/ui/useScreenHeaderOptions';
 import { settingsTitles } from './settingsCatalog';

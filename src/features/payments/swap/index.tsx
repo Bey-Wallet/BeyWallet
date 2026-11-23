@@ -11,7 +11,7 @@ import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import type { BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { TransferInfoSheet } from '~/shared/components/info-sheets/TransferInfoSheet';
-import { CircleHelp } from '@tamagui/lucide-icons';
+import { CircleHelp } from '~/shared/icons';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';

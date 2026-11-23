@@ -6,7 +6,7 @@ import {
 } from '~/features/mints/components/ConnectedMintSheetView';
 
 jest.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack' }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('~/shared/ui/AppText', () => ({ AppText: 'Text' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'HeaderButton' }));

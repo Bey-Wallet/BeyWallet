@@ -3,7 +3,7 @@ import React, { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Text, XStack } from 'tamagui';
-import { Copy, Plus, Radio, RefreshCw, RotateCcw, Trash2 } from '@tamagui/lucide-icons';
+import { Copy, Plus, Radio, RefreshCw, RotateCcw, Trash2 } from '~/shared/icons';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { nostrService } from '~/services/wallet/nostrService';

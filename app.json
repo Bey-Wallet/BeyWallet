@@ -111,12 +111,9 @@
         "expo-font",
         {
           "fonts": [
-            "./src/assets/fonts/AlloText-Regular.ttf",
-            "./src/assets/fonts/AlloText-Medium.ttf",
-            "./src/assets/fonts/AlloText-SemiBold.ttf",
-            "./src/assets/fonts/AlloDisplay-Regular.ttf",
-            "./src/assets/fonts/AlloDisplay-Medium.ttf",
-            "./src/assets/fonts/AlloDisplay-SemiBold.ttf"
+            "./src/assets/fonts/Inter-Regular.ttf",
+            "./src/assets/fonts/Inter-Medium.ttf",
+            "./src/assets/fonts/Inter-SemiBold.ttf"
           ]
         }
       ],

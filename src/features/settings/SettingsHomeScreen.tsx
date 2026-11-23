@@ -2,7 +2,7 @@ import React from 'react';
 import { BackHandler } from 'react-native';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Text, XStack, YStack } from 'tamagui';
-import { Bell, ChevronRight, Landmark, Zap } from '@tamagui/lucide-icons';
+import { Bell, ChevronRight, Landmark, Zap } from '~/shared/icons';
 import Blockies from '~/shared/ui/Blockies';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';
 import { AppPressable } from '~/shared/ui/AppPressable';

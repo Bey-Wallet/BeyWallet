@@ -4,7 +4,7 @@ import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { YStack, Text } from 'tamagui';
-import { ArrowUpDown, KeyRound } from '@tamagui/lucide-icons';
+import { ArrowUpDown, KeyRound } from '~/shared/icons';
 
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { Spinner } from '~/shared/ui/Spinner';

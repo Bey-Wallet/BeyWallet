@@ -1,7 +1,7 @@
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import React, { useDeferredValue, useMemo, useState } from 'react';
 import { Alert, FlatList } from 'react-native';
-import { Check, UserRound, UserRoundCheck } from '@tamagui/lucide-icons';
+import { Check, UserRound, UserRoundCheck } from '~/shared/icons';
 import { getTokens, Text, XStack, YStack, useTheme } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePeopleStore, type Person } from '~/state/peopleStore';

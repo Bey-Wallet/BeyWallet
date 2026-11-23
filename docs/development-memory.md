@@ -67,7 +67,7 @@ these results are observations under memory pressure, not an isolated before/aft
 ### Confirmed Node heap failure
 
 The user subsequently supplied a crash from PID 2052, at approximately 227 seconds:
-`FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory`.
+`FATAL ERROR: Ineffective mark-compacts near heap limit Intercation failed - JavaScript heap out of memory`.
 The final collection reduced about 2,046 MiB of live heap to only about 2,045 MiB. This confirms
 a Node/V8 heap-ceiling failure. It does not identify which objects retained memory or establish
 a leak, nor does it implicate esbuild's separate heap. The earlier successful bundle checks

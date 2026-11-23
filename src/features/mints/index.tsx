@@ -8,7 +8,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useMemo } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 import { Spinner } from '~/shared/ui/Spinner';
-import { Share2, Plus, QrCode, Unplug, RefreshCw } from '@tamagui/lucide-icons';
+import { Share2, Plus, QrCode, Unplug, RefreshCw } from '~/shared/icons';
 import { useRouter, Stack } from 'expo-router';
 
 import { hapticService } from '~/services/platform/hapticService';
@@ -223,7 +223,7 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
       <Stack.Screen
         options={{
           title: name,
-          headerTitleStyle: { fontFamily: 'AlloTextSemiBold', fontSize: 18 },
+          headerTitleStyle: { fontFamily: 'InterSemiBold', fontSize: 18 },
           gestureEnabled: !isConnecting,
           headerRight: () => (
             <BUIActionMenu

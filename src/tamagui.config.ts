@@ -15,12 +15,14 @@ import {
 import { buttonThemes } from './shared/theme/buttons';
 import { createBUITamaguiTheme } from './shared/ui/BUI/theme';
 
-const tabularNumbers: Pick<TextStyle, 'fontVariant'> = { fontVariant: ['tabular-nums'] };
+const proportionalNumbers: Pick<TextStyle, 'fontVariant'> = { fontVariant: ['proportional-nums'] };
 
 // Base Text is unnamed in Tamagui, so named config defaults do not reach it.
 // Update its existing defaults before configuring the named text variants below.
 const baseText = Text as unknown as { staticConfig?: { defaultProps?: Record<string, unknown> } };
-Object.assign(baseText.staticConfig?.defaultProps ?? {}, tabularNumbers, { fontFamily: '$body' });
+Object.assign(baseText.staticConfig?.defaultProps ?? {}, proportionalNumbers, {
+  fontFamily: '$body',
+});
 
 // Keep this type independent of TamaguiCustomConfig, which is inferred from config below.
 const textDefaults: Record<
@@ -52,14 +54,14 @@ const textDefaults: Record<
     'ListItemTitle',
     'ListItemSubtitle',
     'SelectItemText',
-  ].map((name) => [name, { ...tabularNumbers, fontFamily: '$body' }]),
+  ].map((name) => [name, { ...proportionalNumbers, fontFamily: '$body' }]),
 );
 
 const animations = createAnimations(appMotion.animations);
 
-const createAlloFont = (optical: 'Text' | 'Display') =>
+const createAppFont = () =>
   createFont({
-    family: `Allo${optical}Regular`,
+    family: 'InterRegular',
     size: {
       1: appTypography.caption.fontSize,
       2: 11,
@@ -116,22 +118,22 @@ const createAlloFont = (optical: 'Text' | 'Display') =>
       10: appTypography.display.letterSpacing,
     },
     face: {
-      100: { normal: `Allo${optical}Regular` },
-      200: { normal: `Allo${optical}Regular` },
-      300: { normal: `Allo${optical}Regular` },
-      400: { normal: `Allo${optical}Regular` },
-      500: { normal: `Allo${optical}Medium` },
-      600: { normal: `Allo${optical}SemiBold` },
-      700: { normal: `Allo${optical}SemiBold` },
-      800: { normal: `Allo${optical}SemiBold` },
-      900: { normal: `Allo${optical}SemiBold` },
-      1000: { normal: `Allo${optical}SemiBold` },
-      bold: { normal: `Allo${optical}SemiBold` },
+      100: { normal: 'InterRegular' },
+      200: { normal: 'InterRegular' },
+      300: { normal: 'InterRegular' },
+      400: { normal: 'InterRegular' },
+      500: { normal: 'InterMedium' },
+      600: { normal: 'InterSemiBold' },
+      700: { normal: 'InterSemiBold' },
+      800: { normal: 'InterSemiBold' },
+      900: { normal: 'InterSemiBold' },
+      1000: { normal: 'InterSemiBold' },
+      bold: { normal: 'InterSemiBold' },
     },
   });
 
-const alloTextFont = createAlloFont('Text');
-const alloDisplayFont = createAlloFont('Display');
+const appTextFont = createAppFont();
+const appDisplayFont = createAppFont();
 for (const name of ['H1', 'H2', 'H3']) textDefaults[name].fontFamily = '$display';
 
 const superblueColors = {
@@ -241,10 +243,10 @@ export const config = createTamagui({
   },
   fonts: {
     ...defaultConfig.fonts,
-    heading: alloTextFont,
-    body: alloTextFont,
-    display: alloDisplayFont,
-    mono: alloTextFont,
+    heading: appTextFont,
+    body: appTextFont,
+    display: appDisplayFont,
+    mono: appTextFont,
   },
   themes: {
     ...defaultConfig.themes,

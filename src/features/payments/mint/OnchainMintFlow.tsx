@@ -10,7 +10,7 @@ import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
-import { Landmark } from '@tamagui/lucide-icons';
+import { Landmark } from '~/shared/icons';
 
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';

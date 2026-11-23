@@ -11,8 +11,7 @@ import { AppState, Platform } from 'react-native';
 import { FullWindowOverlay } from 'react-native-screens';
 
 import { Text, View, XStack, YStack, useTheme } from 'tamagui';
-import { AlertTriangle, Settings2, Ban, Check } from '@tamagui/lucide-icons';
-import NfcIcon from '~/shared/icons/NfcIcon';
+import { AlertTriangle, Settings2, Ban, Check, Nfc, type AppIconProps } from '~/shared/icons';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Spinner } from '~/shared/ui/Spinner';
@@ -26,7 +25,7 @@ import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
 
 const stateIcons = {
   starting: Spinner,
-  ready: NfcIcon,
+  ready: (props: AppIconProps) => <Nfc {...props} weight="fill" />,
   reading: Spinner,
   sending: Spinner,
   receiving: Spinner,

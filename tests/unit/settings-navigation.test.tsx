@@ -56,7 +56,7 @@ jest.mock('tamagui', () => ({
   useTheme: () => ({ background: { val: '#000' }, color: { val: '#fff' } }),
 }));
 jest.mock(
-  '@tamagui/lucide-icons',
+  '~/shared/icons',
   () =>
     new Proxy(
       { __esModule: true },

@@ -28,7 +28,7 @@ jest.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack' }));
 jest.mock('~/shared/ui/AppTextButton', () => ({ AppTextButton: 'AppTextButton' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   X: 'X',
   AlertTriangle: 'AlertTriangle',
   Check: 'Check',

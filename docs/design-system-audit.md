@@ -44,7 +44,7 @@ receipt images, artwork, payment-entry geometry, or approved visual exceptions.
 3. Shared control geometry, icon sizes, separator widths, focus metrics, feedback and motion
    values were embedded in consumers. Centralized the values, retaining their existing behavior.
 4. Named typography existed, but consumers repeatedly spread role styles manually. Added
-   `AppText` and adopted it in Settings rows and the catalog, with Allo face/scaling tests.
+   `AppText` and adopted it in Settings rows and the catalog, with Inter face/scaling tests.
 5. The former catalog repeated token resolution on every state update. Memoized resolved theme colors
    and filters, and converted its repeated spacing to the source tokens it documents.
 6. A recurring 24-point gap had no semantic name. Added `group: 24`; `section` stays 32 to match
@@ -55,7 +55,7 @@ receipt images, artwork, payment-entry geometry, or approved visual exceptions.
 | Component                          | Result                                                                                                                     |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | AppButton / AppIconButton          | Existing intent, emphasis, size, pressed, disabled/loading and accessible-name contracts retained; metrics now centralized |
-| AppText                            | Named typography/tone, forwarded ref/props, existing Allo face resolution, unrestricted system scaling                     |
+| AppText                            | Named typography/tone, forwarded ref/props, existing Inter face resolution, unrestricted system scaling                    |
 | HeaderIconButton                   | 22-point glyph and existing expanded hit target retained                                                                   |
 | AppSwitch                          | Existing variants, states, thumb geometry, colors and reduced-motion check retained; duration/touch height shared          |
 | Settings groups/rows and ListTable | Existing clipping, density, full-width 2-point separators and row semantics retained                                       |
@@ -63,7 +63,7 @@ receipt images, artwork, payment-entry geometry, or approved visual exceptions.
 | Spinner                            | Unmodified                                                                                                                 |
 
 No speculative card/shadow primitive or second button family was added. Platform-neutral brand
-decisions, Home mint styling, wallet behavior, and the six prepared Allo faces remain intact.
+decisions, Home mint styling, wallet behavior, and the three prepared Inter faces remain intact.
 
 ## Remaining migration targets
 

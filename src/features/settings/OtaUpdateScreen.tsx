@@ -9,7 +9,7 @@ import {
 } from './components/SettingsLayout';
 import { useSettingsBusy } from './hooks/useSettingsBusy';
 import * as Updates from 'expo-updates';
-import { DownloadCloud, RefreshCw, ArrowUpCircle } from '@tamagui/lucide-icons';
+import { DownloadCloud, RefreshCw, ArrowUpCircle } from '~/shared/icons';
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import { sqliteStorage } from '~/storage/sqlite/sqliteStorage';

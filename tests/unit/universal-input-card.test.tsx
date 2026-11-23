@@ -21,7 +21,7 @@ jest.mock('~/state/walletStore', () => ({
 jest.mock('~/shared/ui/OperationFeedback', () => ({ usePendingOperationToast: jest.fn() }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   X: 'X',
   Clipboard: 'Clipboard',
   ArrowRight: 'ArrowRight',

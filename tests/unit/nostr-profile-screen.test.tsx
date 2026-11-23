@@ -76,7 +76,7 @@ jest.mock('tamagui', () => ({
   ScrollView: 'ScrollView',
   useTheme: () => ({ color: { val: '#ffffff' }, background: { val: '#000000' } }),
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Check: 'Check',
   Copy: 'Copy',
   RefreshCw: 'RefreshCw',

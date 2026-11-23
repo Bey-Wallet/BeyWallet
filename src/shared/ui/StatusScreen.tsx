@@ -1,7 +1,7 @@
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect } from 'react';
 import { YStack, Text, XStack, Paragraph } from 'tamagui';
-import { Check, X, Clock, ArrowRight } from '@tamagui/lucide-icons';
+import { Check, X, Clock, ArrowRight } from '~/shared/icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,

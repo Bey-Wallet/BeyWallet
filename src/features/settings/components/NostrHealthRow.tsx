@@ -1,5 +1,5 @@
 import React from 'react';
-import { HeartPulse } from '@tamagui/lucide-icons';
+import { HeartPulse } from '~/shared/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Text, XStack } from 'tamagui';
 import { nostrDiagnosticsService } from '~/services/wallet/nostrDiagnosticsService';

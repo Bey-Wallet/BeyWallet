@@ -97,7 +97,7 @@ it.each(['dark', 'light'] as const)(
       expect(
         labelStyles.some(
           (style) =>
-            style?.fontFamily === 'AlloTextMedium' &&
+            style?.fontFamily === 'InterMedium' &&
             style?.fontSize === 16 &&
             style?.lineHeight === 22,
         ),

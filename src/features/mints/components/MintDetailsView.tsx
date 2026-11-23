@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollView, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Copy } from '@tamagui/lucide-icons';
+import { Copy } from '~/shared/icons';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppText } from '~/shared/ui/AppText';
 import { MintImage } from '~/shared/ui/RemoteImage';

@@ -42,7 +42,7 @@ jest.mock('tamagui', () =>
     ['YStack', 'XStack', 'Text', 'ScrollView', 'View', 'Separator'].map((name) => [name, name]),
   ),
 );
-jest.mock('@tamagui/lucide-icons', () =>
+jest.mock('~/shared/icons', () =>
   Object.fromEntries(
     [
       'CircleHelp',

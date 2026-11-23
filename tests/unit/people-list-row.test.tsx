@@ -10,7 +10,7 @@ jest.mock('~/features/people/components/ConversationAvatar', () => ({
   ConversationAvatar: 'Avatar',
 }));
 jest.mock('~/shared/icons/Nip05VerifiedBadge', () => 'VerifiedBadge');
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Banknote: 'BanknoteIcon',
   Zap: 'BoltIcon',
   HandCoins: 'RequestIcon',

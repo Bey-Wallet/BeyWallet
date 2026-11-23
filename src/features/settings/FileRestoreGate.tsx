@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
 import { reloadAppAsync } from 'expo';
-import { AlertCircle, CheckCircle2, FileCheck2 } from '@tamagui/lucide-icons';
+import { AlertCircle, CheckCircle2, FileCheck2 } from '~/shared/icons';
 import { ScrollView, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '~/shared/ui/AppButton';

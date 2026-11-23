@@ -167,7 +167,7 @@ function HeaderTitle({
             position: 'absolute',
             width: 100000,
             opacity: 0,
-            fontFamily: 'AlloTextSemiBold',
+            fontFamily: 'InterSemiBold',
             fontSize: size,
             letterSpacing: buiTypography[variant === 'centered' ? 'h2' : 'h3'].letterSpacing,
             includeFontPadding: false,

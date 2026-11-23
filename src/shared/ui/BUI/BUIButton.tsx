@@ -2,9 +2,10 @@ import { useBUITheme } from './useBUITheme';
 import React from 'react';
 import { BUIButtonControl } from './BUIButtonControl';
 import { Text, YStack } from 'tamagui';
-import { Plus } from '@tamagui/lucide-icons';
+import { Plus } from '~/shared/icons';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import type { BUIAppearance } from '~/state/buiStore';
+import { appTypography } from '~/shared/theme/appearance';
 import { type BUIButtonSize, type BUIButtonState, type BUIButtonVariant } from './theme';
 
 export function BUIButton({
@@ -96,7 +97,7 @@ export function BUIActionButton({
         fontFamily="$body"
         fontWeight="600"
         fontSize={12}
-        letterSpacing={0.12}
+        letterSpacing={appTypography.label2.letterSpacing}
         color={appearance ? theme.muted : '$gray10'}
       >
         {title}

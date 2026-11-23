@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ChevronDown, EyeOff } from '@tamagui/lucide-icons';
+import { Check, ChevronDown, EyeOff } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUICard, BUICardRow } from './BUICard';

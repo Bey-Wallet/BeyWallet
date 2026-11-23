@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
-import { Copy, EyeOff, FileDown, FileUp, Trash2 } from '@tamagui/lucide-icons';
+import { Copy, EyeOff, FileDown, FileUp, Trash2 } from '~/shared/icons';
 import { seedService } from '~/services/platform/seedService';
 import { biometricService } from '~/services/platform/biometricService';
 import { walletFileService } from '~/services/platform/walletFileService';

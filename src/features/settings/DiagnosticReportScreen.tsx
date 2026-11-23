@@ -3,7 +3,7 @@ import { Share } from 'react-native';
 import * as Network from 'expo-network';
 import { useQueryClient } from '@tanstack/react-query';
 import { Text, YStack } from 'tamagui';
-import { Copy, ExternalLink, RefreshCw, Share2 } from '@tamagui/lucide-icons';
+import { Copy, ExternalLink, RefreshCw, Share2 } from '~/shared/icons';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppTextArea } from '~/shared/ui/AppInput';
 import { AppText } from '~/shared/ui/AppText';

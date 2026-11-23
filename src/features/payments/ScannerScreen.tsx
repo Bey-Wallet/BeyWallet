@@ -13,7 +13,7 @@ import Svg, { Path } from 'react-native-svg';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { URDecoder } from '@gandlaf21/bc-ur';
 import { YStack, XStack, Text, ZStack, Theme } from 'tamagui';
-import { X, Zap, ZapOff, Image } from '@tamagui/lucide-icons';
+import { X, Zap, ZapOff, Image } from '~/shared/icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { appColors, appTypography } from '~/shared/theme/appearance';

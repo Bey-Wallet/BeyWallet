@@ -9,7 +9,7 @@ import type { ConversationActivity } from '~/features/people/conversationActivit
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
-jest.mock('@tamagui/lucide-icons', () =>
+jest.mock('~/shared/icons', () =>
   Object.fromEntries(
     ['AlertCircle', 'Check', 'ChevronRight', 'Clock3', 'X', 'ArrowDownLeft', 'ArrowUpRight'].map(
       (name) => [name, name],

@@ -1,7 +1,7 @@
 import { AppInput as Input } from '~/shared/ui/AppInput';
 import React, { useState } from 'react';
 import { YStack } from 'tamagui';
-import { ChevronDown } from '@tamagui/lucide-icons';
+import { ChevronDown } from '~/shared/icons';
 import { ListTableRow } from '~/shared/ui/ListTable';
 import { AppButton } from '~/shared/ui/AppButton';
 

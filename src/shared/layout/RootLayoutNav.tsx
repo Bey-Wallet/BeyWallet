@@ -191,10 +191,10 @@ export function RootLayoutNav() {
     ...(resolvedTheme === 'dark' ? DarkTheme : DefaultTheme),
     // Registered static faces already contain their weight; avoid Android fallback/synthesis.
     fonts: {
-      regular: { fontFamily: 'AlloTextRegular', fontWeight: 'normal' as const },
-      medium: { fontFamily: 'AlloTextMedium', fontWeight: 'normal' as const },
-      bold: { fontFamily: 'AlloTextSemiBold', fontWeight: 'normal' as const },
-      heavy: { fontFamily: 'AlloTextSemiBold', fontWeight: 'normal' as const },
+      regular: { fontFamily: 'InterRegular', fontWeight: 'normal' as const },
+      medium: { fontFamily: 'InterMedium', fontWeight: 'normal' as const },
+      bold: { fontFamily: 'InterSemiBold', fontWeight: 'normal' as const },
+      heavy: { fontFamily: 'InterSemiBold', fontWeight: 'normal' as const },
     },
     colors: {
       ...(resolvedTheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
@@ -219,8 +219,8 @@ export function RootLayoutNav() {
         <Stack
           initialRouteName="(tabs)"
           screenOptions={{
-            headerTitleStyle: { fontFamily: 'AlloTextSemiBold', fontWeight: 'normal' },
-            headerBackTitleStyle: { fontFamily: 'AlloTextRegular' },
+            headerTitleStyle: { fontFamily: 'InterSemiBold', fontWeight: 'normal' },
+            headerBackTitleStyle: { fontFamily: 'InterRegular' },
             contentStyle: {
               backgroundColor: theme.background?.val,
             },

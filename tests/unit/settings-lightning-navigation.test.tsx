@@ -17,7 +17,7 @@ jest.mock('expo-router', () => ({
   Stack: { Screen: 'StackScreen' },
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/features/settings/components/SettingsToggleRow', () => ({

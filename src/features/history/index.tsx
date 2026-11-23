@@ -2,7 +2,7 @@ import { LegendList } from '@legendapp/list/react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, RefreshControl, useWindowDimensions } from 'react-native';
 import { Text, XStack, YStack, useTheme } from 'tamagui';
-import { Store, Clock, Inbox, RotateCcw, Check, Search, X } from '@tamagui/lucide-icons';
+import { Store, Clock, Inbox, RotateCcw, Check, Search, X } from '~/shared/icons';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';

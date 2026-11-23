@@ -31,7 +31,7 @@ jest.mock('tamagui', () => ({
   View: 'View',
   XStack: 'XStack',
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Copy: 'Copy',
   Code2: 'Code2',
   HeartHandshake: 'HeartHandshake',

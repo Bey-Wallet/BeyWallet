@@ -18,7 +18,7 @@ import {
   Bitcoin,
   Landmark,
   CircleOff,
-} from '@tamagui/lucide-icons';
+} from '~/shared/icons';
 import { RefreshControl, TouchableOpacity, Keyboard, useWindowDimensions } from 'react-native';
 import Animated, {
   type SharedValue,

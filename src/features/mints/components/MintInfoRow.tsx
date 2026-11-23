@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy } from '@tamagui/lucide-icons';
+import { Copy } from '~/shared/icons';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { interactionCopy } from '~/services/feedback/interactionCopy';

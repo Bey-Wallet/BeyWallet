@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, ExternalLink, Trash2 } from '@tamagui/lucide-icons';
+import { Copy, ExternalLink, Trash2 } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import {
   BUIPage,
@@ -249,7 +249,7 @@ export function BUIMenusScreen() {
             <YStack px={16}>
               <BUIText kind="body2" color={c.muted}>
                 These use a native modal host; its focus behavior differs from a non-focusable
-                tooltip popup. Allo, Lucide, native coordinates and insets still need Android
+                tooltip popup. Inter, Phosphor, native coordinates and insets still need Android
                 review.
               </BUIText>
             </YStack>

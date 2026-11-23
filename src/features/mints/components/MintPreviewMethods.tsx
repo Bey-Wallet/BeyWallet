@@ -1,6 +1,6 @@
 import { MintDetailRow } from './MintUI';
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp } from '@tamagui/lucide-icons';
+import { ChevronDown, ChevronUp } from '~/shared/icons';
 import { MintInfoRow } from './MintInfoRow';
 
 type Info = Record<string, any>;

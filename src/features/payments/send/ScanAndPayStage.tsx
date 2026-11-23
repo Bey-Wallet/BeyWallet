@@ -6,7 +6,7 @@ import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
 import { YStack, XStack, Text, View, ScrollView } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Scan, Nfc, AlertCircle, ClipboardPaste } from '@tamagui/lucide-icons';
+import { Scan, Nfc, AlertCircle, ClipboardPaste } from '~/shared/icons';
 
 import * as ClipboardAPI from 'expo-clipboard';
 import { useRouter } from 'expo-router';

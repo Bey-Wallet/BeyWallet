@@ -63,7 +63,7 @@ export function BUIBadgesScreen() {
           </BUISection>
           <BUISection
             name="Verification marks"
-            measurement="Lucide verification mark: default16, compact12. Tint follows BUI primary."
+            measurement="Phosphor verification mark: default16, compact12. Tint follows BUI primary."
           >
             <XStack px={16} gap={24} items="center">
               <XStack gap={2} items="center">
@@ -100,7 +100,7 @@ export function BUIBadgesScreen() {
           </BUISection>
           <BUISection
             name="Compact & semantic counts"
-            measurement="Compact10 SemiBold substitutes the source bold face; line height follows Allo metrics. Empty/null counts are hidden; zero remains visible."
+            measurement="Compact10 SemiBold substitutes the source bold face; line height follows Inter metrics. Empty/null counts are hidden; zero remains visible."
           >
             <XStack px={16} gap={20} items="center">
               <BUICounter count={1} compact />

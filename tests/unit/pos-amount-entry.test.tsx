@@ -15,7 +15,7 @@ let mockPrice: number | undefined = 100_000;
 jest.mock('tamagui', () =>
   Object.fromEntries(['YStack', 'XStack', 'Text', 'Input'].map((name) => [name, name])),
 );
-jest.mock('@tamagui/lucide-icons', () => ({ ArrowUpDown: 'ArrowUpDown' }));
+jest.mock('~/shared/icons', () => ({ ArrowUpDown: 'ArrowUpDown' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/shared/ui/HomeMintSelector', () => ({ MintSelectorSheet: 'MintSheet' }));
 jest.mock('~/shared/ui/NumericKeypad', () => ({ NumericKeypad: 'Keypad' }));

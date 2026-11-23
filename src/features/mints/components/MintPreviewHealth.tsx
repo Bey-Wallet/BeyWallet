@@ -4,7 +4,7 @@ import React from 'react';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useQuery } from '@tanstack/react-query';
 import { View, XStack, YStack } from 'tamagui';
-import { ExternalLink, RefreshCw } from '@tamagui/lucide-icons';
+import { ExternalLink, RefreshCw } from '~/shared/icons';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import countryNames from '~/shared/utils/countryNames.json';
 import {

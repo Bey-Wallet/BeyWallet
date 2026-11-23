@@ -13,7 +13,7 @@ jest.mock('tamagui', () => ({
   useTheme: () => ({}),
   variableToString: String,
 }));
-jest.mock('@tamagui/lucide-icons', () => ({ Loader: 'Loader' }));
+jest.mock('~/shared/icons', () => ({ Loader: 'Loader' }));
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => false }));
 jest.mock('react-native-reanimated', () => {
   const rotation = { value: 0 };

@@ -28,7 +28,7 @@ jest.mock('tamagui', () => ({
   View: 'View',
   useTheme: () => ({ background: { val: '#000' } }),
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   ArrowLeft: 'ArrowLeft',
   X: 'X',
   Banknote: 'Banknote',

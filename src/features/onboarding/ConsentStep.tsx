@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, XStack, YStack } from 'tamagui';
-import { ExternalLink, FileText, Key, Landmark, Lock, Sprout } from '@tamagui/lucide-icons';
+import { ExternalLink, FileText, Key, Landmark, Lock, Sprout } from '~/shared/icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BUIHeader } from '~/shared/ui/BUI/BUIHeader';
 import { BUISelectionRow } from '~/shared/ui/BUI/BUISelectionControl';

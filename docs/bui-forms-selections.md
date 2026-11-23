@@ -48,7 +48,7 @@ note≤120 characters. They must not be reused as address/payment validation.
   The inactive track uses tertiary button fill. Disabled opacity48% is a BUI
   composition extension. The source spring is recreated with React Native motion;
   reduced motion snaps the visual state.
-- `BUICheckbox`:22 visual/R6/border2, outer padding3 and Lucide check16.
+- `BUICheckbox`:22 visual/R6/border2, outer padding3 and Phosphor check16.
   Checked uses primary/foreground; unchecked border uses icon tertiary.
   Disabled visual opacity48% follows the source.
 - `BUIRadio`: Material radio geometry,20 outer visual/stroke2/padding2 and a10-point
@@ -73,7 +73,7 @@ Android reference70abb50: `MoonTextFieldCell.kt`, `MoonEditText.kt`,
 Material radio measurements were checked against the official
 [AndroidX implementation](https://raw.githubusercontent.com/androidx/androidx/androidx-main/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/RadioButton.kt).
 
-This is not a pixel-identical native port: Allo and Lucide are intentional
+This is not a pixel-identical native port: Inter and Phosphor are intentional
 substitutions. Text baselines/intrinsic measurements, native secure entry,
 keyboard/caret behavior, suffix alignment and spring rendering remain React Native
 implementations. Focused tests verify clear gating, editing guards, password

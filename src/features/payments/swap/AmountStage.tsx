@@ -13,7 +13,7 @@ import {
   SUPPORTED_CURRENCIES,
 } from '~/services/wallet/currencyService';
 import { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { ArrowUpDown } from '@tamagui/lucide-icons';
+import { ArrowUpDown } from '~/shared/icons';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';

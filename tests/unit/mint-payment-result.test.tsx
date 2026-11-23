@@ -31,7 +31,7 @@ jest.mock('tamagui', () => ({
   Text: 'Text',
   ScrollView: 'ScrollView',
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Check: 'Check',
   X: 'X',
   Clock: 'Clock',

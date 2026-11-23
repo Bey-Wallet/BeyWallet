@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
   type TextInputProps,
 } from 'react-native';
-import { Eye, EyeOff, Search, XCircle } from '@tamagui/lucide-icons';
+import { Eye, EyeOff, Search, XCircle } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { Spinner } from '~/shared/ui/Spinner';
@@ -117,7 +117,7 @@ export const BUIInput = forwardRef<TextInput, BUIInputProps>(function BUIInput(
     return () => animation.stop();
   }, [floating, progress, reducedMotion]);
   const textStyle = {
-    fontFamily: 'AlloTextRegular',
+    fontFamily: 'InterRegular',
     fontSize: 16,
     lineHeight: 24,
     letterSpacing: appTypography.body1.letterSpacing,
@@ -388,7 +388,7 @@ export const BUISearchInput = forwardRef<
           style={{
             flex: 1,
             minWidth: 0,
-            fontFamily: 'AlloTextRegular',
+            fontFamily: 'InterRegular',
             fontSize: 16,
             lineHeight: 24,
             letterSpacing: appTypography.body1.letterSpacing,

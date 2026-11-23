@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Text, XStack, YStack, Separator } from 'tamagui';
-import { ChevronDown, Pencil, ArrowUpDown } from '@tamagui/lucide-icons';
+import { ChevronDown, Pencil, ArrowUpDown } from '~/shared/icons';
 import { useQuery } from '@tanstack/react-query';
 
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';

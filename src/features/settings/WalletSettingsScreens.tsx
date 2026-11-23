@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Coins, Landmark, ShieldCheck, Sparkles } from '@tamagui/lucide-icons';
+import { Coins, Landmark, ShieldCheck, Sparkles } from '~/shared/icons';
 import { useWalletStore } from '~/state/walletStore';
 import { proofService } from '~/services/wallet/proofService';
 import { consolidationService } from '~/services/wallet/consolidationService';

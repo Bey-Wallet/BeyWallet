@@ -99,7 +99,7 @@ jest.mock('tamagui', () => ({
   YGroup: 'YGroup',
   View: 'View',
 }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, key) => String(key) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, key) => String(key) }));
 
 const { FocusContext } = jest.requireMock('@react-navigation/native');
 let tree: ReactTestRenderer;

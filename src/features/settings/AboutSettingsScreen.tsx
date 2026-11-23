@@ -3,7 +3,7 @@ import { Text, YStack } from 'tamagui';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
-import { RefreshCw, FileText, HeartHandshake } from '@tamagui/lucide-icons';
+import { RefreshCw, FileText, HeartHandshake } from '~/shared/icons';
 import BeyIcon from '~/shared/icons/BeyIcon';
 import { settingsLinks, settingsLinkIcons } from './settingsCatalog';
 import {
@@ -60,6 +60,18 @@ export function AboutSettingsScreen() {
           icon={settingsLinkIcons.github}
           external
           onPress={() => link(settingsLinks.github)}
+        />
+        <SettingsRow
+          title="X (Twitter)"
+          icon={settingsLinkIcons.x}
+          external
+          onPress={() => link(settingsLinks.x)}
+        />
+        <SettingsRow
+          title="Telegram"
+          icon={settingsLinkIcons.telegram}
+          external
+          onPress={() => link(settingsLinks.telegram)}
         />
       </SettingsGroup>
       {error && <SettingsMessage error>Could not open the link. Please try again.</SettingsMessage>}

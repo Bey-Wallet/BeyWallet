@@ -2,7 +2,7 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ReceiptExtraDetails } from '~/features/history/components/ReceiptExtraDetails';
 jest.mock('tamagui', () => ({ YStack: 'YStack' }));
-jest.mock('@tamagui/lucide-icons', () => ({ ChevronDown: 'Down', ChevronUp: 'Up' }));
+jest.mock('~/shared/icons', () => ({ ChevronDown: 'Down', ChevronUp: 'Up' }));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'Table', ListTableRow: 'Row' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 let tree: ReactTestRenderer;

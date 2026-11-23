@@ -25,7 +25,7 @@ Scope: production routes and development-client-only BUI previews, including ali
 | Preview | `src/app/(tabs)/settings/new-ui-buttons.tsx`             | `~/features/settings/BUIButtonsScreen`               | BUI buttons: blue primary, sizes, variants, states and width toggle.          |
 | Preview | `src/app/(tabs)/settings/bui-layout.tsx`                 | `~/features/settings/BUILayoutScreen`                | BUI layout tokens, corners, row alignment and inset frame.                    |
 | Preview | `src/app/(tabs)/settings/bui-typography.tsx`             | `~/features/settings/BUITypographyScreen`            | BUIText roles, reading, wrapping, numerals and scale samples.                 |
-| Preview | `src/app/(tabs)/settings/bui-icons-avatars.tsx`          | `~/features/settings/BUIIconsAvatarsScreen`          | Lucide icons, avatar states, badges and overlapping images.                   |
+| Preview | `src/app/(tabs)/settings/bui-icons-avatars.tsx`          | `~/features/settings/BUIIconsAvatarsScreen`          | Phosphor icons, avatar states, badges and overlapping images.                 |
 | Preview | `src/app/(tabs)/settings/bui-badges.tsx`                 | `~/features/settings/BUIBadgesScreen`                | Labels, counters, verification, badge buttons and placement/cutouts.          |
 | Preview | `src/app/(tabs)/settings/bui-forms.tsx`                  | `~/features/settings/BUIFormsScreen`                 | Floating fields, multiline/search/password compositions and local validation. |
 | Preview | `src/app/(tabs)/settings/bui-selections.tsx`             | `~/features/settings/BUISelectionsScreen`            | Switches, checkboxes, radio groups and accessible whole-row selections.       |

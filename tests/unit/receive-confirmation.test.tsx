@@ -19,7 +19,7 @@ jest.mock('~/state/settingsStore', () => ({
     selector({ npub: 'npub-me' }),
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack' }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   RefreshCw: 'RefreshCw',
   AlertTriangle: 'AlertTriangle',
 }));

@@ -1,7 +1,7 @@
 import { BUIActionButton } from '~/shared/ui/BUI/BUIButton';
 import React, { useRef, useCallback } from 'react';
 import { XStack } from 'tamagui';
-import { ArrowDown, ArrowRightLeft, ArrowUp, Scan } from '@tamagui/lucide-icons';
+import { ArrowDown, ArrowRightLeft, ArrowUp, Scan } from '~/shared/icons';
 import { useRouter } from 'expo-router';
 import ActionSelectorSheet, { ActionSelectorSheetRef } from '~/shared/ui/ActionSelectorSheet';
 import { appSpacing } from '~/shared/theme/appearance';

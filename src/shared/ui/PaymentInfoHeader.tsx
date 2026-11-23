@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { CircleHelp } from '@tamagui/lucide-icons';
+import { CircleHelp } from '~/shared/icons';
 import { PaymentFlowHeader } from './PaymentFlowHeader';
 import { HeaderIconButton } from './HeaderIconButton';
 import type { BUISheetRef } from './BUI/BUISheet';

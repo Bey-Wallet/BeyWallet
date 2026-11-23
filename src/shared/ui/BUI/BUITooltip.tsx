@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Animated, Modal, Text as NativeText } from 'react-native';
-import { Info } from '@tamagui/lucide-icons';
+import { Info } from '~/shared/icons';
 import { ScrollView, Theme, XStack, YStack } from 'tamagui';
 import Svg, { Polygon } from 'react-native-svg';
 import { AppPressable } from '~/shared/ui/AppPressable';
@@ -88,7 +88,7 @@ export function BUITooltip({
         <NativeText
           style={{
             width: 100000,
-            fontFamily: 'AlloTextRegular',
+            fontFamily: 'InterRegular',
             fontSize: 14,
             letterSpacing: 0.07,
             includeFontPadding: false,
@@ -107,7 +107,7 @@ export function BUITooltip({
             numberOfLines={1}
             style={{
               width: 100000,
-              fontFamily: 'AlloTextMedium',
+              fontFamily: 'InterMedium',
               fontSize: 10,
               letterSpacing: 0.1,
               includeFontPadding: false,

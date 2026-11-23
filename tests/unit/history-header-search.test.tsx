@@ -14,7 +14,7 @@ jest.mock('tamagui', () => ({
   Text: 'Text',
 }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Search: 'Search',
   X: 'X',
   SlidersHorizontal: 'SlidersHorizontal',

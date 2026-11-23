@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { X, AlertTriangle, Check, Info } from '@tamagui/lucide-icons';
+import { X, AlertTriangle, Check, Info } from '~/shared/icons';
 import { Toast } from '@tamagui/toast';
 import { XStack, YStack } from 'tamagui';
 import { Spinner } from './Spinner';

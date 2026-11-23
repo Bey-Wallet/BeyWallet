@@ -57,12 +57,9 @@ export function RootLayout() {
   );
 
   const [loaded, error] = useFonts({
-    AlloTextRegular: require('~/assets/fonts/AlloText-Regular.ttf'),
-    AlloTextMedium: require('~/assets/fonts/AlloText-Medium.ttf'),
-    AlloTextSemiBold: require('~/assets/fonts/AlloText-SemiBold.ttf'),
-    AlloDisplayRegular: require('~/assets/fonts/AlloDisplay-Regular.ttf'),
-    AlloDisplayMedium: require('~/assets/fonts/AlloDisplay-Medium.ttf'),
-    AlloDisplaySemiBold: require('~/assets/fonts/AlloDisplay-SemiBold.ttf'),
+    InterRegular: require('~/assets/fonts/Inter-Regular.ttf'),
+    InterMedium: require('~/assets/fonts/Inter-Medium.ttf'),
+    InterSemiBold: require('~/assets/fonts/Inter-SemiBold.ttf'),
   });
 
   // Check onboarding status and wallet existence on mount

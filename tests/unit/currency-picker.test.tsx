@@ -7,7 +7,7 @@ jest.mock('@tanstack/react-query', () => ({
   useQuery: () => ({ isFetching: false, refetch: jest.fn() }),
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
-jest.mock('@tamagui/lucide-icons', () => ({ Coins: 'Coins', RefreshCw: 'RefreshCw' }));
+jest.mock('~/shared/icons', () => ({ Coins: 'Coins', RefreshCw: 'RefreshCw' }));
 jest.mock('~/shared/ui/RemoteImage', () => ({ RemoteImage: 'RemoteImage' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));

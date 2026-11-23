@@ -35,7 +35,7 @@ jest.mock('tamagui', () => ({
   XStack: 'XStack',
   useTheme: () => ({ color: { val: '#fff' }, gray2: { val: '#222' } }),
 }));
-jest.mock('@tamagui/lucide-icons', () => ({ Landmark: 'Landmark' }));
+jest.mock('~/shared/icons', () => ({ Landmark: 'Landmark' }));
 jest.mock('@gorhom/bottom-sheet', () => ({ BottomSheetTextInput: 'NameInput' }));
 jest.mock('~/shared/ui/BUI/useBUITheme', () => ({ useBUIOverlayAppearance: () => 'dark' }));
 jest.mock('~/shared/ui/BUI/BUISheet', () => ({

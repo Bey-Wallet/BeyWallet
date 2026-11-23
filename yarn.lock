@@ -4579,18 +4579,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tamagui/helpers-icon@npm:1.144.4":
-  version: 1.144.4
-  resolution: "@tamagui/helpers-icon@npm:1.144.4"
-  dependencies:
-    "@tamagui/core": "npm:1.144.4"
-  peerDependencies:
-    react: "*"
-    react-native-svg: ">=12"
-  checksum: 10/05af64012b5543e4eb0fd0f3f75e58b6a6812d4cda3a405a693698a6e29eaa9fc7677747de77bd84b3974a4ba48e935cfd96b46088363341d98a2f99a4da46f9
-  languageName: node
-  linkType: hard
-
 "@tamagui/helpers-node@npm:1.144.4":
   version: 1.144.4
   resolution: "@tamagui/helpers-node@npm:1.144.4"
@@ -4715,19 +4703,6 @@ __metadata:
   peerDependencies:
     react: "*"
   checksum: 10/9b02d013073e91ac2d84a9240686d826447996ee1f39ff3b4a00fcc172de419302f229defb616147565ff8f2c4c930b56b065e50e4f5d94bf8f55f424bdd2472
-  languageName: node
-  linkType: hard
-
-"@tamagui/lucide-icons@npm:^1.143.1":
-  version: 1.144.4
-  resolution: "@tamagui/lucide-icons@npm:1.144.4"
-  dependencies:
-    "@tamagui/core": "npm:1.144.4"
-    "@tamagui/helpers-icon": "npm:1.144.4"
-  peerDependencies:
-    react: "*"
-    react-native-svg: ">=12"
-  checksum: 10/d57927bb011280284dcbc1ebab5a9b72e0d33d5fc066b2e67422ba3ac1ba0e6120dd69b33b2148935c767a98cf0e5a99b5d8d5138fa3edff1dfebb7b8fb6796a
   languageName: node
   linkType: hard
 
@@ -6689,7 +6664,6 @@ __metadata:
     "@tamagui/cli": "npm:^1.143.1"
     "@tamagui/config": "npm:^1.143.1"
     "@tamagui/font-inter": "npm:^2.0.0-rc.0"
-    "@tamagui/lucide-icons": "npm:^1.143.1"
     "@tamagui/metro-plugin": "npm:^1.143.1"
     "@tamagui/toast": "npm:^1.143.1"
     "@tanstack/react-query": "npm:^5.90.21"
@@ -6749,6 +6723,7 @@ __metadata:
     nostr-tools: "npm:^2.22.1"
     npubcash-sdk: "npm:0.3.2"
     patch-package: "npm:8.0.1"
+    phosphor-react-native: "npm:3.0.6"
     prettier: "npm:^3.9.6"
     qrcode: "npm:^1.5.4"
     react: "npm:19.1.0"
@@ -12369,6 +12344,17 @@ __metadata:
   version: 4.0.0
   resolution: "path-type@npm:4.0.0"
   checksum: 10/5b1e2daa247062061325b8fdbfd1fb56dde0a448fb1455453276ea18c60685bdad23a445dc148cf87bc216be1573357509b7d4060494a6fd768c7efad833ee45
+  languageName: node
+  linkType: hard
+
+"phosphor-react-native@npm:3.0.6":
+  version: 3.0.6
+  resolution: "phosphor-react-native@npm:3.0.6"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-svg: "*"
+  checksum: 10/380fb275f7ff3982a6ec0503b6980bf9b1afed2bb1395041b9c9af6668536b699ce224126e3ea94a2027be78b7a0551a13489cf380e032265cde66a644a8cdf5
   languageName: node
   linkType: hard
 

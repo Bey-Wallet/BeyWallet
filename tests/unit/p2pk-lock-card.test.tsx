@@ -40,7 +40,7 @@ jest.mock('tamagui', () => ({
     color: { val: '#000' },
   }),
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   ClipboardPaste: 'ClipboardPaste',
   ScanLine: 'ScanLine',
 }));

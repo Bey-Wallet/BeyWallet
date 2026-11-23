@@ -11,7 +11,7 @@ import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useState, useRef } from 'react';
 import { YStack, useThemeName } from 'tamagui';
-import { Copy, Share2, Check, Nfc, Send, RefreshCw, Undo2, Info } from '@tamagui/lucide-icons';
+import { Copy, Share2, Check, Nfc, Send, RefreshCw, Undo2, Info } from '~/shared/icons';
 import { hapticService } from '~/services/platform/hapticService';
 import { EcashTokenQRCode } from '~/shared/ui/EcashTokenQRCode';
 

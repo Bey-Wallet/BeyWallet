@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, X } from '@tamagui/lucide-icons';
+import { Search, X } from '~/shared/icons';
 import { Text, XStack, YStack } from 'tamagui';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';

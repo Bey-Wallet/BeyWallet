@@ -62,7 +62,7 @@ jest.mock('tamagui', () => ({
   useTheme: () => new Proxy({}, { get: () => ({ val: '#888' }) }),
   styled: () => 'RowContainer',
 }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('@tanstack/react-query', () => ({
   useQueries: ({ queries }: any) =>
     queries.map(({ queryKey, select }: any) => ({

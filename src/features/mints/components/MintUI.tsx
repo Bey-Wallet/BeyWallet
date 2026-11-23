@@ -1,6 +1,6 @@
 import React from 'react';
 import { Theme, XStack, YStack, useThemeName, type TextProps } from 'tamagui';
-import { ChevronRight } from '@tamagui/lucide-icons';
+import { ChevronRight } from '~/shared/icons';
 import { AppText } from '~/shared/ui/AppText';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUICard } from '~/shared/ui/BUI/BUICard';

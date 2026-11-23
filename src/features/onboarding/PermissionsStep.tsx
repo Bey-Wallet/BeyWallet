@@ -11,7 +11,7 @@ import {
   WifiOff,
   User,
   Landmark,
-} from '@tamagui/lucide-icons';
+} from '~/shared/icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { biometricService } from '~/services/platform/biometricService';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -22,6 +22,7 @@ import { MintDiscoverySheet, type OnboardingMint } from './MintDiscoverySheet';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { Spinner } from '~/shared/ui/Spinner';
 import { AppText } from '~/shared/ui/AppText';
+import { appTypography } from '~/shared/theme/appearance';
 
 export type SetupProgressStep = {
   id: string;
@@ -210,7 +211,13 @@ export function PermissionsStep({
     >
       {/* Header */}
       <YStack gap="$0" mt="$2">
-        <H1 fontSize="$8" text="center" fontWeight="800" letterSpacing={-0.15} color="$color">
+        <H1
+          fontSize="$8"
+          text="center"
+          fontWeight="800"
+          letterSpacing={appTypography.title2.letterSpacing}
+          color="$color"
+        >
           Profile & Security
         </H1>
       </YStack>

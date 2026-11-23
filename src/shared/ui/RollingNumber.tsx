@@ -82,7 +82,7 @@ const RollingDigit = ({
         fontSize={fontSize}
         lineHeight={height}
         letterSpacing={0}
-        fontVariant={['tabular-nums']}
+        fontVariant={['proportional-nums']}
         numberOfLines={1}
         style={{ position: 'absolute', opacity: 0, width: 10000 }}
         onTextLayout={({ nativeEvent }) => {
@@ -115,7 +115,7 @@ const RollingDigit = ({
               fontSize={fontSize}
               lineHeight={height}
               text="center"
-              fontVariant={['tabular-nums']}
+              fontVariant={['proportional-nums']}
               letterSpacing={0}
             >
               {num}
@@ -153,7 +153,7 @@ export const RollingNumber = ({
   fontWeight = '400',
   fontFamily,
   style,
-  letterSpacing = 0,
+  letterSpacing,
   lineHeight,
   trigger,
   prefix = '',
@@ -184,9 +184,15 @@ export const RollingNumber = ({
   const resolvedFamily = fontFamily ?? (fontSize >= 25 ? '$display' : '$body');
   // Glyphs occupy separate cells. Allow the measured compact balance tracking,
   // scaled to this size, but prevent older aggressive margins from merging cells.
-  const minimumSpacing =
+  const displaySpacing =
     appTypography.display.letterSpacing * (fontSize / appTypography.display.fontSize);
-  const characterSpacing = Math.max(minimumSpacing, letterSpacing);
+  // Inter's checked ink bounds allow the tighter Home override without changing other defaults.
+  const minimumSpacing = Math.min(displaySpacing, -1.4 * (fontSize / 44));
+  const defaultSpacing =
+    fontSize >= 25
+      ? displaySpacing
+      : appTypography.amountSmall.letterSpacing * (fontSize / appTypography.amountSmall.fontSize);
+  const characterSpacing = Math.max(minimumSpacing, letterSpacing ?? defaultSpacing);
 
   // Track if we've passed the decimal point
   let isDecimal = false;
@@ -235,7 +241,7 @@ export const RollingNumber = ({
                 fontSize={fontSize}
                 lineHeight={itemHeight}
                 letterSpacing={0}
-                fontVariant={['tabular-nums']}
+                fontVariant={['proportional-nums']}
               >
                 {char}
               </Text>

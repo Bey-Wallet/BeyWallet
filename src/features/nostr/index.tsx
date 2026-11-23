@@ -12,7 +12,7 @@ import { YStack, XStack, Text } from 'tamagui';
 import { Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { networkService } from '~/services/platform/networkService';
-import { AtSign, CheckCircle, XCircle, Copy, Trash2, Edit3 } from '@tamagui/lucide-icons';
+import { AtSign, CheckCircle, XCircle, Copy, Trash2, Edit3 } from '~/shared/icons';
 import { hapticService } from '~/services/platform/hapticService';
 
 import { useAppToast } from '~/shared/hooks/useAppToast';

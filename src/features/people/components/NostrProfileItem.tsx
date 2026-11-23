@@ -2,7 +2,7 @@ import { RemoteImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
-import { Send } from '@tamagui/lucide-icons';
+import { Send } from '~/shared/icons';
 import { Separator, Text, View, XStack, YStack } from 'tamagui';
 import Blockies from '~/shared/ui/Blockies';
 import Nip05VerifiedBadge from '~/shared/icons/Nip05VerifiedBadge';

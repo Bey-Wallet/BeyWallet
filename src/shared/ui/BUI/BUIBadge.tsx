@@ -86,13 +86,13 @@ export function BUICounter({
       <NativeText
         allowFontScaling
         style={{
-          fontFamily: compact ? 'AlloTextSemiBold' : 'AlloTextRegular',
+          fontFamily: compact ? 'InterSemiBold' : 'InterRegular',
           fontSize: compact ? 10 : 14,
           letterSpacing: compact ? 0.1 : 0.07,
           lineHeight: compact ? undefined : 14,
           color: palette.foreground,
           includeFontPadding: false,
-          fontVariant: ['tabular-nums'],
+          fontVariant: ['proportional-nums'],
         }}
         onTextLayout={(event) => {
           const next = event.nativeEvent.lines[0]?.height;

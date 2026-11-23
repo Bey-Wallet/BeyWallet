@@ -36,7 +36,7 @@
       "<rootDir>/.tmp/"
     ],
     "transformIgnorePatterns": [
-      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@legendapp/list|nostr-tools|cbor-x|@noble/.*|@scure/.*)"
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|phosphor-react-native|@legendapp/list|nostr-tools|cbor-x|@noble/.*|@scure/.*)"
     ]
   },
   "dependencies": {
@@ -48,7 +48,6 @@
     "@scure/bip32": "^2.0.1",
     "@tamagui/config": "^1.143.1",
     "@tamagui/font-inter": "^2.0.0-rc.0",
-    "@tamagui/lucide-icons": "^1.143.1",
     "@tamagui/toast": "^1.143.1",
     "@tanstack/react-query": "^5.90.21",
     "babel-preset-expo": "~54.0.0",
@@ -96,6 +95,7 @@
     "expo-web-browser": "~15.0.9",
     "nostr-tools": "^2.22.1",
     "npubcash-sdk": "0.3.2",
+    "phosphor-react-native": "3.0.6",
     "qrcode": "^1.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",

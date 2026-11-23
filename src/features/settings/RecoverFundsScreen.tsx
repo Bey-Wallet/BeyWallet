@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ScanSearch } from '@tamagui/lucide-icons';
+import { ScanSearch } from '~/shared/icons';
 import { XStack } from 'tamagui';
 import { useWalletStore } from '~/state/walletStore';
 import {

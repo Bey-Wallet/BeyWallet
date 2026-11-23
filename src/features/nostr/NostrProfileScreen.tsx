@@ -3,16 +3,7 @@ import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import React from 'react';
 import { InteractionManager, Share, ScrollView, useWindowDimensions } from 'react-native';
 import { Text, View, XStack, YStack } from 'tamagui';
-import {
-  Check,
-  Copy,
-  RefreshCw,
-  Share2,
-  Settings2,
-  Zap,
-  Landmark,
-  Clock,
-} from '@tamagui/lucide-icons';
+import { Check, Copy, RefreshCw, Share2, Settings2, Zap, Landmark, Clock } from '~/shared/icons';
 import { Stack, useFocusEffect, useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

@@ -14,7 +14,7 @@ jest.mock('~/state/settingsStore', () => ({
 }));
 jest.mock('~/state/nostrReceiveSettingsStore', () => ({ useNostrReceiveSettingsStore: jest.fn() }));
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
-jest.mock('@tamagui/lucide-icons', () => ({ Copy: 'Copy', EyeOff: 'EyeOff' }));
+jest.mock('~/shared/icons', () => ({ Copy: 'Copy', EyeOff: 'EyeOff' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/features/settings/components/SettingsLayout', () => ({
   SettingsPage: 'Page',

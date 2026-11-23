@@ -58,7 +58,7 @@ jest.mock('tamagui', () => ({
     ['Text', 'YStack', 'XStack', 'View', 'Avatar', 'Square', 'Input'].map((name) => [name, name]),
   ),
 }));
-jest.mock('@tamagui/lucide-icons', () =>
+jest.mock('~/shared/icons', () =>
   Object.fromEntries(
     ['Check', 'ChevronDown', 'Sprout', 'Plus', 'Landmark', 'X', 'Search'].map((name) => [
       name,

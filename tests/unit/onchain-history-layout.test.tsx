@@ -11,7 +11,7 @@ import {
 } from '~/features/history/transactionPresentation';
 
 jest.mock('tamagui', () => ({ Text: 'Text' }));
-jest.mock('@tamagui/lucide-icons', () => ({ RefreshCw: 'RefreshCw' }));
+jest.mock('~/shared/icons', () => ({ RefreshCw: 'RefreshCw' }));
 jest.mock('~/shared/ui/PaymentStageLayout', () => ({
   PaymentStageLayout: ({ hero, children, footer }: any) => (
     <>

@@ -6,7 +6,7 @@ import {
   type CurrencyCode,
 } from '~/services/wallet/currencyService';
 import { useQuery } from '@tanstack/react-query';
-import { Coins, RefreshCw } from '@tamagui/lucide-icons';
+import { Coins, RefreshCw } from '~/shared/icons';
 import { Text, XStack, YStack } from 'tamagui';
 import { RemoteImage } from '~/shared/ui/RemoteImage';
 import { AppIconButton } from '~/shared/ui/AppIconButton';

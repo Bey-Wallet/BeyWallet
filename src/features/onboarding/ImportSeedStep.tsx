@@ -2,13 +2,7 @@ import { AppInput as Input } from '~/shared/ui/AppInput';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useEffect } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
-import {
-  CircleHelp,
-  ClipboardPaste,
-  CheckCircle2,
-  AlertCircle,
-  Trash2,
-} from '@tamagui/lucide-icons';
+import { CircleHelp, ClipboardPaste, CheckCircle2, AlertCircle, Trash2 } from '~/shared/icons';
 import * as Clipboard from 'expo-clipboard';
 import * as bip39 from 'bip39';
 import { BackHandler, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';

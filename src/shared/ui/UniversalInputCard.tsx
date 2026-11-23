@@ -5,16 +5,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { YStack, XStack, Text, View } from 'tamagui';
-import {
-  X,
-  Clipboard,
-  ArrowRight,
-  Zap,
-  Send,
-  Bitcoin,
-  CheckCircle2,
-  Search,
-} from '@tamagui/lucide-icons';
+import { X, Clipboard, ArrowRight, Zap, Send, Bitcoin, CheckCircle2, Search } from '~/shared/icons';
 import * as ClipboardAPI from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useAppToast } from '~/shared/hooks/useAppToast';

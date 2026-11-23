@@ -1,5 +1,5 @@
 import React from 'react';
-import { TriangleAlert } from '@tamagui/lucide-icons';
+import { TriangleAlert } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUIListRow, BUIListSeparator, type BUIListRowProps } from './BUIListRow';

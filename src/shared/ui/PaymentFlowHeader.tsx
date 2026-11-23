@@ -2,7 +2,7 @@ import { BUIHeader } from './BUI/BUIHeader';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import React from 'react';
 import { Stack, useRouter } from 'expo-router';
-import { ArrowLeft, X } from '@tamagui/lucide-icons';
+import { ArrowLeft, X } from '~/shared/icons';
 import { useScreenHeaderOptions } from '~/shared/ui/useScreenHeaderOptions';
 import { XStack } from 'tamagui';
 import { useReceiptSheet } from '~/shared/ui/ReceiptSheetContext';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { YStack } from 'tamagui';
-import { Check, X, Clock, Minus } from '@tamagui/lucide-icons';
+import { Check, X, Clock, Minus } from '~/shared/icons';
 
 export type PaymentStatus = 'success' | 'error' | 'pending' | 'cancelled';
 export const paymentStatusColors = {

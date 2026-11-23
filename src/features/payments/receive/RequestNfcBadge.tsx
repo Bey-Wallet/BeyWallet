@@ -3,7 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import { Text, XStack } from 'tamagui';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import { nfcService } from '~/services/platform/nfcService';
-import NfcIcon from '~/shared/icons/NfcIcon';
+import { Nfc } from '~/shared/icons';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
 
@@ -67,7 +67,7 @@ export function RequestNfcBadge() {
         }}
       >
         <XStack items="center" gap="$2" bg="$gray3" rounded="$10" px="$3" py="$2">
-          <NfcIcon size={18} color="$gray11" />
+          <Nfc size={18} color="$gray11" />
           <Text fontSize={13} color="$gray11">
             {label}
           </Text>

@@ -26,7 +26,7 @@ jest.mock('tamagui', () => ({
   useTheme: () => ({ background: { val: '#000' }, color: { val: '#fff' } }),
 }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   ChevronLeft: 'ChevronLeft',
   Check: 'Check',
   X: 'X',

@@ -2,7 +2,7 @@ import { AppInput as Input } from '~/shared/ui/AppInput';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React from 'react';
 import { XStack, YStack, Text, View } from 'tamagui';
-import { Clipboard as ClipboardIcon, ScanLine, X as XIcon } from '@tamagui/lucide-icons';
+import { Clipboard as ClipboardIcon, ScanLine, X as XIcon } from '~/shared/icons';
 import Blockies from '~/shared/ui/Blockies';
 
 interface DestinationInputRowProps {

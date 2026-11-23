@@ -9,7 +9,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useEffect, useCallback } from 'react';
 import { YStack, XStack, Text } from 'tamagui';
 import { MintIcon } from '~/features/explore/components/MintIcon';
-import { Search, X, ClipboardPaste, ScanQrCode, Scan, Sprout } from '@tamagui/lucide-icons';
+import { Search, X, ClipboardPaste, ScanQrCode, Scan, Sprout } from '~/shared/icons';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { nip19 } from 'nostr-tools';

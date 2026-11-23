@@ -9,7 +9,7 @@ import { quotesService } from '~/services/wallet';
 
 jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn() }));
 jest.mock('tamagui', () => ({ YStack: 'YStack' }));
-jest.mock('@tamagui/lucide-icons', () => ({ ExternalLink: 'ExternalLink' }));
+jest.mock('~/shared/icons', () => ({ ExternalLink: 'ExternalLink' }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: jest.fn() }) }));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTableRow: 'Row' }));
 jest.mock('~/services/wallet', () => ({

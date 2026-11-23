@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { RefreshCw } from '@tamagui/lucide-icons';
+import { RefreshCw } from '~/shared/icons';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { ListTableRow } from '~/shared/ui/ListTable';
 import { paymentStatusColors, type PaymentStatus } from '~/shared/ui/PaymentStatusIcon';

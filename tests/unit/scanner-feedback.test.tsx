@@ -76,7 +76,7 @@ jest.mock('tamagui', () => ({
   Spinner: 'Spinner',
   Theme: 'Theme',
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   X: 'X',
   Image: 'Image',
   Zap: 'Zap',

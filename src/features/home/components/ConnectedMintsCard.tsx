@@ -4,7 +4,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { View, Text, YStack, XStack, styled } from 'tamagui';
-import { Plus, Landmark, RefreshCw, ChevronRight, Check } from '@tamagui/lucide-icons';
+import { Plus, Landmark, RefreshCw, ChevronRight, Check } from '~/shared/icons';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '~/state/walletStore';

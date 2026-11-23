@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import { ScanLine } from '@tamagui/lucide-icons';
+import { ScanLine } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUIPage, BUISection, BUIChoices, BUIText, BUIButton, useBUITheme } from '~/shared/ui/BUI';

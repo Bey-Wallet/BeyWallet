@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AppState, Linking } from 'react-native';
-import { Bell, Eye, CreditCard, MessageCircle, AlertCircle } from '@tamagui/lucide-icons';
+import { Bell, Eye, CreditCard, MessageCircle, AlertCircle } from '~/shared/icons';
 import { notificationService } from '~/services/platform/notificationService';
 import { useSettingsStore, type NotificationPreferences } from '~/state/settingsStore';
 import {

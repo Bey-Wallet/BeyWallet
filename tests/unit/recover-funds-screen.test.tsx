@@ -72,7 +72,7 @@ jest.mock('~/services/platform/biometricService', () => ({
 }));
 jest.mock('~/services/wallet/recoveryDiscovery', () => ({ retryRecoveryDiscovery: jest.fn() }));
 jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => mockOffline }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   ScanSearch: 'ScanSearch',
   CheckCircle2: 'SuccessIcon',
   AlertCircle: 'AlertIcon',

@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, DeviceEventEmitter, Keyboard, useWindowDimensions } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowDown, ArrowLeft, ArrowUp, UserPlus } from '@tamagui/lucide-icons';
+import { ArrowDown, ArrowLeft, ArrowUp, UserPlus } from '~/shared/icons';
 import { LegendList, type LegendListRef } from '@legendapp/list/react-native';
 import { Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

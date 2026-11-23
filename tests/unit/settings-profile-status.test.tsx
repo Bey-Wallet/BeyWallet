@@ -31,7 +31,7 @@ jest.mock('~/state/walletStore', () => ({
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
 jest.mock(
-  '@tamagui/lucide-icons',
+  '~/shared/icons',
   () =>
     new Proxy(
       { __esModule: true },

@@ -1,6 +1,7 @@
 import { Spinner } from '~/shared/ui/Spinner';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import { AppButton } from '~/shared/ui/AppButton';
+import { appTypography } from '~/shared/theme/appearance';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 /**
  * Nostr Activity Modal
@@ -29,7 +30,7 @@ import {
   User,
   Copy,
   Zap,
-} from '@tamagui/lucide-icons';
+} from '~/shared/icons';
 import Blockies from '~/shared/ui/Blockies';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
@@ -430,7 +431,7 @@ export default function NostrActivityModal() {
                         fontSize={29}
                         fontWeight="900"
                         color={detailItem.type === 'sent' ? '$red10' : '$color1'}
-                        letterSpacing={-0.2}
+                        letterSpacing={appTypography.amount.letterSpacing}
                       >
                         {detailItem.type === 'sent' ? '−' : '+'}
                         {showBitcoinSymbol ? '₿' : ''}
@@ -459,7 +460,7 @@ export default function NostrActivityModal() {
                         fontSize={29}
                         fontWeight="900"
                         color={detailItem.type === 'sent' ? '$red10' : '$color1'}
-                        letterSpacing={-0.2}
+                        letterSpacing={appTypography.amount.letterSpacing}
                       >
                         {detailItem.type === 'sent' ? '−' : '+'}
                         {fiatValue || '—'}

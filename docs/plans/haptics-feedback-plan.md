@@ -64,7 +64,7 @@ Important existing owners:
 
 Do not change wallet derivation, receipts, proof persistence, retry semantics, authentication,
 notifications or the current spinner to implement haptics. Home's connected-mint card styling,
-Allo typography and control geometry remain unchanged.
+Inter typography and control geometry remain unchanged.
 
 ## Intensity and platform specification
 

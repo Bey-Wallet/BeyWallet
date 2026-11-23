@@ -41,7 +41,7 @@ Tooltip maximum width follows the source anchor-aware helper (120–288 cap), th
 the caller's200/288 limit and measured text width. Above preference flips when it
 cannot fit. Tall content scrolls. Tiny viewport bounds additionally prevent a
 bubble extending outside the window; unusually short bubbles clamp their tail
-inside their width. Native text measurement includes registered Allo font scaling.
+inside their width. Native text measurement includes registered Inter font scaling.
 
 Outside tap, Android Back, blur, backgrounding and window/font-scale/theme changes
 dismiss. A generation token rejects stale measurement callbacks after dismissal or
@@ -57,7 +57,7 @@ The reference badge explicitly uses white fill, including in light mode; its
 contrast still needs visual review before production use.
 
 Native limits: these use transparent React Native Modal. Its focus behavior differs
-from the source's non-focusable tooltip Popup. Allo and Lucide replace fonts/icons;
+from the source's non-focusable tooltip Popup. Inter and Phosphor replace fonts/icons;
 coordinate spaces, insets, RTL tails, focus restoration and screen-reader handling
 still need Android verification. No pixel-identical/native-popup equivalence is
 claimed. Production menus/navigation and wallet behavior are unchanged.

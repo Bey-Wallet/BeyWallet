@@ -8,7 +8,7 @@ import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { InfoSheet } from '~/shared/components/info-sheets/InfoSheet';
 import type { BUISheetRef } from '~/shared/ui/BUI/BUISheet';
-import { CircleHelp } from '@tamagui/lucide-icons';
+import { CircleHelp } from '~/shared/icons';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';

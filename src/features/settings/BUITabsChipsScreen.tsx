@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wallet } from '@tamagui/lucide-icons';
+import { Wallet } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import {
   BUIPage,
@@ -257,8 +257,8 @@ export function BUITabsChipsScreen() {
           >
             <YStack px={16}>
               <BUIText kind="body2" color={c.muted}>
-                Allo and Lucide remain BUI’s fonts and icons. Native text metrics, ripple and popup
-                focus need Android visual review.
+                Inter and Phosphor remain BUI’s fonts and icons. Native text metrics, ripple and
+                popup focus need Android visual review.
               </BUIText>
             </YStack>
           </BUISection>

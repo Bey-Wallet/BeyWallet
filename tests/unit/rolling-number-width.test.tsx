@@ -45,3 +45,25 @@ it('ignores stale measurements when a digit changes and rejects invalid widths',
   });
   expect(width(0)).toBe(27);
 });
+
+it('defaults to compact proportional cells and bounds overly tight spacing', async () => {
+  await act(async () => {
+    tree = create(<RollingNumber value="18" fontSize={44} />);
+  });
+  const margin = () => StyleSheet.flatten(measures()[0].parent!.props.style).marginRight;
+  const compact = margin();
+  expect(compact).toBeLessThan(0);
+  expect(measures()[0].props.fontVariant).toEqual(['proportional-nums']);
+  await act(async () => {
+    tree.update(<RollingNumber value="18" fontSize={44} letterSpacing={-1.4} />);
+  });
+  expect(margin()).toBeCloseTo(-1.4);
+  await act(async () => {
+    tree.update(<RollingNumber value="18" fontSize={44} letterSpacing={-20} />);
+  });
+  expect(margin()).toBeCloseTo(-1.4);
+  await act(async () => {
+    tree.update(<RollingNumber value="18" fontSize={44} letterSpacing={0} />);
+  });
+  expect(margin()).toBe(0);
+});

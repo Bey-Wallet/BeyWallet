@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import { Info } from '@tamagui/lucide-icons';
+import { Info } from '~/shared/icons';
 import { YStack } from 'tamagui';
 import {
   BUIPage,

@@ -4,7 +4,7 @@ import { RemoteImage, MintImage } from '~/shared/ui/RemoteImage';
 import { MintIconImage } from '~/features/explore/components/MintIcon';
 
 jest.mock('tamagui', () => ({ Text: 'Text', View: 'View' }));
-jest.mock('@tamagui/lucide-icons', () => ({ Landmark: 'Landmark' }));
+jest.mock('~/shared/icons', () => ({ Landmark: 'Landmark' }));
 jest.mock('~/shared/hooks/useMintInfo', () => ({ useMintInfo: jest.fn() }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('expo-image', () => ({

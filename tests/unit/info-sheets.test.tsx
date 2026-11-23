@@ -13,7 +13,7 @@ jest.mock('~/shared/ui/PaymentFlowHeader', () => ({
     require('react').createElement('PaymentHeader', props, props.headerRight?.()),
 }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'InfoButton' }));
-jest.mock('@tamagui/lucide-icons', () => ({ CircleHelp: 'HelpIcon' }));
+jest.mock('~/shared/icons', () => ({ CircleHelp: 'HelpIcon' }));
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
 jest.mock('~/shared/ui/BUI/BUISheet', () => ({
   BUISheet: require('react').forwardRef((props: any, ref: any) => {

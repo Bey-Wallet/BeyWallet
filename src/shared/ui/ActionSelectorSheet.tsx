@@ -17,7 +17,7 @@ import {
   StoreActionIcon as Store,
   type FilledActionIconProps,
 } from '~/shared/icons/FilledActionIcons';
-import { Nfc } from '@tamagui/lucide-icons';
+import { Nfc } from '~/shared/icons';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
@@ -47,10 +47,6 @@ interface OptionConfig {
   path?: Href;
   stage?: ActionSheetStage;
   action?: () => void;
-}
-
-function NfcActionIcon(props: FilledActionIconProps) {
-  return <Nfc {...props} strokeWidth={2.5} />;
 }
 
 const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
@@ -153,7 +149,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
               type === 'send'
                 ? {
                     label: 'Tap to pay',
-                    icon: NfcActionIcon,
+                    icon: Nfc,
                     iconColor: 'nfc',
                     description: 'Pay with NFC',
                     action: nfcFlow.openReader,

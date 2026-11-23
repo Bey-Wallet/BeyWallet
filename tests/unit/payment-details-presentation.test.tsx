@@ -17,7 +17,7 @@ jest.mock('tamagui', () => ({
   Separator: 'Separator',
   Avatar: 'Avatar',
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Copy: 'Copy',
   ChevronRight: 'ChevronRight',
   RefreshCw: 'RefreshCw',

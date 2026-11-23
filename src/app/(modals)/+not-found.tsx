@@ -2,7 +2,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { Link, Stack } from 'expo-router';
 import React from 'react';
 import { YStack, Text, useTheme } from 'tamagui';
-import { AlertCircle } from '@tamagui/lucide-icons';
+import { AlertCircle } from '~/shared/icons';
 
 export default function NotFoundScreen() {
   const theme = useTheme();

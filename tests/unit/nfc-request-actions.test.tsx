@@ -58,16 +58,16 @@ jest.mock('tamagui', () => ({
     iconPrimary: { val: mockAppearance === 'dark' ? '#FFFFFF' : '#000000' },
   }),
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   ArrowUpRight: 'Icon',
   ArrowDownLeft: 'Icon',
   AlertTriangle: 'Icon',
   Settings2: 'Icon',
   Ban: 'Icon',
   Check: 'Icon',
+  Nfc: 'Icon',
   X: 'X',
 }));
-jest.mock('~/shared/icons/NfcIcon', () => 'Icon');
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'HeaderIconButton' }));
@@ -254,7 +254,7 @@ it('presents NFC as a bottom sheet and protects dismissal during a payment', asy
 });
 
 it.each(['dark', 'light'] as const)(
-  'keeps the NFC glyph visible on its neutral %s circle',
+  'keeps the filled NFC glyph visible on its neutral %s circle',
   async (appearance) => {
     mockAppearance = appearance;
     mockState = { ...mockState, status: 'ready' };
@@ -263,9 +263,12 @@ it.each(['dark', 'light'] as const)(
       sheet = create(<NfcSheetHost walletReady />);
     });
     const icon = sheet.root.findByType('Icon' as any);
+    expect(icon.props.weight).toBe('fill');
     expect(icon.props.color).toBe(appColors[appearance].icon);
-    expect(icon.parent!.props.backgroundColor).toBe(appColors[appearance].raised);
-    expect(icon.props.color).not.toBe(icon.parent!.props.backgroundColor);
+    let surface = icon.parent;
+    while (surface && surface.props.backgroundColor === undefined) surface = surface.parent;
+    expect(surface?.props.backgroundColor).toBe(appColors[appearance].raised);
+    expect(icon.props.color).not.toBe(surface?.props.backgroundColor);
     await act(async () => sheet.unmount());
   },
 );

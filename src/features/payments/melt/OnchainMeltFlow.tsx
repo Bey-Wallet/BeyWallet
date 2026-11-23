@@ -17,14 +17,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { YStack, XStack, Text, Separator, View } from 'tamagui';
-import {
-  AlertCircle,
-  Landmark,
-  ArrowUpDown,
-  ShieldCheck,
-  Bitcoin,
-  Check,
-} from '@tamagui/lucide-icons';
+import { AlertCircle, Landmark, ArrowUpDown, ShieldCheck, Bitcoin, Check } from '~/shared/icons';
 import * as Clipboard from 'expo-clipboard';
 import { networkService } from '~/services/platform/networkService';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';

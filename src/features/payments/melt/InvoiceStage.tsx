@@ -4,7 +4,7 @@ import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { YStack, Text } from 'tamagui';
-import { ArrowUpDown, Zap } from '@tamagui/lucide-icons';
+import { ArrowUpDown, Zap } from '~/shared/icons';
 import * as Clipboard from 'expo-clipboard';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
