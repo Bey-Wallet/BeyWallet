@@ -60,6 +60,7 @@ import { Spinner } from '~/shared/ui/Spinner';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { TransactionReceiptSheet } from './components/TransactionReceiptSheet';
 import { ReceiptExtraDetails } from './components/ReceiptExtraDetails';
+import { TransferTechnicalDetails } from '~/features/payments/swap/TransferTechnicalDetails';
 import {
   buildReceiptDetails,
   needsFullScreenReceipt,
@@ -712,6 +713,20 @@ function TransactionDetailsContent() {
     );
   }, [entry, savedInvoice, isQuoteExpired]);
 
+  const transactionTechnicalDetails =
+    entry &&
+    (transferRecord ? (
+      <TransferTechnicalDetails record={transferRecord} />
+    ) : (
+      <ReceiptExtraDetails
+        fields={
+          buildReceiptDetails(entry, {
+            ...receiptSnapshot,
+            request: receiptSnapshot?.request || savedInvoice || undefined,
+          }).extra
+        }
+      />
+    ));
   const headerOptions = {
     title: title || 'Transaction',
     headerTitleAlign: 'center' as const,
@@ -719,6 +734,7 @@ function TransactionDetailsContent() {
       <PaymentActionsMenu
         label="Transaction actions"
         actions={transactionActions}
+        technicalDetails={transactionTechnicalDetails}
         busy={isReclaiming || isClaiming || isCheckingPaid}
       />
     ),
@@ -896,12 +912,7 @@ function TransactionDetailsContent() {
     return renderSheet(
       <>
         <TransferHistoryReceipt
-          pendingHeaderRight={() =>
-            publicReceipt && <ReceiptImageShare iconOnly receipt={publicReceipt} />
-          }
-          extraDetails={
-            <ReceiptExtraDetails fields={buildReceiptDetails(entry, receiptSnapshot).extra} />
-          }
+          pendingHeaderRight={headerOptions.headerRight}
           id={metadata.transferId}
           amount={entry.amount}
           sourceMintUrl={entry.mintUrl}
@@ -933,7 +944,6 @@ function TransactionDetailsContent() {
           <TransactionNoteRows notes={notes} />
         </ListTable>
       )}
-      <ReceiptExtraDetails fields={receiptData.extra} />
     </YStack>
   );
   if (paymentLayout === 'onchain-deposit' || paymentLayout === 'onchain-withdrawal') {
@@ -953,6 +963,7 @@ function TransactionDetailsContent() {
           offline={offline}
           onClose={() => router.back()}
           menuActions={transactionActions}
+          technicalDetails={transactionTechnicalDetails}
           extraDetails={extraDetails}
           transactionDetails={
             <OnchainTransactionRows
@@ -976,6 +987,7 @@ function TransactionDetailsContent() {
       <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <PendingMintInvoiceLayout
           menuActions={transactionActions}
+          technicalDetails={transactionTechnicalDetails}
           savedInvoice={savedInvoice}
           timeLeft={timeLeft}
           entry={entry as any}
@@ -1031,6 +1043,7 @@ function TransactionDetailsContent() {
           onCheckStatus={handleRefresh}
           isCheckingStatus={isRefetching}
           menuActions={transactionActions}
+          technicalDetails={transactionTechnicalDetails}
           extraDetails={extraDetails}
         />
         {renderDeleteBottomSheet()}
@@ -1196,7 +1209,6 @@ function TransactionDetailsContent() {
           />
         )}
       </ListTable>
-      <ReceiptExtraDetails fields={detail.extra} presentation="sheet" />
       {renderDeleteBottomSheet()}
     </YStack>,
     false,

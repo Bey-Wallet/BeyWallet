@@ -261,7 +261,10 @@ it('does not infer blockchain confirmations or actual fees from a successful min
   );
   expect(tree.root.findByProps({ label: 'Fee paid' }).props.value).toBe('Unavailable');
   expect(tree.root.findByProps({ label: 'Destination' }).props.copyValue).toBe(address);
-  expect(tree.root.findAllByType('TechnicalDetails' as any)).toHaveLength(1);
+  expect(tree.root.findAllByType('TechnicalDetails' as any)).toHaveLength(0);
+  expect(
+    tree.root.findByType('Header' as any).props.headerRight().props.technicalDetails.type,
+  ).toBe(TextDetails);
 });
 function TextDetails() {
   return React.createElement('TechnicalDetails');

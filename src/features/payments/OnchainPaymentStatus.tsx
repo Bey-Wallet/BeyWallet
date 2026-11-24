@@ -1,3 +1,4 @@
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import React from 'react';
 import { Text, YStack } from 'tamagui';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -67,6 +68,13 @@ export function OnchainPaymentStatus({
         navigationAction="close"
         disabled={processing}
         onBack={onClose}
+        headerRight={() => (
+          <PaymentActionsMenu
+            actions={[]}
+            technicalDetails={!processing && technicalDetails}
+            busy={processing}
+          />
+        )}
       />
       <PaymentStageLayout
         variant="receipt"
@@ -153,7 +161,6 @@ export function OnchainPaymentStatus({
           {!!error && <ListTableRow label="Details" value={error} multiline />}
           {!processing && transactionDetails}
         </ListTable>
-        {!processing && technicalDetails}
       </PaymentStageLayout>
     </>
   );

@@ -37,6 +37,7 @@ interface PendingMintInvoiceLayoutProps {
   onCancel: () => Promise<void> | void;
   onPaid: () => Promise<void> | void;
   extraDetails?: React.ReactNode;
+  technicalDetails?: React.ReactNode;
   offline?: boolean;
   menuActions?: PaymentMenuAction[];
 }
@@ -53,6 +54,7 @@ export function PendingMintInvoiceLayout({
   onCancel,
   onPaid,
   extraDetails,
+  technicalDetails,
   offline = false,
   menuActions = [],
 }: PendingMintInvoiceLayoutProps) {
@@ -85,6 +87,7 @@ export function PendingMintInvoiceLayout({
         disabled={isCheckingPaid}
         headerRight={() => (
           <PaymentActionsMenu
+            technicalDetails={technicalDetails}
             busy={isCheckingPaid}
             actions={[
               {

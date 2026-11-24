@@ -217,7 +217,8 @@ it('offers an explicit pending ecash image from a newly created send without mar
   ).toContain('receipt-image');
   expect(tree.root.findAllByType('Amount' as any)).toHaveLength(0);
   expect(tree.root.findAllByType('AmountRow' as any)[0].props.amount).toBe(1);
-  expect(tree.root.findByType('TechnicalDetails' as any).props.presentation).toBe('sheet');
+  expect(tree.root.findAllByType('TechnicalDetails' as any)).toHaveLength(0);
+  expect(tree.root.findByType('PaymentMenu' as any).props.technicalDetails.props.entry.amount).toBe(1);
   expect(tree.root.findAllByProps({ label: 'Token' })).toHaveLength(0);
   expect(tree.root.findAllByProps({ children: 'Done' })).toHaveLength(0);
   expect(tree.root.findAllByType('Button' as any).map((node) => node.props.children)).toEqual([

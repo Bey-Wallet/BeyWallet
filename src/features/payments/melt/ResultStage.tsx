@@ -1,3 +1,4 @@
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, YStack } from 'tamagui';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
@@ -95,7 +96,6 @@ export function MeltResultStage({
     invoice,
     recipient,
     incoming: false,
-    extraDetailsPresentation: 'sheet',
     state: status === 'success' ? 'paid' : status,
     amount,
     time,
@@ -109,6 +109,13 @@ export function MeltResultStage({
         navigationAction="close"
         disabled={processing}
         onBack={onClose}
+        headerRight={() => (
+          <PaymentActionsMenu
+            actions={[]}
+            technicalDetails={!processing && details.extraDetails}
+            busy={processing}
+          />
+        )}
       />
       <PaymentStageLayout
         variant="receipt"
@@ -204,7 +211,6 @@ export function MeltResultStage({
             Could not check status. Your payment is still unconfirmed. Try again when connected.
           </Text>
         )}
-        {!processing && details.extraDetails}
       </PaymentStageLayout>
     </>
   );

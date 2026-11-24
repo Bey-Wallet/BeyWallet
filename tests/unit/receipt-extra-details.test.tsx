@@ -2,6 +2,7 @@ import React from 'react';
 import { Share } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ReceiptExtraDetails } from '~/features/history/components/ReceiptExtraDetails';
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 const mockPresent = jest.fn();
 const mockDismiss = jest.fn();
 const mockCopy = jest.fn(async (..._args: unknown[]) => true);
@@ -21,7 +22,16 @@ jest.mock('~/shared/ui/BUI/BUISheet', () => ({
     return require('react').createElement('Sheet', props, props.children);
   }),
 }));
-jest.mock('tamagui', () => ({ YStack: 'YStack', XStack: 'XStack', Text: 'Text' }));
+jest.mock('tamagui', () => ({
+  YStack: 'YStack',
+  XStack: 'XStack',
+  Text: 'Text',
+  useThemeName: () => 'dark',
+}));
+jest.mock('~/shared/ui/BUI/BUIActionMenu', () => ({ BUIActionMenu: 'Menu' }));
+jest.mock('~/shared/ui/BUI/useBUITheme', () => ({
+  BUIAppearanceProvider: ({ children }: any) => children,
+}));
 jest.mock('~/shared/icons', () => ({
   ChevronDown: 'Down',
   ChevronUp: 'Up',
@@ -43,14 +53,22 @@ afterEach(async () => {
 it('opens technical references in a separate sheet and returns to the receipt on Back', async () => {
   await act(async () => {
     tree = create(
-      <ReceiptExtraDetails
-        presentation="sheet"
-        fields={[{ label: 'Invoice', value: 'short', copyValue: 'complete invoice' }]}
+      <PaymentActionsMenu
+        actions={[]}
+        technicalDetails={
+          <ReceiptExtraDetails
+            fields={[{ label: 'Invoice', value: 'short', copyValue: 'complete invoice' }]}
+          />
+        }
       />,
     );
   });
-  const trigger = () => tree.root.findByProps({ children: 'Technical details' });
-  await act(async () => trigger().props.onPress());
+  const menu = () => tree.root.findByType('Menu' as any);
+  expect(menu().props.items).toEqual([
+    { id: 'technical-details', title: 'Technical details', disabled: undefined },
+  ]);
+  expect(tree.root.findAllByProps({ children: 'Technical details' })).toHaveLength(0);
+  await act(async () => menu().props.onAction('technical-details'));
   expect(mockPresent).toHaveBeenCalledTimes(1);
   const sheet = tree.root.findByType('Sheet' as any);
   expect(sheet.props.title).toBe('Technical details');
@@ -59,14 +77,14 @@ it('opens technical references in a separate sheet and returns to the receipt on
   await act(async () => sheet.props.onBack());
   expect(mockDismiss).toHaveBeenCalledTimes(1);
   await act(async () => sheet.props.onClose());
-  expect(trigger().props.accessibilityState.expanded).toBe(false);
+  await act(async () => menu().props.onAction('technical-details'));
+  expect(mockPresent).toHaveBeenCalledTimes(2);
 });
 
 it('copies all technical details from the bottom button using complete values', async () => {
   await act(async () => {
     tree = create(
       <ReceiptExtraDetails
-        presentation="sheet"
         fields={[
           { section: 'Quote', label: 'Invoice', value: 'short', copyValue: 'complete invoice' },
           { section: 'Quote', label: 'Quote ID', value: 'quote-id' },
@@ -108,37 +126,77 @@ it('copies all technical details from the bottom button using complete values', 
   });
   expect(tree.root.findAllByProps({ children: 'Done' })).toHaveLength(0);
 });
+it('keeps each menu scoped to its own receipt', async () => {
+  await act(async () => {
+    tree = create(
+      <>
+        <PaymentActionsMenu
+          actions={[]}
+          technicalDetails={<ReceiptExtraDetails fields={[{ label: 'ID', value: 'first' }]} />}
+        />
+        <PaymentActionsMenu
+          actions={[]}
+          technicalDetails={<ReceiptExtraDetails fields={[{ label: 'ID', value: 'second' }]} />}
+        />
+      </>,
+    );
+  });
+  const menus = tree.root.findAllByType('Menu' as any);
+  await act(async () => menus[0].props.onAction('technical-details'));
+  expect(mockPresent).toHaveBeenCalledTimes(1);
+  await act(async () => menus[1].props.onAction('technical-details'));
+  expect(mockPresent).toHaveBeenCalledTimes(2);
+});
+
+it('opens when fields arrive without presenting again on metadata updates', async () => {
+  const render = (fields: { label: string; value: string }[]) => (
+    <PaymentActionsMenu actions={[]} technicalDetails={<ReceiptExtraDetails fields={fields} />} />
+  );
+  await act(async () => {
+    tree = create(render([]));
+  });
+  await act(async () => tree.root.findByType('Menu' as any).props.onAction('technical-details'));
+  expect(mockPresent).not.toHaveBeenCalled();
+  await act(async () => tree.update(render([{ label: 'ID', value: 'first' }])));
+  expect(mockPresent).toHaveBeenCalledTimes(1);
+  await act(async () =>
+    tree.update(
+      render([
+        { label: 'ID', value: 'first' },
+        { label: 'Quote', value: 'second' },
+      ]),
+    ),
+  );
+  expect(mockPresent).toHaveBeenCalledTimes(1);
+});
+
 it('omits the disclosure when no additional fields exist', async () => {
   await act(async () => {
     tree = create(<ReceiptExtraDetails fields={[]} />);
   });
   expect(tree.toJSON()).toBeNull();
 });
-it('keeps identifiers hidden until requested and preserves complete copy values', async () => {
+it('keeps existing actions and blocks technical details while a payment is busy', async () => {
+  const existing = jest.fn();
   await act(async () => {
     tree = create(
-      <ReceiptExtraDetails
-        presentation="inline"
-        fields={[{ label: 'Invoice', value: 'short', copyValue: 'complete invoice' }]}
+      <PaymentActionsMenu
+        busy
+        actions={[{ id: 'share', title: 'Share', onPress: existing }]}
+        technicalDetails={
+          <ReceiptExtraDetails
+            fields={[{ label: 'Invoice', value: 'short', copyValue: 'complete invoice' }]}
+          />
+        }
       />,
     );
   });
-  expect(tree.root.findAllByType('Row' as any)).toHaveLength(0);
-  const toggle = () => tree.root.findByType('Button' as any);
-  expect(toggle().props).toMatchObject({
-    emphasis: 'secondary',
-    size: 'small',
-    fullWidth: false,
-    accessibilityState: { expanded: false },
+  const menu = tree.root.findByType('Menu' as any);
+  expect(menu.props.items.every((item: any) => item.disabled)).toBe(true);
+  await act(async () => {
+    menu.props.onAction('technical-details');
+    menu.props.onAction('share');
   });
-  await act(async () => toggle().props.onPress());
-  const rows = tree.root.findAllByType('Row' as any);
-  expect(toggle().props.accessibilityState.expanded).toBe(true);
-  expect(rows[0].props).toMatchObject({
-    label: 'Invoice',
-    copyValue: 'complete invoice',
-    isCopyable: true,
-  });
-  await act(async () => toggle().props.onPress());
-  expect(tree.root.findAllByType('Row' as any)).toHaveLength(0);
+  expect(mockPresent).not.toHaveBeenCalled();
+  expect(existing).not.toHaveBeenCalled();
 });

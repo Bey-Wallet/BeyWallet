@@ -128,7 +128,7 @@ export function TransactionReceiptSheet({
     <BUISheet
       ref={sheet}
       title={title}
-      actions={headerActions}
+      actions={concealed ? undefined : headerActions}
       appearance={appearance}
       showHeader={!expanded}
       scrollContent={!expanded}

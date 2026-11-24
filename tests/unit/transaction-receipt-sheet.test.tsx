@@ -141,9 +141,17 @@ it('masks receipt content when locked and provides a direct-entry fallback', asy
   mockAuthenticated = false;
   mockCanBack = false;
   await act(async () => {
-    tree = create(<TransactionReceiptSheet>SENSITIVE RECEIPT</TransactionReceiptSheet>);
+    tree = create(
+      <TransactionReceiptSheet headerActions={<TextActions />}>
+        SENSITIVE RECEIPT
+      </TransactionReceiptSheet>,
+    );
   });
   expect(JSON.stringify(tree.toJSON())).not.toContain('SENSITIVE RECEIPT');
+  expect(tree.root.findByType('Sheet' as any).props.actions).toBeUndefined();
   tree.root.findByType('Sheet' as any).props.onClose();
   expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
 });
+function TextActions() {
+  return React.createElement('ReceiptActions');
+}

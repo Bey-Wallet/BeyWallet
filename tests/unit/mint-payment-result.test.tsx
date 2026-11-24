@@ -150,11 +150,8 @@ it.each(['SATS', 'FIAT'])(
       ['Time', formatPaymentDateTime(Date.now()), undefined],
       ['Method', 'Lightning', undefined],
     ]);
-    expect(button(result, 'Technical details').props).toMatchObject({
-      emphasis: 'secondary',
-      size: 'small',
-      fullWidth: false,
-    });
+    expect(result.root.findAllByProps({ children: 'Technical details' })).toHaveLength(0);
+    expect(result.root.findByType('PaymentMenu' as any).props.technicalDetails).toBeTruthy();
     await act(async () => {
       payment.unmount();
       result.unmount();

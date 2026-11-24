@@ -72,7 +72,11 @@ it('distinguishes delayed issuance from a failed transfer and retains its timest
   expect(tree.root.findByProps({ label: 'Status' }).props.value).toBe(
     'Waiting for destination ecash',
   );
-  expect(tree.root.findByType('TechnicalDetails' as any).props.record.createdAt).toBe(123);
+  expect(tree.root.findAllByType('TechnicalDetails' as any)).toHaveLength(0);
+  expect(
+    tree.root.findByType('Header' as any).props.headerRight().props.technicalDetails.props.record
+      .createdAt,
+  ).toBe(123);
   expect(tree.root.findByProps({ label: 'Maximum fee' }).props.value).toBe('3');
 });
 

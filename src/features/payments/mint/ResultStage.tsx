@@ -38,7 +38,7 @@ export function ResultStage({
 
   return (
     <PaymentReceipt
-      extraDetails={details.extraDetails}
+      technicalDetails={details.extraDetails}
       status={status}
       title={
         status === 'success'

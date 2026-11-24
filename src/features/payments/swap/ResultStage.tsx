@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { Text, YStack } from 'tamagui';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
@@ -109,7 +110,10 @@ export function ResultStage({
         title="Transfer"
         navigationAction="close"
         onBack={onClose}
-        headerRight={headerRight}
+        headerRight={
+          headerRight ||
+          (() => <PaymentActionsMenu actions={[]} technicalDetails={technical} busy={busy} />)
+        }
       />
       <PaymentStageLayout
         variant="receipt"
@@ -191,7 +195,6 @@ export function ResultStage({
                   : 'The destination mint is still issuing your ecash.'}
             </Text>
           )}
-        {technical}
         {status === 'error' && record?.state === 'failed' && onRetry && (
           <AppButton
             size="small"

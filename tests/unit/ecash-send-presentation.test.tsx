@@ -111,16 +111,11 @@ it('shows a failed result without inventing a paid fee and keeps references in a
   });
   expect(tree.root.findByProps({ label: 'Creation fee' }).props.value).toBe('Unavailable');
   expect(tree.root.findAllByProps({ label: 'Fee paid' })).toHaveLength(0);
-  expect(tree.root.findByType('TechnicalDetails' as any).props).toMatchObject({
-    presentation: 'sheet',
-    fields: expect.arrayContaining([
-      expect.objectContaining({
-        section: 'Transaction',
-        label: 'Operation ID',
-        copyValue: 'operation-id',
-      }),
-    ]),
-  });
+  expect(tree.root.findAllByType('TechnicalDetails' as any)).toHaveLength(0);
+  expect(
+    tree.root.findByType('Header' as any).props.headerRight().props.technicalDetails.props.entry
+      .operationId,
+  ).toBe('operation-id');
   await act(async () => tree.root.findByProps({ children: 'Done' }).props.onPress());
   expect(props.onBack).toHaveBeenCalledTimes(1);
 });

@@ -13,7 +13,6 @@ export function useLightningReceipt({
   amount,
   time,
   feeSats,
-  extraDetailsPresentation = 'sheet',
 }: {
   mintUrl?: string;
   quoteId?: string;
@@ -24,7 +23,6 @@ export function useLightningReceipt({
   amount: number;
   time?: number;
   feeSats?: number;
-  extraDetailsPresentation?: 'inline' | 'sheet';
 }) {
   const detail = usePaymentTechnicalDetails(
     {
@@ -51,8 +49,6 @@ export function useLightningReceipt({
         )}
       </>
     ),
-    extraDetails: (
-      <ReceiptExtraDetails fields={detail.extra} presentation={extraDetailsPresentation} />
-    ),
+    extraDetails: <ReceiptExtraDetails fields={detail.extra} />,
   };
 }

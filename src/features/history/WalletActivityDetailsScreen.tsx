@@ -1,3 +1,4 @@
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import React, { useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -23,6 +24,30 @@ import { useSettingsStore } from '~/state/settingsStore';
 
 const sats = (value: number | null) =>
   value == null ? 'Unavailable' : `${value.toLocaleString()} sats`;
+
+function ActivityActions({ activity }: { activity: WalletActivity }) {
+  return (
+    <PaymentActionsMenu
+      actions={[]}
+      technicalDetails={
+        <ReceiptExtraDetails
+          fields={[
+            { label: 'Activity ID', value: activity.id, copyValue: activity.id },
+            ...(activity.operationId
+              ? [
+                  {
+                    label: 'Operation ID',
+                    value: activity.operationId,
+                    copyValue: activity.operationId,
+                  },
+                ]
+              : []),
+          ]}
+        />
+      }
+    />
+  );
+}
 
 function ActivityContent({
   activity,
@@ -72,7 +97,11 @@ function ActivityContent({
   };
   return (
     <YStack gap="$3" pb="$3">
-      <PaymentFlowHeader title={walletActivityTitle(activity)} navigationAction="close" />
+      <PaymentFlowHeader
+        title={walletActivityTitle(activity)}
+        navigationAction="close"
+        headerRight={() => <ActivityActions activity={activity} />}
+      />
       {needsReview && (
         <Text color="$gray10" accessibilityLiveRegion="polite">
           {activity.kind === 'recovery'
@@ -129,20 +158,7 @@ function ActivityContent({
           fee.
         </Text>
       )}
-      <ReceiptExtraDetails
-        fields={[
-          { label: 'Activity ID', value: activity.id, copyValue: activity.id },
-          ...(activity.operationId
-            ? [
-                {
-                  label: 'Operation ID',
-                  value: activity.operationId,
-                  copyValue: activity.operationId,
-                },
-              ]
-            : []),
-        ]}
-      />
+
       {needsReview && (
         <AppTextButton onPress={navigate}>
           {activity.kind === 'optimize' && !activity.operationId
@@ -210,6 +226,8 @@ function ActivityDetails() {
   );
   return (
     <TransactionReceiptSheet
+      title={query.data ? walletActivityTitle(query.data) : 'Wallet activity'}
+      headerActions={query.data ? <ActivityActions activity={query.data} /> : undefined}
       ready={!query.isLoading}
       active={query.data?.state === 'review' || query.data?.state === 'pending'}
     >

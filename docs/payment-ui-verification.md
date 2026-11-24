@@ -402,6 +402,15 @@ All planned payment layout passes are implemented; native acceptance checks rema
 
 ## Grouped technical details
 
+- Technical details is a header action-menu item, never a receipt-body button or
+  inline disclosure. Check live and saved Lightning, Ecash, on-chain and Transfer
+  receipts, pending invoices/tokens, payment requests and wallet activity. Existing
+  share/delete/refresh actions must remain in the same dropdown. Empty/processing
+  states must not show an unusable details action.
+- Select Technical details, return with Back, then reopen it. Verify Copy and Share
+  retain complete public references, and opening another payment cannot reopen the
+  previous payment's sheet. Check this on Android in full-screen and sheet flows.
+
 - Open technical details from a live Lightning result, newly created ecash, a Cashu
   request payment, and the same saved History entry. All use the shared receipt builder:
   Transaction, Quote, Payment, and Request sections appear only when applicable.

@@ -59,6 +59,7 @@ export interface PendingTokenLayoutProps {
   isCheckingStatus?: boolean;
   menuActions?: PendingPaymentAction[];
   extraDetails?: React.ReactNode;
+  technicalDetails?: React.ReactNode;
 }
 
 export function PendingTokenLayout({
@@ -84,6 +85,7 @@ export function PendingTokenLayout({
   isCheckingStatus = false,
   menuActions = [],
   extraDetails,
+  technicalDetails,
 }: PendingTokenLayoutProps) {
   const fee = savedFee ?? 0;
   const toast = useAppToast();
@@ -325,7 +327,35 @@ export function PendingTokenLayout({
         navigationAction={navigationAction}
         onBack={onClose}
         disabled={busy}
-        headerRight={() => <PaymentActionsMenu actions={actions} busy={busy} />}
+        headerRight={() => (
+          <PaymentActionsMenu
+            actions={actions}
+            busy={busy}
+            technicalDetails={
+              technicalDetails ||
+              (!hideDetails && onClose && (
+                <PaymentTechnicalDetails
+                  entry={{
+                    id: '',
+                    type: onClaim ? 'receive' : 'send',
+                    amount: Number(amount),
+                    unit: 'sat',
+                    mintUrl: mintUrl || '',
+                    operationId,
+                    createdAt: 0,
+                    metadata: savedFee != null ? { fee: savedFee } : undefined,
+                    state:
+                      headerStatus === 'success'
+                        ? 'claimed'
+                        : headerStatus === 'failed'
+                          ? 'failed'
+                          : 'unclaimed',
+                  }}
+                />
+              ))
+            }
+          />
+        )}
       />
       <PaymentStageLayout
         variant="qr"
@@ -354,26 +384,6 @@ export function PendingTokenLayout({
         }
       >
         {!hideDetails && details}
-        {!hideDetails && onClose && (
-          <PaymentTechnicalDetails
-            entry={{
-              id: '',
-              type: onClaim ? 'receive' : 'send',
-              amount: Number(amount),
-              unit: 'sat',
-              mintUrl: mintUrl || '',
-              operationId,
-              createdAt: 0,
-              metadata: savedFee != null ? { fee: savedFee } : undefined,
-              state:
-                headerStatus === 'success'
-                  ? 'claimed'
-                  : headerStatus === 'failed'
-                    ? 'failed'
-                    : 'unclaimed',
-            }}
-          />
-        )}
       </PaymentStageLayout>
       <BUISheet
         ref={detailsSheet}

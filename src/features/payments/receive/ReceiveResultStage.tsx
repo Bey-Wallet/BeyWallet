@@ -1,3 +1,4 @@
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import React from 'react';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
@@ -63,6 +64,7 @@ export function ReceiveResultStage({
   const metadata = receipt ? historyMetadata(receipt) : {};
   const fee = metadata.actualFee ?? metadata.fee;
   const knownFee = typeof fee === 'number' && Number.isSafeInteger(fee) && fee >= 0;
+  const technicalDetails = !processing && receipt && <PaymentTechnicalDetails entry={receipt} />;
   return (
     <>
       <PaymentFlowHeader
@@ -70,6 +72,9 @@ export function ReceiveResultStage({
         navigationAction="close"
         disabled={processing}
         onBack={onClose}
+        headerRight={() => (
+          <PaymentActionsMenu actions={[]} technicalDetails={technicalDetails} busy={processing} />
+        )}
       />
       <PaymentStageLayout
         variant="receipt"
@@ -159,7 +164,6 @@ export function ReceiveResultStage({
               : 'Your balance changes after the mint confirms the claim.'}
           </Text>
         )}
-        {!processing && receipt && <PaymentTechnicalDetails entry={receipt} />}
       </PaymentStageLayout>
     </>
   );

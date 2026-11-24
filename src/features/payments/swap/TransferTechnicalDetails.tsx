@@ -32,10 +32,5 @@ export function TransferTechnicalDetails({ record }: { record: MintTransferRecor
       return { source, destination };
     },
   });
-  return (
-    <ReceiptExtraDetails
-      fields={buildTransferReceiptDetails(record, data).extra}
-      presentation="sheet"
-    />
-  );
+  return <ReceiptExtraDetails fields={buildTransferReceiptDetails(record, data).extra} />;
 }

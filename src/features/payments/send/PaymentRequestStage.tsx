@@ -1,3 +1,4 @@
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { hapticService } from '~/services/platform/hapticService';
 import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
@@ -280,7 +281,30 @@ export function PaymentRequestStage({
         }
         onBack={onCancel}
         disabled={isSending}
-        headerRight={() => null}
+        headerRight={() => (
+          <PaymentActionsMenu
+            actions={[]}
+            busy={isSending}
+            technicalDetails={
+              !isSending &&
+              (receipt || hasOperation) && (
+                <PaymentTechnicalDetails
+                  entry={{
+                    id: '',
+                    type: 'send',
+                    amount: amountSats,
+                    unit: 'sat',
+                    mintUrl: matchedMint || '',
+                    operationId: paymentRef.current?.operationId,
+                    createdAt: 0,
+                    state: 'pending',
+                  }}
+                  snapshot={{ cashuRequest: request.raw }}
+                />
+              )
+            }
+          />
+        )}
       />
       <PaymentStageLayout
         variant={hasOperation ? 'receipt' : 'confirm'}
@@ -493,21 +517,6 @@ export function PaymentRequestStage({
             icon={<ShieldCheck size={16} color={isEnough ? '$green11' : '$red10'} />}
           />
         </ListTable>
-        {!isSending && (receipt || hasOperation) && (
-          <PaymentTechnicalDetails
-            entry={{
-              id: '',
-              type: 'send',
-              amount: amountSats,
-              unit: 'sat',
-              mintUrl: matchedMint || '',
-              operationId: paymentRef.current?.operationId,
-              createdAt: 0,
-              state: 'pending',
-            }}
-            snapshot={{ cashuRequest: request.raw }}
-          />
-        )}
       </PaymentStageLayout>
       <MintSelectorSheet
         ref={sheetRef}

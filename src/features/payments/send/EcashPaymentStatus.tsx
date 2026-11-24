@@ -1,3 +1,4 @@
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import React from 'react';
 import { Text, YStack } from 'tamagui';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -44,6 +45,25 @@ export function EcashPaymentStatus({
   );
   const processing = status === 'processing';
   const knownFee = fee != null && Number.isSafeInteger(fee) && fee >= 0;
+  const technicalDetails = !processing && (
+    <PaymentTechnicalDetails
+      entry={{
+        id: '',
+        type: 'send',
+        amount,
+        unit: 'sat',
+        mintUrl: mintUrl || '',
+        createdAt: time || 0,
+        operationId,
+        state: status === 'success' ? 'claimed' : 'failed',
+        metadata: {
+          ...(status === 'success' && knownFee ? { fee } : {}),
+          recipient,
+          ...(method === 'Nostr' ? { via: 'nostr' } : {}),
+        },
+      }}
+    />
+  );
   return (
     <>
       <PaymentFlowHeader
@@ -51,6 +71,9 @@ export function EcashPaymentStatus({
         navigationAction="close"
         disabled={processing}
         onBack={onClose}
+        headerRight={() => (
+          <PaymentActionsMenu actions={[]} technicalDetails={technicalDetails} busy={processing} />
+        )}
       />
       <PaymentStageLayout
         variant="receipt"
@@ -118,25 +141,6 @@ export function EcashPaymentStatus({
           )}
           {!!error && <ListTableRow label="Details" value={error} multiline expandValue />}
         </ListTable>
-        {!processing && (
-          <PaymentTechnicalDetails
-            entry={{
-              id: '',
-              type: 'send',
-              amount,
-              unit: 'sat',
-              mintUrl: mintUrl || '',
-              createdAt: time || 0,
-              operationId,
-              state: status === 'success' ? 'claimed' : 'failed',
-              metadata: {
-                ...(status === 'success' && knownFee ? { fee } : {}),
-                recipient,
-                ...(method === 'Nostr' ? { via: 'nostr' } : {}),
-              },
-            }}
-          />
-        )}
       </PaymentStageLayout>
     </>
   );

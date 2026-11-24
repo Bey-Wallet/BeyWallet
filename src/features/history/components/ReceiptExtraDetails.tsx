@@ -1,4 +1,5 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useContext, useEffect } from 'react';
+import { TechnicalDetailsMenuContext } from '~/shared/ui/TechnicalDetailsMenuContext';
 import { Text, XStack, YStack } from 'tamagui';
 import { Share } from 'react-native';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -11,19 +12,17 @@ import { useAppToast } from '~/shared/hooks/useAppToast';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { appTypography } from '~/shared/theme/appearance';
 
-export function ReceiptExtraDetails({
-  fields,
-  presentation = 'sheet',
-}: {
-  fields: ReceiptField[];
-  presentation?: 'inline' | 'sheet';
-}) {
-  const [open, setOpen] = useState(false);
+export function ReceiptExtraDetails({ fields }: { fields: ReceiptField[] }) {
+  const menu = useContext(TechnicalDetailsMenuContext);
   const sheet = useRef<BUISheetRef>(null);
   const toast = useAppToast();
   const [sharing, setSharing] = useState(false);
   const shareLock = useRef(false);
-  if (!fields.length) return null;
+  const hasFields = fields.length > 0;
+  useEffect(() => {
+    if (menu?.open && hasFields) sheet.current?.present();
+  }, [menu?.open, hasFields]);
+  if (!hasFields) return null;
   const sections = [...new Set(fields.map((field) => field.section || 'Transaction'))].map(
     (title) => ({
       title,
@@ -62,77 +61,57 @@ export function ReceiptExtraDetails({
   ));
   return (
     <YStack gap="$2">
-      <AppButton
-        variant="default"
-        emphasis="secondary"
-        size="small"
-        fullWidth={false}
-        self="center"
-        onPress={() => {
-          if (presentation === 'sheet') {
-            setOpen(true);
-            sheet.current?.present();
-          } else setOpen(!open);
-        }}
-        accessibilityState={{ expanded: open }}
+      <BUISheet
+        ref={sheet}
+        title="Technical details"
+        navigation="back"
+        onBack={() => sheet.current?.dismiss()}
+        onClose={() => menu?.close()}
       >
-        {presentation === 'sheet' ? 'Technical details' : open ? 'Hide details' : 'Show details'}
-      </AppButton>
-      {presentation === 'sheet' ? (
-        <BUISheet
-          ref={sheet}
-          title="Technical details"
-          navigation="back"
-          onBack={() => sheet.current?.dismiss()}
-          onClose={() => setOpen(false)}
-        >
-          {rows}
-          <XStack gap="$3">
-            <AppButton
-              haptic
-              emphasis="secondary"
-              size="medium"
-              fullWidth={false}
-              flex={1}
-              minWidth={0}
-              icon={<Copy size={18} />}
-              onPress={async () => {
-                if (await copyWithFeedback(exportText, toast))
-                  toast.showFeedback(interactionCopy.copiedToClipboard);
-              }}
-            >
-              Copy
-            </AppButton>
-            <AppButton
-              haptic
-              size="medium"
-              fullWidth={false}
-              flex={1}
-              minWidth={0}
-              emphasis="secondary"
-              icon={<Share2 size={18} />}
-              disabled={sharing}
-              onPress={async () => {
-                if (shareLock.current) return;
-                shareLock.current = true;
-                setSharing(true);
-                try {
-                  await Share.share({ title: 'Payment details', message: exportText });
-                } catch {
-                  toast.showFeedback(interactionCopy.shareFailed);
-                } finally {
-                  shareLock.current = false;
-                  setSharing(false);
-                }
-              }}
-            >
-              Share
-            </AppButton>
-          </XStack>
-        </BUISheet>
-      ) : open ? (
-        rows
-      ) : null}
+        {rows}
+        <XStack gap="$3">
+          <AppButton
+            haptic
+            emphasis="secondary"
+            size="medium"
+            fullWidth={false}
+            flex={1}
+            minWidth={0}
+            icon={<Copy size={18} />}
+            onPress={async () => {
+              if (await copyWithFeedback(exportText, toast))
+                toast.showFeedback(interactionCopy.copiedToClipboard);
+            }}
+          >
+            Copy
+          </AppButton>
+          <AppButton
+            haptic
+            size="medium"
+            fullWidth={false}
+            flex={1}
+            minWidth={0}
+            emphasis="secondary"
+            icon={<Share2 size={18} />}
+            disabled={sharing}
+            onPress={async () => {
+              if (shareLock.current) return;
+              shareLock.current = true;
+              setSharing(true);
+              try {
+                await Share.share({ title: 'Payment details', message: exportText });
+              } catch {
+                toast.showFeedback(interactionCopy.shareFailed);
+              } finally {
+                shareLock.current = false;
+                setSharing(false);
+              }
+            }}
+          >
+            Share
+          </AppButton>
+        </XStack>
+      </BUISheet>
     </YStack>
   );
 }

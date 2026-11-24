@@ -102,6 +102,7 @@ export function PendingOnchainLayout({
         headerRight={() => (
           <PaymentActionsMenu
             busy={busy}
+            technicalDetails={technicalDetails}
             actions={[
               {
                 id: 'refresh',
@@ -224,7 +225,6 @@ export function PendingOnchainLayout({
           />
           {transactionDetails}
         </ListTable>
-        {technicalDetails}
       </PaymentStageLayout>
       {receipt && (
         <ReceiptImageShare

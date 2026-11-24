@@ -11,5 +11,5 @@ export function PaymentTechnicalDetails({
   snapshot?: ReceiptSnapshot;
 }) {
   const detail = usePaymentTechnicalDetails(entry, snapshot);
-  return <ReceiptExtraDetails fields={detail.extra} presentation="sheet" />;
+  return <ReceiptExtraDetails fields={detail.extra} />;
 }
