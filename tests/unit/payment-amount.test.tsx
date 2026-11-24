@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { PaymentAmount, paymentAmounts } from '~/shared/ui/PaymentAmount';
+import { getAmountLetterSpacing } from '~/shared/theme/appearance';
 
 const mockSettings = {
   primaryCurrency: 'SATS',
@@ -33,10 +34,10 @@ beforeEach(() => {
 });
 
 it.each([
-  ['standard', false, 29, 13],
-  ['standard', true, 29, 13],
-  ['prominent', false, 40, 14],
-  ['prominent', true, 40, 14],
+  ['standard', false, 44, 13],
+  ['standard', true, 44, 13],
+  ['prominent', false, 44, 14],
+  ['prominent', true, 44, 14],
 ] as const)(
   'uses %s amount sizing independently of compact=%s',
   async (size, compact, primary, secondary) => {
@@ -48,7 +49,8 @@ it.each([
     });
     expect(tree.root.findByProps({ testID: 'amount-primary-amount' }).props).toMatchObject({
       fontSize: primary,
-      fontWeight: '600',
+      fontWeight: '500',
+      letterSpacing: getAmountLetterSpacing(primary),
       fontFamily: '$display',
       color: '$color',
       numberOfLines: 1,

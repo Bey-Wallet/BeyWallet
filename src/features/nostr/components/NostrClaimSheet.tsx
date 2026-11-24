@@ -1,4 +1,5 @@
 import { RemoteImage } from '~/shared/ui/RemoteImage';
+import { appTypography } from '~/shared/theme/appearance';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, DeviceEventEmitter } from 'react-native';
@@ -199,7 +200,13 @@ export function NostrClaimSheet() {
         <YStack gap="$4" items="center">
           {claimStatus === 'success' ? (
             <>
-              <Text fontFamily="$display" fontSize={40} fontWeight="600" color="$color">
+              <Text
+                {...appTypography.display}
+                color="$color"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                maxWidth="100%"
+              >
                 {primaryAmount}
               </Text>
               {secondaryAmount && <Text color="$gray10">{secondaryAmount}</Text>}
@@ -257,7 +264,13 @@ export function NostrClaimSheet() {
                   </Text>
                   {senderProfile?.nip05Verified === true && <Nip05VerifiedBadge />}
                 </XStack>
-                <Text fontFamily="$display" fontSize={29} fontWeight="600" color="$color">
+                <Text
+                  {...appTypography.amount}
+                  color="$color"
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  maxWidth="100%"
+                >
                   {primaryAmount}
                 </Text>
                 {secondaryAmount && <Text color="$gray10">{secondaryAmount}</Text>}

@@ -8,7 +8,7 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import { Text, type TextProps } from 'tamagui';
-import { appTypography } from '~/shared/theme/appearance';
+import { getAmountLetterSpacing } from '~/shared/theme/appearance';
 
 interface RollingDigitProps {
   digit: string | number;
@@ -140,6 +140,8 @@ export interface RollingNumberProps {
   trigger?: any;
   prefix?: string;
   suffix?: string;
+  /** Optional layout gap around currency affixes; numeric tracking stays unchanged. */
+  affixGap?: number;
   decimalOpacity?: number;
   precision?: number;
   showDecimals?: boolean;
@@ -150,7 +152,7 @@ export const RollingNumber = ({
   children,
   fontSize = 40,
   color = 'black',
-  fontWeight = '400',
+  fontWeight = '500',
   fontFamily,
   style,
   letterSpacing,
@@ -158,6 +160,7 @@ export const RollingNumber = ({
   trigger,
   prefix = '',
   suffix = '',
+  affixGap,
   decimalOpacity = 1,
   precision = 2,
   showDecimals = true,
@@ -180,18 +183,22 @@ export const RollingNumber = ({
 
   const hasSatsSuffix = suffix.trim() === 'sat';
   const valueStr = prefix + formattedValue + (hasSatsSuffix ? '' : suffix);
+  const affixes = affixGap === undefined ? null : valueStr.match(/^(\D*)([\s\S]*\d)(\D*)$/);
+  const leadingAffix = affixes?.[1].trim();
+  const trailingAffix = affixes?.[3].trim();
+  const numberText = affixes ? affixes[2] : valueStr;
   const itemHeight = Math.round(lineHeight || fontSize * 1.1);
   const resolvedFamily = fontFamily ?? (fontSize >= 25 ? '$display' : '$body');
   // Glyphs occupy separate cells. Allow the measured compact balance tracking,
   // scaled to this size, but prevent older aggressive margins from merging cells.
-  const displaySpacing =
-    appTypography.display.letterSpacing * (fontSize / appTypography.display.fontSize);
+  const displaySpacing = getAmountLetterSpacing(fontSize);
   // Preserve the compact Home override while measuring cells with the current font.
-  const minimumSpacing = Math.min(displaySpacing, -2.5 * (fontSize / 44));
+  const minimumSpacing = displaySpacing;
   const defaultSpacing =
     fontSize >= 25
       ? displaySpacing
-      : appTypography.amountSmall.letterSpacing * (fontSize / appTypography.amountSmall.fontSize);
+      : // Preserve small inline balances, including Home's connected-mint rows.
+        -0.55 * (fontSize / 25);
   const characterSpacing = Math.max(minimumSpacing, letterSpacing ?? defaultSpacing);
 
   // Track if we've passed the decimal point
@@ -199,7 +206,23 @@ export const RollingNumber = ({
 
   return (
     <View style={[{ flexDirection: 'row', alignItems: 'baseline' }, style]} key={trigger}>
-      {valueStr.split('').map((char, index) => {
+      {!!leadingAffix && (
+        <Text
+          testID="rolling-leading-affix"
+          color={color}
+          fontWeight={fontWeight}
+          fontFamily={resolvedFamily}
+          fontSize={fontSize}
+          lineHeight={itemHeight}
+          letterSpacing={characterSpacing}
+          style={{ marginRight: affixGap }}
+        >
+          {leadingAffix}
+        </Text>
+      )}
+      {numberText.split('').map((char, index) => {
+        const spacing =
+          affixGap !== undefined && index === numberText.length - 1 ? 0 : characterSpacing;
         if (char === '.' || char === ',') {
           // Check if this comma is a decimal separator (some locales use , for decimal)
           // But usually in English formatting it's a dot.
@@ -220,7 +243,7 @@ export const RollingNumber = ({
               fontWeight={fontWeight}
               fontFamily={resolvedFamily}
               fontSize={fontSize}
-              letterSpacing={characterSpacing}
+              letterSpacing={spacing}
             />
           );
         } else {
@@ -231,7 +254,7 @@ export const RollingNumber = ({
                 height: itemHeight,
                 justifyContent: 'center',
                 alignItems: 'center',
-                marginRight: characterSpacing,
+                marginRight: spacing,
               }}
             >
               <Text
@@ -249,6 +272,20 @@ export const RollingNumber = ({
           );
         }
       })}
+      {!!trailingAffix && (
+        <Text
+          testID="rolling-trailing-affix"
+          color={color}
+          fontWeight={fontWeight}
+          fontFamily={resolvedFamily}
+          fontSize={fontSize}
+          lineHeight={itemHeight}
+          letterSpacing={characterSpacing}
+          style={{ marginLeft: affixGap }}
+        >
+          {trailingAffix}
+        </Text>
+      )}
       {hasSatsSuffix && (
         <Text
           color={color}

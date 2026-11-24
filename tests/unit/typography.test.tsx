@@ -1,4 +1,5 @@
 import React from 'react';
+import { appTypography } from '~/shared/theme/appearance';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { StyleSheet } from 'react-native';
 import {
@@ -70,10 +71,10 @@ it.each(['light', 'dark'] as const)(
       expect(styles('named-display')).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            fontFamily: 'TikTokSansSemiBold',
-            fontSize: 40,
-            lineHeight: 50,
-            letterSpacing: -0.9,
+            fontFamily: 'TikTokSansMedium',
+            fontSize: 44,
+            lineHeight: 56,
+            letterSpacing: appTypography.display.letterSpacing,
           }),
         ]),
       );

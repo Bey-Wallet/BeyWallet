@@ -1,5 +1,11 @@
 # Rounded 10% typography reduction
 
+Current amount override: main balances, confirmations, results and standard amount
+entry now use 44-point Medium with -2.8 tracking. Larger POS entry and receipt-image
+amounts keep their sizes, with scaled tracking. The historical size inventory below
+describes the original reduction; [fonts.md](fonts.md) and `appearance.ts` define the
+current numeric styles. Do not reapply the reduction to these amounts.
+
 Current source audit: **3 November 2026**. Baseline: committed typography at `0f2b5af` (also present at navigation commit `fadc647`). No commit or push.
 
 Every font size and explicit line height is reduced once using **Math.round(original × 0.9)**. This replaces the cancelled Material, compact-list and Uniswap experiments. No runtime percentage is applied on top of the new values.

@@ -101,8 +101,9 @@ Tracking is tuned by role as documented in [fonts](fonts.md). Common text sizes
 use the committed baseline reduced by 10%, with font sizes and line heights rounded to whole
 points using `Math.round(original * 0.9)`. Captions are 9 points; body and labels use 11/13/14;
 headings use 18/22/29; amount summaries use 29/25. Home balances and prominent payment amounts
-use 44 and 40 points respectively. Standard payment amounts use 29-point primary text and 13-point secondary conversions;
-prominent amounts use 40-point primary text and 14-point secondary conversions.
+use 44 points. Standard and prominent payment amounts use 44-point Medium primary text,
+with 13-point and 14-point secondary conversions respectively. Large numeric tracking
+matches Home through `getAmountLetterSpacing`; the explicit currency-symbol gap remains Home-only.
 Explicit screen text, keypads, POS, responsive amount entry and receipt-image text follow the same
 reduction. Role-specific tracking, font weights, icons, padding, control heights and system
 accessibility scaling retain Bey's conventions. This is one reduction from the committed baseline,
@@ -137,8 +138,8 @@ Each tab retains a minimum 48-point touch target. Existing button sizes and thei
 are preserved. Settings separators remain full width and 2 points thick.
 
 TikTok Sans is used for UI copy, large text, balances and primary amounts.
-Home balances use a 44-point display treatment; editable amounts use responsive 40/29/25/22/18-point
-steps, including POS. See the [complete typography screen audit](typography-10-percent.md) for
+Home balances and main amount displays use a 44-point Medium treatment; editable amounts
+shrink to fit long values. POS retains its larger 72-point entry amount. See the [complete typography screen audit](typography-10-percent.md) for
 every route, feature component, shared surface and the remaining device checks.
 Payment amounts use `PaymentAmount` with `size="standard"` or `size="prominent"`;
 `compact` controls spacing only. Primary amounts use `$color` and secondary amounts use `$gray10`.

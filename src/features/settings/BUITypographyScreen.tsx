@@ -118,7 +118,7 @@ export function BUITypographyScreen() {
         <>
           <BUISection
             name="Number styles"
-            measurement="num1 32 Medium; num2 28 Medium; default tracking. All font roles use proportional digits and the unslashed zero."
+            measurement="num1 44 Medium, matching Home; num2 28 Medium. Numeric tracking scales from −2.8 at 44 points. All font roles use tabular digits and the unslashed zero."
           >
             <YStack px={16} gap={12}>
               {['0.00', '1,111.11', '8,888.88', '12,345,678.90'].map((value) => (

@@ -183,7 +183,7 @@ export default function BitcoinPriceCard() {
                 {showSats ? (
                   <Text
                     fontSize={22}
-                    fontWeight={800}
+                    fontWeight={500}
                     letterSpacing={
                       appTypography.amountSmall.letterSpacing *
                       (22 / appTypography.amountSmall.fontSize)
@@ -197,7 +197,7 @@ export default function BitcoinPriceCard() {
                   <RollingNumber
                     showDecimals={false}
                     fontSize={22}
-                    fontWeight={800}
+                    fontWeight={500}
                     letterSpacing={
                       appTypography.amountSmall.letterSpacing *
                       (22 / appTypography.amountSmall.fontSize)

@@ -12,7 +12,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { shareReceiptImage } from '~/services/platform/receiptImageService';
 import type { ShareableReceipt } from '../shareableReceipt';
-import { appColors } from '~/shared/theme/appearance';
+import { appColors, getAmountLetterSpacing } from '~/shared/theme/appearance';
 import BeyIcon from '~/shared/icons/BeyIcon';
 import { canRenderStaticTokenQr } from '~/shared/utils/tokenQr';
 
@@ -76,6 +76,8 @@ export function ReceiptImageShare({
     if (preview) sheet.current?.present();
   }, [preview]);
   const pending = preview?.status === 'Pending';
+  const primaryAmountSize =
+    (preview?.amount.length ?? 0) > 16 ? 48 : (preview?.amount.length ?? 0) > 11 ? 64 : 80;
   const ecashImage = !!preview?.ecashQr;
   const qrValue = preview?.ecashQr || preview?.qr;
   const detailsOffset = ecashImage ? 340 : preview?.qr ? 400 : 0;
@@ -201,8 +203,9 @@ export function ReceiptImageShare({
                 testID="receipt-primary-amount"
                 x={48}
                 y={244 + detailsOffset}
-                fontSize={preview.amount.length > 16 ? 48 : preview.amount.length > 11 ? 64 : 80}
-                fontFamily="TikTokSansSemiBold"
+                fontSize={primaryAmountSize}
+                fontFamily="TikTokSansMedium"
+                letterSpacing={getAmountLetterSpacing(primaryAmountSize)}
                 fill={colors.icon}
               >
                 {preview.amount}

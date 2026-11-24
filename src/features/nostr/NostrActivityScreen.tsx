@@ -428,10 +428,13 @@ export default function NostrActivityModal() {
                     <>
                       <Text
                         fontFamily="$display"
-                        fontSize={29}
-                        fontWeight="900"
+                        fontSize={appTypography.amount.fontSize}
+                        fontWeight="500"
                         color={detailItem.type === 'sent' ? '$red10' : '$color1'}
                         letterSpacing={appTypography.amount.letterSpacing}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        maxWidth="100%"
                       >
                         {detailItem.type === 'sent' ? '−' : '+'}
                         {showBitcoinSymbol ? '₿' : ''}
@@ -457,10 +460,13 @@ export default function NostrActivityModal() {
                     <>
                       <Text
                         fontFamily="$display"
-                        fontSize={29}
-                        fontWeight="900"
+                        fontSize={appTypography.amount.fontSize}
+                        fontWeight="500"
                         color={detailItem.type === 'sent' ? '$red10' : '$color1'}
                         letterSpacing={appTypography.amount.letterSpacing}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        maxWidth="100%"
                       >
                         {detailItem.type === 'sent' ? '−' : '+'}
                         {fiatValue || '—'}

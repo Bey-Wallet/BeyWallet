@@ -9,12 +9,17 @@ import { currencyService, CurrencyCode } from '~/services/wallet/currencyService
 import { useQuery } from '@tanstack/react-query';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { hapticService } from '~/services/platform/hapticService';
-import { appRadii, appSpacing, appTypography } from '~/shared/theme/appearance';
+import {
+  appRadii,
+  appSpacing,
+  appTypography,
+  getAmountLetterSpacing,
+} from '~/shared/theme/appearance';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';
 
 const balanceFontSize = 44;
-const balanceLetterSpacing = -2.5;
+const balanceLetterSpacing = getAmountLetterSpacing(balanceFontSize);
 
 export default function Balance() {
   const theme = useTheme();
@@ -147,7 +152,8 @@ export default function Balance() {
             trigger={`${hideBalance ? 'hidden' : 'visible_sats'}_${showBitcoinSymbol}`}
 
             fontSize={balanceFontSize}
-            fontWeight={600}
+            fontWeight={500}
+            affixGap={hideBalance ? undefined : 6}
             letterSpacing={balanceLetterSpacing}
             color="$accent1"
 
@@ -173,7 +179,8 @@ export default function Balance() {
             trigger={hideBalance ? 'hidden' : 'visible_fiat'}
 
             fontSize={balanceFontSize}
-            fontWeight={600}
+            fontWeight={500}
+            affixGap={hideBalance ? undefined : 6}
             letterSpacing={balanceLetterSpacing}
             color="$accent1"
 

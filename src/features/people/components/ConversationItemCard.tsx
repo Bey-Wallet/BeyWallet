@@ -86,6 +86,8 @@ export function ConversationPaymentCard({
           color={foreground}
           textAlign={alignment}
           maxWidth="100%"
+          numberOfLines={primaryAmount ? 1 : undefined}
+          adjustsFontSizeToFit={!!primaryAmount}
         >
           {primaryAmount ?? (item.paymentInput ? 'Review payment' : 'Amount unavailable')}
         </Text>

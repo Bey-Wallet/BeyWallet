@@ -24,18 +24,30 @@ font's defaults, including the normal unslashed zero. No outlines are redrawn.
 Rolling digits measure their actual glyph widths and retain bounded negative
 margins. Sizes, line heights, system scaling and control geometry stay unchanged.
 
-| Role                              | Tracking in points  |
-| --------------------------------- | ------------------- |
-| Display (40 pt)                   | -0.9                |
-| Home balance (44 pt)              | -2.5                |
-| Amounts (29 / 25 pt)              | -0.65 / -0.55       |
-| Headings (29 / 22 / 18 pt)        | -0.45 / -0.3 / -0.2 |
-| Labels and body (14 / 13 / 11 pt) | -0.1 / -0.05 / 0    |
-| Captions                          | 0                   |
-| Copyable technical text           | 0.5                 |
+| Role                               | Tracking in points  |
+| ---------------------------------- | ------------------- |
+| Display amounts (44 pt)            | -2.8                |
+| Home balance (44 pt)               | -2.8                |
+| Primary amounts (44 pt)            | -2.8                |
+| Secondary amount summaries (25 pt) | ≈ -1.59             |
+| Headings (29 / 22 / 18 pt)         | -0.45 / -0.3 / -0.2 |
+| Labels and body (14 / 13 / 11 pt)  | -0.1 / -0.05 / 0    |
+| Captions                           | 0                   |
+| Copyable technical text            | 0.5                 |
 
-Amount-entry tracking scales from the display role. Unspecified rolling-number
-tracking inherits its numeric role; explicit zero remains supported.
+Main balances and amounts use 44-point Medium (500), matching Home, including
+confirmations, results, standard inputs, mint balances, Nostr claims and NFC.
+Larger POS inputs and receipt-image amounts retain their larger sizes. Tracking uses
+`getAmountLetterSpacing(size)`: exactly `-2.8 * size / 44` (table values are rounded).
+Small inline rolling balances retain their previous tracking, and explicit zero
+remains supported. Headings, list values and button labels are unchanged.
+
+Home's primary balance uses 44-point Medium (500). Currency symbols/codes are
+separate text elements with a 6-point gap from the digits, preserving prefix or
+suffix placement. The numeric tracking is -2.8; the secondary balance and
+privacy placeholder keep their existing layout.
+The 6-point affix gap is Home-only; other amount displays keep their current
+currency formatting and spacing around symbols.
 
 ## Source, license and preparation
 

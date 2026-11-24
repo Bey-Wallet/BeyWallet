@@ -5,6 +5,7 @@ import { AppButton, type AppButtonIcon } from '~/shared/ui/AppButton';
 import React, { useCallback, useMemo } from 'react';
 import { YStack, XStack, Text, View } from 'tamagui';
 import { Delete } from '~/shared/icons';
+import { appTypography } from '~/shared/theme/appearance';
 
 interface NumericKeypadProps {
   appearance?: 'default' | 'pos';
@@ -146,7 +147,13 @@ export function NumericKeypad({
       {showAmountDisplay && (
         <YStack items="center" py="$6" gap="$1">
           <XStack items="baseline" gap="$2">
-            <Text fontFamily="$display" fontSize={40} fontWeight="600" color={amountColor}>
+            <Text
+              {...appTypography.display}
+              color={amountColor}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              flexShrink={1}
+            >
               {value}
             </Text>
             <Text fontSize={14} fontWeight="500" color="$gray10" mb="$2">

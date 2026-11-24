@@ -49,15 +49,18 @@ import { AppText } from '~/shared/ui/AppText';
 ```
 
 The default is `body2` (13/18, Regular). Font sizes and line heights use the committed baseline
-multiplied by 0.9 and rounded to whole points: Home display 40, amounts 29 and 25,
-headings 29/22/18, body and labels 14/13/11, and captions 9. Tracking and weights remain unchanged. Geometry,
+multiplied by 0.9 and rounded to whole points for headings 29/22/18, body and labels
+14/13/11, and captions 9. Main balances and payment amounts now match Home at
+44-point Medium, with -2.8 tracking. Secondary amount summaries retain 25 points.
+Larger POS inputs and receipt images keep their sizes with proportionally scaled
+numeric tracking. The explicit currency-affix gap is Home-only. Geometry,
 icon sizes and system accessibility scaling are unchanged. `variant` accepts every `appTypography` role. `tone`
 accepts primary, secondary, success, warning, or error; default primary. Existing Tamagui text
 props and refs are forwarded, with explicit overrides applied after the role defaults.
 
 TikTok Sans remains the UI family; TikTok Sans remains the large-title/amount family. The three
 prepared static faces and existing Tamagui face mappings resolve 400/500/600 without new font
-downloads. Larger/lighter weight requests retain their established mappings. Proportional numerals,
+downloads. Larger/lighter weight requests retain their established mappings. Tabular numerals,
 the prepared font features, and system font scaling remain enabled. Do not cap text scaling as a
 substitute for wrapping labels or growing a row.
 

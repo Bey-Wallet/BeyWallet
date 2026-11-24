@@ -148,28 +148,31 @@ export const appMotion = {
   },
 } as const;
 
+/** Match Home's -2.8 tracking at 44 points, proportionally across large amounts. */
+export const getAmountLetterSpacing = (fontSize: number) => -2.8 * (fontSize / 44);
+
 /** Committed typography reduced by 10%, rounded to whole points; control/icon geometry is unchanged. */
 export const appTypography = {
   display: {
     fontFamily: '$display',
-    fontSize: 40,
-    lineHeight: 50,
-    fontWeight: '600',
-    letterSpacing: -0.9,
+    fontSize: 44,
+    lineHeight: 56,
+    fontWeight: '500',
+    letterSpacing: getAmountLetterSpacing(44),
   },
   amount: {
     fontFamily: '$display',
-    fontSize: 29,
-    lineHeight: 36,
-    fontWeight: '600',
-    letterSpacing: -0.65,
+    fontSize: 44,
+    lineHeight: 56,
+    fontWeight: '500',
+    letterSpacing: getAmountLetterSpacing(44),
   },
   amountSmall: {
     fontFamily: '$display',
     fontSize: 25,
     lineHeight: 32,
-    fontWeight: '600',
-    letterSpacing: -0.55,
+    fontWeight: '500',
+    letterSpacing: getAmountLetterSpacing(25),
   },
   title1: {
     fontFamily: '$display',
