@@ -146,6 +146,7 @@ export default function Balance() {
       >
         {displayAsSats ? (
           <RollingNumber
+            animateChanges={!reducedMotion}
             value={hideBalance ? '****' : currentBalance}
             prefix={hideBalance ? '' : showBitcoinSymbol ? '₿' : ''}
             suffix={hideBalance ? '' : showBitcoinSymbol ? '' : ' sat'}
@@ -175,8 +176,9 @@ export default function Balance() {
           />
         ) : (
           <RollingNumber
+            animateChanges={!reducedMotion}
             value={hideBalance ? '****' : (secondaryBalance ?? undefined)}
-            trigger={hideBalance ? 'hidden' : 'visible_fiat'}
+            trigger={hideBalance ? 'hidden' : `visible_fiat_${secondaryCurrency}`}
 
             fontSize={balanceFontSize}
             fontWeight={500}
@@ -236,6 +238,7 @@ export default function Balance() {
             opacity={hideBalance ? 0.5 : 1}
           >
             <RollingNumber
+              animateChanges={!reducedMotion}
               value={
                 hideBalance
                   ? '****'
@@ -249,7 +252,7 @@ export default function Balance() {
                 (hideBalance
                   ? '_hidden'
                   : displayAsSats
-                    ? '_visible_fiat_sub'
+                    ? `_visible_fiat_sub_${secondaryCurrency}`
                     : '_visible_sats_sub') + `_${showBitcoinSymbol}`
               }
               fontSize={appTypography.body1.fontSize}

@@ -1,16 +1,46 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { StyleSheet } from 'react-native';
+import { withTiming } from 'react-native-reanimated';
 import { RollingNumber } from '~/shared/ui/RollingNumber';
 
 jest.mock('tamagui', () => ({ Text: 'Text' }));
-jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
+jest.mock('react-native-reanimated', () => {
+  const mock = require('react-native-reanimated/mock');
+  return {
+    ...mock,
+    withTiming: jest.fn(mock.withTiming),
+    useSharedValue: (value: number) => require('react').useRef({ value }).current,
+  };
+});
 
 let tree: ReactTestRenderer;
 const measures = () => tree.root.findAllByProps({ testID: 'rolling-digit-measure' });
 const width = (index: number) => StyleSheet.flatten(measures()[index].parent!.props.style).width;
 afterEach(async () => {
   await act(async () => tree?.unmount());
+  jest.mocked(withTiming).mockClear();
+});
+
+it('shows the initial value immediately and only slides changed digits for 240 ms', async () => {
+  await act(async () => {
+    tree = create(<RollingNumber value="12,340" animateChanges trigger="sats" />);
+  });
+  expect(withTiming).not.toHaveBeenCalled();
+  await act(async () =>
+    tree.update(<RollingNumber value="12,345" animateChanges trigger="sats" />),
+  );
+  expect(withTiming).toHaveBeenCalledTimes(1);
+  expect(withTiming).toHaveBeenCalledWith(0, expect.objectContaining({ duration: 240 }));
+  await act(async () =>
+    tree.update(<RollingNumber value="12,345" animateChanges trigger="sats" />),
+  );
+  expect(withTiming).toHaveBeenCalledTimes(1);
+  await act(async () => tree.update(<RollingNumber value="12.35" animateChanges trigger="fiat" />));
+  await act(async () =>
+    tree.update(<RollingNumber value="12.36" animateChanges={false} trigger="fiat" />),
+  );
+  expect(withTiming).toHaveBeenCalledTimes(1);
 });
 
 it('uses each displayed numeral width instead of the widest numeral for every column', async () => {
