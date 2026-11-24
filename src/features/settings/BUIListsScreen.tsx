@@ -485,7 +485,7 @@ export function BUIListsScreen() {
             </BUIListGroup>
           </BUISection>
           <BUIDescriptionRow>
-            These are BUI preview dimensions. Inter, Phosphor and native text layout differ from the
+            These are BUI preview dimensions. TikTok Sans, Phosphor and native text layout differ from the
             source; native ripple, island press-scale and animated shimmer are not reproduced.
           </BUIDescriptionRow>
         </>

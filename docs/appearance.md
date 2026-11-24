@@ -95,8 +95,8 @@ in idle, hover, and pressed states without an underline. `AppTextButton` is a co
 around that same Text implementation and accepts a custom foreground color. Sizes, icon placement,
 loading, disabled state, and native link semantics remain supported. Switch variants retain their API.
 
-Inter at optical size 14 uses 400/500/600, tabular figures, disambiguation without
-zero alternates, and normal punctuation. See [fonts](fonts.md) for registration and tracking.
+TikTok Sans uses its 16pt optical cut at 400/500/600 with tabular
+figures and default character forms. See [fonts](fonts.md) for registration and tracking.
 Tracking is tuned by role as documented in [fonts](fonts.md). Common text sizes
 use the committed baseline reduced by 10%, with font sizes and line heights rounded to whole
 points using `Math.round(original * 0.9)`. Captions are 9 points; body and labels use 11/13/14;
@@ -136,7 +136,7 @@ points high, with 24-point icons and the standard top padding, plus the device's
 Each tab retains a minimum 48-point touch target. Existing button sizes and their touch targets
 are preserved. Settings separators remain full width and 2 points thick.
 
-Inter is used for UI copy, large text, balances and primary amounts.
+TikTok Sans is used for UI copy, large text, balances and primary amounts.
 Home balances use a 44-point display treatment; editable amounts use responsive 40/29/25/22/18-point
 steps, including POS. See the [complete typography screen audit](typography-10-percent.md) for
 every route, feature component, shared surface and the remaining device checks.

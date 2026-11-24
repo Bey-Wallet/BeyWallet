@@ -77,7 +77,7 @@ export const ConversationMessageActions = forwardRef<
                 onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
                 style={{
                   color: String(theme.color.val),
-                  fontFamily: 'InterRegular',
+                  fontFamily: 'TikTokSansRegular',
                   fontSize: 14,
                   lineHeight: 21,
                   minHeight: 48,

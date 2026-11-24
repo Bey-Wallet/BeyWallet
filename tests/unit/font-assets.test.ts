@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import manifest from '../../src/assets/fonts/inter-manifest.json';
+import tiktokManifest from '../../src/assets/fonts/tiktok-sans-manifest.json';
 
 function tableOffset(font: Buffer, tag: string) {
   for (let i = 0; i < font.readUInt16BE(4); i++) {
@@ -105,57 +105,39 @@ function substitute(font: Buffer, glyph: number, indexes: number[]) {
   return glyph;
 }
 
-it.each(Object.entries(manifest.fonts))(
-  'prepares %s with the approved optical cut and feature defaults',
-  (filename, expected) => {
-    const font = readFileSync(path.join('src/assets/fonts', filename));
-    expect(createHash('sha256').update(font).digest('hex')).toBe(expected.sha256);
-    expect(font.readUInt16BE(tableOffset(font, 'OS/2') + 4)).toBe(expected.weight);
-    expect(manifest.opticalSize).toBe(14);
-    for (const symbol of '$€£¥₿₹₽₩₺₦฿₱₫złKč')
-      expect(glyphIndex(font, symbol.codePointAt(0)!)).toBeGreaterThan(0);
-    const selected = features(font);
-    const enabled = ['ss02', 'tnum', 'cv02', 'cv03', 'cv04', 'cv09'].flatMap((tag) =>
-      selected.get(tag)!,
-    );
-    expect(selected.get('ccmp')).toEqual(expected.defaultLookups);
-    expect(selected.get('ccmp')).toEqual(expect.arrayContaining(enabled));
-    for (const tag of ['zero', 'cv01', 'ss07'])
-      for (const index of selected.get(tag)!) expect(selected.get('ccmp')).not.toContain(index);
-    const original = (char: string) => glyphIndex(font, char.codePointAt(0)!);
-    const apply = (char: string) => substitute(font, original(char), enabled);
-    for (const char of 'Il') expect(apply(char)).not.toBe(original(char));
-    const tabular = (char: string) => substitute(font, original(char), selected.get('tnum')!);
-    for (const char of '01!?.,:;') expect(apply(char)).toBe(tabular(char));
-    for (const char of '3469') expect(apply(char)).not.toBe(tabular(char));
-    const hmtx = tableOffset(font, 'hmtx');
-    const metrics = font.readUInt16BE(tableOffset(font, 'hhea') + 34);
-    expect(manifest.numeralMode).toBe('tabular');
-    expect(new Set(expected.digitAdvances).size).toBe(1);
-    for (const [index, char] of [...'0123456789'].entries()) {
-      const glyph = apply(char);
-      expect(font.readUInt16BE(hmtx + Math.min(glyph, metrics - 1) * 4)).toBe(
-        expected.digitAdvances[index],
-      );
-      expect(substitute(font, glyph, enabled)).toBe(glyph);
-    }
-  },
-);
-
-it('bundles and registers exactly the three Inter faces with their license', () => {
-  const filenames = Object.keys(manifest.fonts).sort();
+it('registers only TikTok Sans faces and retains their license', () => {
   expect(
     readdirSync('src/assets/fonts')
       .filter((name) => /\.(ttf|otf)$/.test(name))
       .sort(),
-  ).toEqual(filenames);
+  ).toEqual(Object.keys(tiktokManifest.fonts).sort());
+  expect(tiktokManifest.opticalSize).toBe(16);
   const app = JSON.parse(readFileSync('app.json', 'utf8'));
   const embedded = app.expo.plugins.find((plugin: unknown[]) => plugin[0] === 'expo-font')[1].fonts;
-  expect(embedded.map((name: string) => path.basename(name)).sort()).toEqual(filenames);
+  expect(embedded.map((name: string) => path.basename(name)).sort()).toEqual(
+    Object.keys(tiktokManifest.fonts).sort(),
+  );
   const runtime = readFileSync('src/shared/layout/RootLayout.tsx', 'utf8');
-  for (const [filename, expected] of Object.entries(manifest.fonts))
+  for (const [filename, expected] of Object.entries(tiktokManifest.fonts)) {
     expect(runtime).toContain(`${expected.runtimeFamily}: require('~/assets/fonts/${filename}')`);
-  const license = readFileSync('src/assets/fonts/Inter-OFL.txt');
-  expect(createHash('sha256').update(license).digest('hex')).toBe(manifest.licenseSha256);
-  expect(license.toString()).toContain('The Inter Project Authors');
+    const font = readFileSync(path.join('src/assets/fonts', filename));
+    expect(createHash('sha256').update(font).digest('hex')).toBe(expected.sha256);
+    expect(font.readUInt16BE(tableOffset(font, 'OS/2') + 4)).toBe(expected.weight);
+    for (const symbol of '$€£¥₿₹₽₩₺₦฿₱₫złKč')
+      expect(glyphIndex(font, symbol.codePointAt(0)!)).toBeGreaterThan(0);
+    const selected = features(font);
+    expect(selected.get('ccmp')).toEqual(expected.defaultLookups);
+    expect(selected.get('ccmp')).toEqual(expect.arrayContaining(selected.get('tnum')!));
+    const hmtx = tableOffset(font, 'hmtx');
+    const metrics = font.readUInt16BE(tableOffset(font, 'hhea') + 34);
+    const widths = [...'0123456789'].map((char) => {
+      const glyph = substitute(font, glyphIndex(font, char.codePointAt(0)!), selected.get('tnum')!);
+      return font.readUInt16BE(hmtx + Math.min(glyph, metrics - 1) * 4);
+    });
+    expect(widths).toEqual(expected.digitAdvances);
+    expect(new Set(widths).size).toBe(1);
+  }
+  const license = readFileSync('src/assets/fonts/TikTokSans-OFL.txt');
+  expect(createHash('sha256').update(license).digest('hex')).toBe(tiktokManifest.licenseSha256);
+  expect(license.toString()).toContain('SIL OPEN FONT LICENSE');
 });

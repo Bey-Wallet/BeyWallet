@@ -11,7 +11,7 @@ requested AGPL change and supersedes the earlier deferred GPL-3.0-or-later propo
 - `package.json`, the README badge and license section, CONTRIBUTING, and the font documentation
   use the same `AGPL-3.0-only` identifier.
 - The README retains `Copyright 2026 Bey Wallet`.
-- Third-party dependency notices, dependency patches, and the Inter font's SIL Open Font
+- Third-party dependency notices, dependency patches, and the TikTok Sans font's SIL Open Font
   License remain unchanged. Earlier release files are not rewritten.
 
 The exact identifier is documented by [SPDX](https://spdx.org/licenses/AGPL-3.0-only.html).

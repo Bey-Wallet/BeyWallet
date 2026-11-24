@@ -59,9 +59,13 @@ it('defaults to compact proportional cells and bounds overly tight spacing', asy
   });
   expect(margin()).toBeCloseTo(-1.4);
   await act(async () => {
+    tree.update(<RollingNumber value="18" fontSize={44} letterSpacing={-2.5} />);
+  });
+  expect(margin()).toBeCloseTo(-2.5);
+  await act(async () => {
     tree.update(<RollingNumber value="18" fontSize={44} letterSpacing={-20} />);
   });
-  expect(margin()).toBeCloseTo(-1.4);
+  expect(margin()).toBeCloseTo(-2.5);
   await act(async () => {
     tree.update(<RollingNumber value="18" fontSize={44} letterSpacing={0} />);
   });

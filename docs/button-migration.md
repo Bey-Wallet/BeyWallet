@@ -9,7 +9,7 @@ semantic intent and navigation integrations.
 
 Buttons use monochrome primary fills (black in light mode, white in dark mode), neutral secondary
 fills, transparent tertiary actions, 500-weight
-Inter labels, and size-specific corners (large: 56 high / radius 16; medium: 48 / radius 24).
+TikTok Sans labels, and size-specific corners (large: 56 high / radius 16; medium: 48 / radius 24).
 Compact icon controls retain proportional glyphs and hit slop reaching 48 points. Large labeled
 actions default to full width; explicit width, flex layouts and `fullWidth={false}` support paired
 and inline controls. Main mint connection, scanner recovery and Transfer recovery actions now

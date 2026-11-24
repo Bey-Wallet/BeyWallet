@@ -15,6 +15,7 @@ const mockRedirect = jest.fn((_result: unknown, _options: unknown) => true);
 const mockToast = { show: jest.fn() };
 let mockParams: Record<string, string | undefined> = { returnTo: '/receive' };
 const mockBack = jest.fn();
+const mockDismissTo = jest.fn();
 const mockSetScannerResult = jest.fn();
 const mockPickImage = jest.fn();
 let mockCameraGranted = true;
@@ -43,7 +44,7 @@ jest.mock('~/shared/ui/OperationFeedback', () => ({
 }));
 jest.mock('@tamagui/toast', () => ({ useToastController: () => mockToast }));
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ back: mockBack, replace: jest.fn() }),
+  useRouter: () => ({ back: mockBack, replace: jest.fn(), dismissTo: mockDismissTo }),
   useLocalSearchParams: () => mockParams,
 }));
 jest.mock('expo-camera', () => ({
@@ -85,6 +86,27 @@ jest.mock('~/shared/icons', () => ({
   Clipboard: 'Clipboard',
   ScanLine: 'ScanLine',
 }));
+
+it.each(['nostr:npub1-contact', 'alice@bey.cash'])(
+  'returns People scans to contact search without dispatching payment input: %s',
+  async (value) => {
+    mockParams = { peopleScan: '1' };
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(<ScannerScreen />);
+    });
+    await act(async () =>
+      tree.root.findByType('CameraView' as any).props.onBarcodeScanned({ data: value }),
+    );
+    expect(mockDismissTo).toHaveBeenCalledWith({
+      pathname: '/(tabs)/people',
+      params: { scannedPerson: value },
+    });
+    expect(mockSetScannerResult).not.toHaveBeenCalled();
+    expect(mockResolve).not.toHaveBeenCalled();
+    await act(async () => tree.unmount());
+  },
+);
 
 it.each(['creqA-scanned-request', 'https://bey.cash/r/#shared-request'])(
   'shows automatic progress while resolving %s, then clears it after redirect',

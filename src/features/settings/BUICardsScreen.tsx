@@ -423,7 +423,7 @@ export function BUICardsScreen() {
             )}
           </BUISection>
           <BUIWarningCard>
-            Illustrations are Phosphor placeholders. Inter, native text layout and press feedback
+            Illustrations are Phosphor placeholders. TikTok Sans, native text layout and press feedback
             differ from the source and need Android visual review.
           </BUIWarningCard>
         </>

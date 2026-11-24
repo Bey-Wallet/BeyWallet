@@ -223,7 +223,7 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
       <Stack.Screen
         options={{
           title: name,
-          headerTitleStyle: { fontFamily: 'InterSemiBold', fontSize: 18 },
+          headerTitleStyle: { fontFamily: 'TikTokSansSemiBold', fontSize: 18 },
           gestureEnabled: !isConnecting,
           headerRight: () => (
             <BUIActionMenu

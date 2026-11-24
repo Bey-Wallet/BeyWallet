@@ -110,8 +110,8 @@ not remove font resources from an already installed native binary.
 
 ## 5. Fonts and interaction
 
-- Body/UI copy: Inter Regular 400; labels/buttons: Medium 500; headings/balances:
-  SemiBold 600. Large values use Inter. Only three Inter faces are bundled.
+- Body/UI copy: TikTok Sans Regular 400; labels/buttons: Medium 500; headings/balances:
+  SemiBold 600. Large values use TikTok Sans. Only three TikTok Sans faces are bundled.
 - Inspect `0123469`, `Il1O0`, `$`, `€`, `₹`, `₿` and other selected currency symbols.
   Check tabular digits, normal 1, normal unslashed zero, disambiguation and normal punctuation.
 - Review dark/light modes, larger system text, Settings rows, navigation titles, text

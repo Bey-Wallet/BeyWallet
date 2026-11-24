@@ -61,7 +61,7 @@ const animations = createAnimations(appMotion.animations);
 
 const createAppFont = () =>
   createFont({
-    family: 'InterRegular',
+    family: 'TikTokSansRegular',
     size: {
       1: appTypography.caption.fontSize,
       2: 11,
@@ -118,17 +118,17 @@ const createAppFont = () =>
       10: appTypography.display.letterSpacing,
     },
     face: {
-      100: { normal: 'InterRegular' },
-      200: { normal: 'InterRegular' },
-      300: { normal: 'InterRegular' },
-      400: { normal: 'InterRegular' },
-      500: { normal: 'InterMedium' },
-      600: { normal: 'InterSemiBold' },
-      700: { normal: 'InterSemiBold' },
-      800: { normal: 'InterSemiBold' },
-      900: { normal: 'InterSemiBold' },
-      1000: { normal: 'InterSemiBold' },
-      bold: { normal: 'InterSemiBold' },
+      100: { normal: 'TikTokSansRegular' },
+      200: { normal: 'TikTokSansRegular' },
+      300: { normal: 'TikTokSansRegular' },
+      400: { normal: 'TikTokSansRegular' },
+      500: { normal: 'TikTokSansMedium' },
+      600: { normal: 'TikTokSansSemiBold' },
+      700: { normal: 'TikTokSansSemiBold' },
+      800: { normal: 'TikTokSansSemiBold' },
+      900: { normal: 'TikTokSansSemiBold' },
+      1000: { normal: 'TikTokSansSemiBold' },
+      bold: { normal: 'TikTokSansSemiBold' },
     },
   });
 

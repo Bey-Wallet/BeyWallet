@@ -1,0 +1,89 @@
+{
+  "sourceUrl": "https://github.com/tiktok/TikTokSans/releases/tag/v4.000",
+  "sourceSha256": "b238e0e794735142896025ea1f091a1a9ca49a9b26ca77ab5dc2ef5681b80243",
+  "opticalSize": 16,
+  "features": [
+    "tnum"
+  ],
+  "fonts": {
+    "TikTokSans-Regular.ttf": {
+      "runtimeFamily": "TikTokSansRegular",
+      "weight": 400,
+      "sha256": "82dc37c500a6015ed2f532c11cc78dc0951b11866854d39a8d158df21e09759a",
+      "sourceSha256": "6bc5b7ae7670e1427e0ad2d8271069b012c561857a55518063274b19ae1a48f2",
+      "defaultLookups": [
+        2,
+        4,
+        5,
+        7,
+        9,
+        39
+      ],
+      "digitAdvances": [
+        636,
+        636,
+        636,
+        636,
+        636,
+        636,
+        636,
+        636,
+        636,
+        636
+      ]
+    },
+    "TikTokSans-Medium.ttf": {
+      "runtimeFamily": "TikTokSansMedium",
+      "weight": 500,
+      "sha256": "2e77ea480b582a2c57adf6a4100a342feff153e683cf3fe3f1886a0aa44360f9",
+      "sourceSha256": "f1f88a674183cac924fc3b10dfca2646d03f81f76a74c85efe1d264833a73f02",
+      "defaultLookups": [
+        2,
+        4,
+        5,
+        7,
+        9,
+        39
+      ],
+      "digitAdvances": [
+        647,
+        647,
+        647,
+        647,
+        647,
+        647,
+        647,
+        647,
+        647,
+        647
+      ]
+    },
+    "TikTokSans-SemiBold.ttf": {
+      "runtimeFamily": "TikTokSansSemiBold",
+      "weight": 600,
+      "sha256": "c82433258fa8acaa6004fbcda416e6b2342deb87c4ef90da18d409da045b8f4a",
+      "sourceSha256": "70681c584da71808fd4e0a68cb24880e8c2aec0f3de117168c2da8568aeff26a",
+      "defaultLookups": [
+        2,
+        4,
+        5,
+        7,
+        9,
+        39
+      ],
+      "digitAdvances": [
+        655,
+        655,
+        655,
+        655,
+        655,
+        655,
+        655,
+        655,
+        655,
+        655
+      ]
+    }
+  },
+  "licenseSha256": "99e743f68f5eac487004c73aaca69c5d80d91ddb7b75c04bdf5f39331d9b7158"
+}

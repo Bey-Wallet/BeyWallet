@@ -64,11 +64,7 @@ it.each(['dark', 'light'] as const)(
       const c = appColors[appearance];
       expect(styles('canvas').some((style) => style?.backgroundColor === c.canvas)).toBe(true);
       expect(styles('surface').some((style) => style?.backgroundColor === c.surface)).toBe(true);
-      expect(
-        styles('sheet').some(
-          (style) => style?.backgroundColor === (appearance === 'light' ? '#FFFFFF' : c.surface),
-        ),
-      ).toBe(true);
+      expect(styles('sheet').some((style) => style?.backgroundColor === c.sheet)).toBe(true);
       expect(
         styles('primary').some((style) => style?.color === c.text && style?.fontSize === 14),
       ).toBe(true);
@@ -97,7 +93,7 @@ it.each(['dark', 'light'] as const)(
       expect(
         labelStyles.some(
           (style) =>
-            style?.fontFamily === 'InterMedium' &&
+            style?.fontFamily === 'TikTokSansSemiBold' &&
             style?.fontSize === 16 &&
             style?.lineHeight === 22,
         ),

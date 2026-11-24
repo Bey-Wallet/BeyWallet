@@ -428,7 +428,7 @@ function ConnectedMintSheetContent({ mintUrl, onClose }: { mintUrl: string; onCl
                           autoCapitalize="sentences"
                           onSubmitEditing={() => void saveName()}
                           style={{
-                            fontFamily: 'InterSemiBold',
+                            fontFamily: 'TikTokSansSemiBold',
                             fontSize: 18,
                             lineHeight: 25,
                             letterSpacing: 0,

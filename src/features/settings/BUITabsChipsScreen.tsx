@@ -257,7 +257,7 @@ export function BUITabsChipsScreen() {
           >
             <YStack px={16}>
               <BUIText kind="body2" color={c.muted}>
-                Inter and Phosphor remain BUI’s fonts and icons. Native text metrics, ripple and
+                TikTok Sans and Phosphor remain BUI’s fonts and icons. Native text metrics, ripple and
                 popup focus need Android visual review.
               </BUIText>
             </YStack>

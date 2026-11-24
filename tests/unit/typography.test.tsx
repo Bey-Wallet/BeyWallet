@@ -27,7 +27,7 @@ jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => tr
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: () => null }));
 
 it.each(['light', 'dark'] as const)(
-  'renders named AppText roles with Inter in %s',
+  'renders named AppText roles with TikTok Sans in %s',
   async (appearance) => {
     let tree!: ReactTestRenderer;
     try {
@@ -51,7 +51,7 @@ it.each(['light', 'dark'] as const)(
       expect(styles('named-body')).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            fontFamily: 'InterRegular',
+            fontFamily: 'TikTokSansRegular',
             fontSize: 13,
             lineHeight: 18,
             color: appColors[appearance].text,
@@ -61,7 +61,7 @@ it.each(['light', 'dark'] as const)(
       expect(styles('named-label')).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            fontFamily: 'InterMedium',
+            fontFamily: 'TikTokSansMedium',
             fontSize: 13,
             color: appColors[appearance].secondaryText,
           }),
@@ -70,7 +70,7 @@ it.each(['light', 'dark'] as const)(
       expect(styles('named-display')).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            fontFamily: 'InterSemiBold',
+            fontFamily: 'TikTokSansSemiBold',
             fontSize: 40,
             lineHeight: 50,
             letterSpacing: -0.9,
@@ -88,10 +88,10 @@ it.each(['light', 'dark'] as const)(
 );
 
 it.each([
-  ['400', 'InterRegular'],
-  ['500', 'InterMedium'],
-  ['600', 'InterSemiBold'],
-  ['700', 'InterSemiBold'],
+  ['400', 'TikTokSansRegular'],
+  ['500', 'TikTokSansMedium'],
+  ['600', 'TikTokSansSemiBold'],
+  ['700', 'TikTokSansSemiBold'],
 ] as const)('renders body and heading weight %s with %s', async (weight, family) => {
   let tree!: ReactTestRenderer;
   await act(async () => {
@@ -122,7 +122,7 @@ it.each([
   await act(async () => tree.unmount());
 });
 
-it('applies proportional numerals to rendered text variants, inputs, toast titles, and button labels', async () => {
+it('applies TikTok Sans and tabular numerals to text, inputs, toast titles, and button labels', async () => {
   let tree!: ReactTestRenderer;
   await act(async () => {
     tree = create(
@@ -171,8 +171,8 @@ it('applies proportional numerals to rendered text variants, inputs, toast title
     expect({ id, styles }).toEqual({ id, styles: expect.arrayContaining([['tabular-nums']]) });
     expect({
       id,
-      usesInstrument: renderedStyles.some((style) => style?.fontFamily?.startsWith('Inter')),
-    }).toEqual({ id, usesInstrument: true });
+      usesTikTokSans: renderedStyles.some((style) => style?.fontFamily?.startsWith('TikTokSans')),
+    }).toEqual({ id, usesTikTokSans: true });
   }
   const buttonLabels = tree.root.findAll((n) => n.props.children === 'Pay 123 sat');
   expect(

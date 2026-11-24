@@ -46,11 +46,11 @@ Production consumers should assign safe-area ownership at the screen/container
 boundary rather than adding these insets twice.
 
 Source limits: React Native reproduces measured structure rather than Material's
-native layout engine. Inter/Phosphor replace fonts/artwork, and22-point header glyphs
+native layout engine. TikTok Sans/Phosphor replace fonts/artwork, and22-point header glyphs
 follow Bey's approved convention. Native ripple, Lottie tab icons, Material
 nested-scroll physics, snapping and status-bar treatment are not ported. The large
 title maps scroll offset directly to the source0–84 height range. Measured title
-fitting uses native Inter glyph widths; it is not pixel-identical to source fonts.
+fitting uses native TikTok Sans glyph widths; it is not pixel-identical to source fonts.
 Material-centered controls share BUI's centered gutter layout. Android visual,
 font-scale, accessibility, scroll and device-inset review remains necessary.
 

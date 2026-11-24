@@ -51,7 +51,7 @@ from Android Google Play. Recheck those external facts before future reuse.
 | Layer transform at rest | `translateY = depth * 6`, `scale = 1 - depth * 0.045`                                   |
 | Dismiss control         | Shared `HeaderIconButton`, top/right 4 dp, 22-point X, minimum 48 dp touch area         |
 
-Use Inter for UI copy and Inter for large text/amounts, in 400/500/600 with
+Use TikTok Sans for UI copy and TikTok Sans for large text/amounts, in 400/500/600 with
 `opsz=14`, tabular digits, `ss02` without zero changes, normal 1 (`cv01` disabled), and normal punctuation. Keep native text scaling, wrap
 metadata where necessary, and validate small phones and larger accessibility sizes. The fixed
 art slot and reserved dismiss area must not compress or obscure the headline. See

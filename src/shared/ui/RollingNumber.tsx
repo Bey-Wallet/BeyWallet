@@ -186,8 +186,8 @@ export const RollingNumber = ({
   // scaled to this size, but prevent older aggressive margins from merging cells.
   const displaySpacing =
     appTypography.display.letterSpacing * (fontSize / appTypography.display.fontSize);
-  // Inter's checked ink bounds allow the tighter Home override without changing other defaults.
-  const minimumSpacing = Math.min(displaySpacing, -1.4 * (fontSize / 44));
+  // Preserve the compact Home override while measuring cells with the current font.
+  const minimumSpacing = Math.min(displaySpacing, -2.5 * (fontSize / 44));
   const defaultSpacing =
     fontSize >= 25
       ? displaySpacing

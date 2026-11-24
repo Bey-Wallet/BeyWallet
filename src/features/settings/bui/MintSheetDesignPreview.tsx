@@ -119,7 +119,7 @@ export function MintSheetDesignPreview() {
                         selectTextOnFocus
                         returnKeyType="done"
                         style={{
-                          fontFamily: 'InterSemiBold',
+                          fontFamily: 'TikTokSansSemiBold',
                           fontSize: 18,
                           lineHeight: 25,
                           textAlign: 'center',

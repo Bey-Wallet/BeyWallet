@@ -25,7 +25,7 @@ tertiary buttons remain transparent with blue text. There are no accent presets.
 
 Small buttons are36 high/radius18/text14; medium48/radius24/text16;
 large56/radius16/text16. Interactive targets remain at least48 points.
-Inter use the app's prepared static faces. Existing Phosphor
+TikTok Sans use the app's prepared static faces. Existing Phosphor
 icons supply the icon family. BUI's preview themes and measurements remain scoped
 to BUI rather than migrating production screens.
 

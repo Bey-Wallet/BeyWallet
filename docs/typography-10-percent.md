@@ -18,7 +18,7 @@ Every font size and explicit line height is reduced once using **Math.round(orig
 
 The same rule covers Tamagui numeric font tokens, explicit screen styles, numeric keypad labels, POS, responsive amount entry and receipt-image text. Responsive amounts use **40/29/25/22/18**, retaining the original character-count thresholds. Sats unit labels retain their proportional sizing with an 11-point minimum. Derived rolling-number and custom button line heights are rounded too.
 
-The size reduction remains in effect with the current Inter setup. Font features and per-role tracking now follow [fonts.md](fonts.md); do not reapply the size reduction or replace the current role-specific tracking. Original Phosphor/custom icons, spinner, control heights, minimum 48-point touch targets, layout spacing, radii, QR geometry, receipt coordinates, text scaling and wallet behavior remain unchanged.
+The size reduction remains in effect with the current TikTok Sans setup. Font features and per-role tracking now follow [fonts.md](fonts.md); do not reapply the size reduction or replace the current role-specific tracking. Original Phosphor/custom icons, spinner, control heights, minimum 48-point touch targets, layout spacing, radii, QR geometry, receipt coordinates, text scaling and wallet behavior remain unchanged.
 
 The source audit read all **471 TypeScript files**, including **71 screen-route entries**, 126 feature UI modules and 74 shared UI/layout/icon modules. Every screen route is listed below. This is source coverage, not a claim of a physical Android walkthrough.
 

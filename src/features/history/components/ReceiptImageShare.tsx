@@ -155,7 +155,7 @@ export function ReceiptImageShare({
               width="100%"
               height={qrValue ? 480 : 300}
               viewBox={`0 0 640 ${imageHeight}`}
-              fontFamily="InterRegular"
+              fontFamily="TikTokSansRegular"
               fontFeatureSettings="'tnum'"
               accessibilityLabel={
                 ecashImage ? 'Ecash sharing image preview' : 'Public receipt image preview'
@@ -165,7 +165,7 @@ export function ReceiptImageShare({
               <G transform="translate(48 46)">
                 <BeyIcon size={32} color={colors.icon} />
               </G>
-              <SvgText x={92} y={72} fontSize={24} fontFamily="InterMedium" fill={colors.text}>
+              <SvgText x={92} y={72} fontSize={24} fontFamily="TikTokSansMedium" fill={colors.text}>
                 Bey
               </SvgText>
               <G
@@ -180,7 +180,7 @@ export function ReceiptImageShare({
                 y={72}
                 textAnchor="end"
                 fontSize={20}
-                fontFamily="InterMedium"
+                fontFamily="TikTokSansMedium"
                 fill={colors.text}
               >
                 {preview.status}
@@ -202,7 +202,7 @@ export function ReceiptImageShare({
                 x={48}
                 y={244 + detailsOffset}
                 fontSize={preview.amount.length > 16 ? 48 : preview.amount.length > 11 ? 64 : 80}
-                fontFamily="InterSemiBold"
+                fontFamily="TikTokSansSemiBold"
                 fill={colors.icon}
               >
                 {preview.amount}

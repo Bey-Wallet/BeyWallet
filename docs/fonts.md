@@ -1,91 +1,58 @@
 # App fonts
 
-Bey uses **Inter 4.1 at its default optical size, `opsz=14`**, throughout UI copy,
-headings, inputs, native navigation, balances, amount entry and receipt images.
-The upstream standard Inter faces use its default optical-size cut.
+Bey uses **TikTok Sans v4.000**, the upstream 16pt optical cut, across UI copy,
+headings, balances, inputs, native navigation and receipt images.
 
-| Weight | Asset                | Runtime family  |
-| ------ | -------------------- | --------------- |
-| 400    | `Inter-Regular.ttf`  | `InterRegular`  |
-| 500    | `Inter-Medium.ttf`   | `InterMedium`   |
-| 600    | `Inter-SemiBold.ttf` | `InterSemiBold` |
+| Weight | Asset                     | Expo family          |
+| ------ | ------------------------- | -------------------- |
+| 400    | `TikTokSans-Regular.ttf`  | `TikTokSansRegular`  |
+| 500    | `TikTokSans-Medium.ttf`   | `TikTokSansMedium`   |
+| 600    | `TikTokSans-SemiBold.ttf` | `TikTokSansSemiBold` |
 
-`$body`, `$heading`, `$display` and `$mono` use these same three faces. Lighter
-requests map to 400 and heavier requests map to 600. `$mono` is a compatibility
-role using Inter, not a separate monospace font.
+These are the only bundled and registered font faces. Lighter requests map to 400;
+heavier requests map to 600. `$body`, `$heading`, `$display` and `$mono` all use
+these faces. The mono role is technical-text styling, not a separate monospace font.
 
-## Character features
+Tamagui's configuration package retains its own transitive font dependencies in
+the lockfile; they are not app font assets or registered runtime faces.
 
-- **Tabular numerals are enabled.** Native text requests `tabular-nums` and
-  SVG receipts request `tnum`.
-- `cv01` is disabled; use the normal upstream 1.
-- `ss02`: disambiguation, with **all zero substitutions removed**. Uppercase I,
-  lowercase l and related characters use the upstream disambiguation shapes.
-- Normal punctuation; `ss07` square punctuation is disabled.
-- `cv02`, `cv03` and `cv04`: open 4, 6 and 9, including tabular numeral forms.
-- `cv09`: flat-top alternate 3, including its tabular form.
-- Zero stays normal and unslashed; no dotted-zero alternate is enabled.
+## Numerals and spacing
 
-The preparation script adds the selected lookup indexes to default-on `ccmp`.
-The selected substitutions are checked to be idempotent. The `tnum` feature is
-included in default lookups; normal zero is retained. No glyph outlines are redrawn.
-Prepared font name records identify the derivatives as Bey Inter; original
-copyright and license metadata is preserved.
+Tabular numerals are enabled in the prepared font's default substitutions and
+rendering props, including rolling balances. Other character features keep the
+font's defaults, including the normal unslashed zero. No outlines are redrawn.
+Rolling digits measure their actual glyph widths and retain bounded negative
+margins. Sizes, line heights, system scaling and control geometry stay unchanged.
 
-## Spacing
-
-Sizes, line heights, weights, control geometry and text scaling are unchanged.
-Numeric tracking is
-calibrated for its glyphs and currency prefixes. Tracking is in points:
-
-| Role                              | Tracking            |
+| Role                              | Tracking in points  |
 | --------------------------------- | ------------------- |
 | Display (40 pt)                   | -0.9                |
-| Home balance (44 pt)              | -1.4                |
+| Home balance (44 pt)              | -2.5                |
 | Amounts (29 / 25 pt)              | -0.65 / -0.55       |
 | Headings (29 / 22 / 18 pt)        | -0.45 / -0.3 / -0.2 |
 | Labels and body (14 / 13 / 11 pt) | -0.1 / -0.05 / 0    |
 | Captions                          | 0                   |
 | Copyable technical text           | 0.5                 |
 
-Amount-entry tracking scales from the display role. Rolling digits keep their
-measured cell widths and bounded negative margins. Unspecified tracking inherits
-the numeric role; explicit zero remains supported. Small rolling balances scale
-from the 25-point amount role. Labels and body text do not inherit amount tracking.
+Amount-entry tracking scales from the display role. Unspecified rolling-number
+tracking inherits its numeric role; explicit zero remains supported.
 
-## Source and preparation
+## Source, license and preparation
 
-Source: [Inter 4.1](https://github.com/rsms/inter/releases/tag/v4.1), using
-`extras/ttf/Inter-{Regular,Medium,SemiBold}.ttf` from `Inter-4.1.zip`.
-The archive hash is pinned in the preparation script. The retained license is
-`src/assets/fonts/Inter-OFL.txt`, separate from the app's AGPL license.
+Source: [official TikTok Sans v4.000 release](https://github.com/tiktok/TikTokSans/releases/tag/v4.000).
+The derivative is internally named Bey TikTok Sans and preserves upstream copyright
+and the SIL Open Font License in `src/assets/fonts/TikTokSans-OFL.txt`.
 
-```powershell
-python scripts/prepare-inter-fonts.py --source C:\path\to\Inter-4.1.zip
+```sh
+python scripts/prepare-tiktok-fonts.py --source <TikTokSans-v4.000.zip>
 ```
 
-The script uses the existing FontTools build tool, checks the source archive,
-applies the approved defaults, verifies equal digit advances, normal 1 and normal zero, then
-writes the three fonts, license and `inter-manifest.json`. The manifest records
-source/output hashes, weights, default lookups and selected glyphs.
+The existing FontTools installation prepares the three static faces, license and
+`tiktok-sans-manifest.json`. The source archive hash is pinned. The manifest records
+asset hashes, weights, runtime families, default lookups and tabular digit advances.
+Preparation and asset tests check the app's currency glyphs, including Bitcoin and
+Indian rupee. Unsupported scripts or symbols use native platform fallback.
 
-## Integration and validation
-
-- Runtime loading: `src/shared/layout/RootLayout.tsx`.
-- Native embedding: the same three files in the Expo Font plugin in `app.json`.
-- Family/weight mappings: `src/tamagui.config.ts`.
-- Role tracking: `src/shared/theme/appearance.ts`.
-- Asset/default-feature tests: `tests/unit/font-assets.test.ts`.
-
-Asset and typography tests check hashes, weights, character coverage, selected
-features, tabular figures, normal 1, normal zero, registration, weight resolution and native text scaling.
-Font-file spacing checks cover numeral pairs, punctuation and currency prefixes.
-Review native rendering, wrapping and exported receipts on device in both themes
-and with larger text. Inter includes Bitcoin and Indian rupee; full-width yen may
-use platform fallback. No currency glyph aliases are added.
-
-After changing the prepared files, fully close and reopen the development client
-to clear native font caches. No new native build is needed for runtime previews;
-the next build embeds these same three faces. OS dialogs, keyboards and share
-sheets keep their platform fonts. Superseded font assets and build tools are not
-bundled; Git history retains earlier setups.
+Expo Font loads the same files in the dev client and native build configuration.
+Device checks: both themes, long balances and addresses, currency prefixes,
+large system text, keyboard inputs, navigation headers and shared receipt images.

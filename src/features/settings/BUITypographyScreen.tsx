@@ -50,7 +50,7 @@ export function BUITypographyScreen() {
   return (
     <BUIPage
       title="BUI / Typography"
-      status={`Preview scale ${scale}, in addition to system text scaling. Inter uses the same family for UI, headings and amounts. Heading weight700 maps to600; the mono role uses proportional Inter rather than a new font.`}
+      status={`Preview scale ${scale}, in addition to system text scaling. TikTok Sans uses the same family for UI, headings and amounts. Heading weight700 maps to600; the mono role uses proportional TikTok Sans rather than a new font.`}
       controls={
         <YStack gap={12}>
           <BUIChoices

@@ -100,7 +100,7 @@ export function BUIBadgesScreen() {
           </BUISection>
           <BUISection
             name="Compact & semantic counts"
-            measurement="Compact10 SemiBold substitutes the source bold face; line height follows Inter metrics. Empty/null counts are hidden; zero remains visible."
+            measurement="Compact10 SemiBold substitutes the source bold face; line height follows TikTok Sans metrics. Empty/null counts are hidden; zero remains visible."
           >
             <XStack px={16} gap={20} items="center">
               <BUICounter count={1} compact />

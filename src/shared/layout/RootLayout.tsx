@@ -57,9 +57,9 @@ export function RootLayout() {
   );
 
   const [loaded, error] = useFonts({
-    InterRegular: require('~/assets/fonts/Inter-Regular.ttf'),
-    InterMedium: require('~/assets/fonts/Inter-Medium.ttf'),
-    InterSemiBold: require('~/assets/fonts/Inter-SemiBold.ttf'),
+    TikTokSansRegular: require('~/assets/fonts/TikTokSans-Regular.ttf'),
+    TikTokSansMedium: require('~/assets/fonts/TikTokSans-Medium.ttf'),
+    TikTokSansSemiBold: require('~/assets/fonts/TikTokSans-SemiBold.ttf'),
   });
 
   // Check onboarding status and wallet existence on mount

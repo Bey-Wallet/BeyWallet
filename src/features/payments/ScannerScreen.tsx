@@ -279,6 +279,13 @@ export default function ScannerScreen() {
       const trimmed = data.trim();
       if (!trimmed) return;
 
+      // Contact scans return only to People; never dispatch them into a payment flow.
+      if (params.peopleScan === '1') {
+        hapticService.acknowledge();
+        router.dismissTo({ pathname: '/(tabs)/people', params: { scannedPerson: trimmed } });
+        return;
+      }
+
       // A public-key scan belongs only to its key editor, not another open payment screen.
       if (typeof params.p2pkScanId === 'string') {
         useP2PKScanStore.getState().setResult({ id: params.p2pkScanId, value: trimmed });

@@ -24,7 +24,7 @@ isolated from production wallet screens.
 
 ## Type, geometry and rhythm
 
-- Use AppText with existing Inter UI and Inter amount/large-text roles. Keep the
+- Use AppText with existing TikTok Sans UI and TikTok Sans amount/large-text roles. Keep the
   current Home balance size, weight, letter spacing and primary color.
 - Compact lists: 14-point primary labels, 13-point descriptions; section labels may use 600. Keep
   system text scaling and wrapping, with minimum 48-point touch targets.

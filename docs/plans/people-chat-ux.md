@@ -1,6 +1,6 @@
 # People conversation UX
 
-Use familiar chat interactions while retaining Bey's monochrome palette, Inter typography,
+Use familiar chat interactions while retaining Bey's monochrome palette, TikTok Sans typography,
 compact People list, red unread counts and payment-first conversations. The reference is
 interaction quality, not another library's visual design or an instruction to install it.
 

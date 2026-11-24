@@ -74,7 +74,7 @@ export function BUIButtonsScreen() {
     >
       <ReferenceSpec
         name="Size scale"
-        measurement="Small H36 / R18 / 14 sp; medium H48 / R24 / 16 sp; large H56 / R16 / 16 sp. Weight500, tracking0.005 em, horizontal16 / vertical8, proportional icons16/20/24 / gap8, matching loaders. Small specimens keep a48-point touch area. Inter substitutes the source font; native line metrics/ripple differ."
+        measurement="Small H36 / R18 / 14 sp; medium H48 / R24 / 16 sp; large H56 / R16 / 16 sp. Weight500, tracking0.005 em, horizontal16 / vertical8, proportional icons16/20/24 / gap8, matching loaders. Small specimens keep a48-point touch area. TikTok Sans substitutes the source font; native line metrics/ripple differ."
       >
         <YStack px={16} gap={16}>
           {(['small', 'medium', 'large'] as const).map((item) => (

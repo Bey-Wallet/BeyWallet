@@ -285,5 +285,5 @@ Bey Wallet is licensed under the **GNU Affero General Public License, version 3 
 (`AGPL-3.0-only`). See [LICENSE](LICENSE) for the complete terms and warranty disclaimer, or the
 [SPDX license reference](https://spdx.org/licenses/AGPL-3.0-only.html).
 
-Third-party components retain their own licenses and notices. The bundled Inter fonts are
-licensed separately under the [SIL Open Font License 1.1](src/assets/fonts/Inter-OFL.txt).
+Third-party components retain their own licenses and notices. The bundled TikTok Sans fonts are
+licensed separately under the [SIL Open Font License 1.1](src/assets/fonts/TikTokSans-OFL.txt).

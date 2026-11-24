@@ -9,9 +9,9 @@ import {
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, X } from '~/shared/icons';
+import { Search, X, Scan } from '~/shared/icons';
 import { Text, XStack, YStack } from 'tamagui';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -166,6 +166,7 @@ function PeopleVirtualList({
 
 export default function PeopleScreen() {
   const router = useRouter();
+  const { scannedPerson } = useLocalSearchParams<{ scannedPerson?: string }>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const pager = useRef<ScrollView>(null);
@@ -203,6 +204,11 @@ export default function PeopleScreen() {
     setLimits((previous) => ({ ...previous, search: 50 }));
     setSearch(value);
   };
+  useEffect(() => {
+    if (typeof scannedPerson !== 'string' || !scannedPerson.trim()) return;
+    changeSearch(scannedPerson.trim().replace(/^nostr:/i, ''));
+    router.setParams({ scannedPerson: undefined });
+  }, [scannedPerson]);
   const open = (item: PeopleListItem) => {
     Keyboard.dismiss();
     if (item.kind === 'issue') {
@@ -376,6 +382,18 @@ export default function PeopleScreen() {
               onPress={() => changeSearch('')}
             />
           )}
+          <AppIconButton
+            variant="default"
+            emphasis="ghost"
+            size="xxsmall"
+            iconSize={22}
+            accessibilityLabel="Scan npub or username"
+            icon={({ size }) => <Scan size={size} weight="bold" color="$gray10" />}
+            onPress={() => {
+              Keyboard.dismiss();
+              router.push({ pathname: '/(modals)/scanner', params: { peopleScan: '1' } });
+            }}
+          />
         </XStack>
         {!searching && (
           <XStack>
@@ -389,7 +407,7 @@ export default function PeopleScreen() {
                 justify="center"
                 gap="$2"
                 accessibilityRole="tab"
-                accessibilityLabel={`${view === 'recents' ? 'Recent' : 'Requests'}, ${unread[view]} unread conversations`}
+                accessibilityLabel={`${view === 'recents' ? 'Added' : 'Requests'}, ${unread[view]} unread conversations`}
                 accessibilityState={{ selected: activeView === view }}
                 borderBottomWidth={2}
                 borderColor={activeView === view ? '$color' : 'transparent'}
@@ -400,7 +418,7 @@ export default function PeopleScreen() {
                   fontWeight={activeView === view ? '600' : '400'}
                   color={activeView === view ? '$color' : '$gray10'}
                 >
-                  {view === 'recents' ? 'Recent' : 'Requests'}
+                  {view === 'recents' ? 'Added' : 'Requests'}
                 </Text>
                 <UnreadBadge count={unread[view]} />
               </AppPressable>
