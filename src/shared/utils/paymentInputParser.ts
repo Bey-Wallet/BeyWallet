@@ -22,7 +22,7 @@ export type PaymentInputParseResult =
   | { matched: true; ok: false; reason: string }
   | { matched: true; ok: true; value: ParsedPaymentInput };
 
-const BITCOIN_ADDRESS_PATTERN = /^(1|3|bc1[qzp]|tb1[qzp])[a-zA-HJ-NP-Z0-9]{25,90}$/i;
+const BITCOIN_ADDRESS_PATTERN = /^(1|3|bc1[qzp]|tb1[qzp]|bcrt1[qzp])[a-zA-HJ-NP-Z0-9]{25,90}$/i;
 
 function isCashuToken(value: string): boolean {
   const lower = value.toLowerCase();

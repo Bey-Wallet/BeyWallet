@@ -12,7 +12,6 @@ import { ChevronDown } from '~/shared/icons';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { AppButton } from '~/shared/ui/AppButton';
-import { Spinner } from '~/shared/ui/Spinner';
 import { appTypography } from '~/shared/theme/appearance';
 import { PaymentTechnicalDetails } from '../PaymentTechnicalDetails';
 import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
@@ -304,7 +303,8 @@ export function PaymentRequestStage({
               emphasis="primary"
               size="large"
               fullWidth
-              icon={isSending ? <Spinner size={22} /> : undefined}
+              loading={isSending}
+              loadingText="Processing"
               accessibilityState={{
                 busy: isSending,
                 disabled: isSending || (!(receipt || hasOperation) && (!isCompatible || !isEnough)),

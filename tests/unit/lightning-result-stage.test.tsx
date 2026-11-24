@@ -48,8 +48,8 @@ it('locks processing controls and puts loading in the bottom button without a to
     emphasis: 'primary',
     accessibilityState: { busy: true, disabled: true },
   });
-  expect(button.props.icon.props.size).toBe(22);
-  expect(button.props.icon.type).toBe('Spinner');
+  expect(button.props.loadingText).toBe('Processing');
+  expect(button.props.loading).toBe(true);
   expect(tree.root.findAllByProps({ accessibilityRole: 'header' })).toHaveLength(0);
   expect(tree.root.findAllByProps({ label: 'Status' })).toHaveLength(0);
   expect(tree.root.findAllByType('Spinner' as any)).toHaveLength(0);

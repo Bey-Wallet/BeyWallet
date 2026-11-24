@@ -162,11 +162,11 @@ export function NumericKeypad({
       )}
 
       {/* Keypad and Action Button */}
-      <YStack pb="$4">
+      <YStack pb={appearance === 'pos' ? '$2' : '$4'}>
         {/* Keypad Layout */}
-        <YStack width="100%" gap="$0" pb="$4">
+        <YStack width="100%" gap="$0" pb={appearance === 'pos' ? '$2' : '$4'}>
           {KEYPAD_ROWS.map((row, i) => (
-            <XStack key={i} gap="$10">
+            <XStack key={i} gap={appearance === 'pos' ? '$2' : '$10'}>
               {row.map((digit) => (
                 <YStack
                   key={digit}
@@ -187,14 +187,7 @@ export function NumericKeypad({
             </XStack>
           ))}
         </YStack>
-        {showConfirmButton &&
-          (appearance === 'pos' ? (
-            <YStack rounded={999} overflow="hidden">
-              {confirmButton}
-            </YStack>
-          ) : (
-            confirmButton
-          ))}
+        {showConfirmButton && confirmButton}
       </YStack>
     </YStack>
   );

@@ -8,6 +8,8 @@ import {
   isOnchainHistory,
   historyDisplayAmount,
   nfcReceivingFeeNotice,
+  isPendingLightningMint,
+  historyReceiptState,
 } from '~/features/history/transactionPresentation';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
 import { OnchainTransactionRows } from './components/OnchainTransactionRows';
@@ -334,8 +336,7 @@ function TransactionDetailsContent() {
 
   const isPendingMint = useMemo(() => {
     if (!entry) return false;
-    const s = (entry.state || '').toUpperCase();
-    return entry.type === 'mint' && (s === 'UNPAID' || s === 'PAID');
+    return isPendingLightningMint(entry);
   }, [entry]);
 
   const metadata = useMemo(() => {
@@ -649,9 +650,7 @@ function TransactionDetailsContent() {
 
       const isPendingSend =
         entry.type === 'send' && (status === 'pending' || status === 'unclaimed');
-      const isPendingMint =
-        entry.type === 'mint' &&
-        (status.toUpperCase() === 'UNPAID' || status.toUpperCase() === 'PAID');
+      const isPendingMint = isPendingLightningMint(entry);
 
       const isPendingOnchain = onchain && ['pending', 'unpaid', 'prepared'].includes(status);
       if (claimLock.current || reclaimLock.current || refreshLock.current || mintQuoteLock.current)
@@ -781,9 +780,7 @@ function TransactionDetailsContent() {
     !onchain &&
     !showInvoiceLayout &&
     !(token && (entry.type === 'send' || entry.type === 'receive')) &&
-    paymentReceiptStatus(
-      entry.type === 'mint' && status === 'paid' ? 'pending' : entry.state || 'unknown',
-    ) === 'pending';
+    paymentReceiptStatus(historyReceiptState(entry)) === 'pending';
   const transactionActions: PaymentMenuAction[] = [
     ...(genericPending
       ? [
@@ -920,12 +917,7 @@ function TransactionDetailsContent() {
   }
 
   const isOutgoing = entry.type === 'send' || entry.type === 'melt';
-  const receiptStatus = paymentReceiptStatus(
-    transferRecord?.state ??
-      (entry.type === 'mint' && status === 'paid'
-        ? 'pending'
-        : entry.state || (entry.type === 'receive' ? 'completed' : 'unknown')),
-  );
+  const receiptStatus = paymentReceiptStatus(transferRecord?.state ?? historyReceiptState(entry));
   const paymentLayout = historyPaymentLayout(entry);
   const receiptData = buildReceiptDetails(entry, {
     ...receiptSnapshot,

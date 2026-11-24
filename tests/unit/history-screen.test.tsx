@@ -208,6 +208,13 @@ it('keeps POS receipts out of wallet history and searches only the selected scop
   mockHistory.push(pos);
   mockPosOrigins.push({ kind: 'request', mintUrl: pos.mintUrl, reference: 'pos-request' });
   try {
+    await act(async () => screen.update(<HistoryScreen />));
+    expect(transactionButtons()).toHaveLength(3);
+    expect(
+      transactionButtons().some((node) =>
+        node.props.accessibilityLabel.includes('POS received (Ecash)'),
+      ),
+    ).toBe(true);
     await act(async () => screen.update(<HistoryScreen scope="wallet" />));
     expect(transactionButtons()).toHaveLength(2);
     await act(async () => screen.update(<HistoryScreen scope="pos" showSearch />));
@@ -249,6 +256,17 @@ it('filters POS beside Pending and preserves search and pending selection across
   );
   try {
     await act(async () => screen.update(<HistoryScreen showSearch />));
+    expect(transactionButtons()).toHaveLength(4);
+    expect(
+      transactionButtons().some((node) =>
+        node.props.accessibilityLabel.includes('POS pending (Lightning)'),
+      ),
+    ).toBe(true);
+    expect(
+      transactionButtons().some((node) =>
+        node.props.accessibilityLabel.includes('POS received (Lightning)'),
+      ),
+    ).toBe(true);
     await act(async () => pressable('POS').props.onPress());
     expect(transactionButtons()).toHaveLength(2);
     expect(pressable('POS').props.accessibilityState.selected).toBe(true);
@@ -259,7 +277,7 @@ it('filters POS beside Pending and preserves search and pending selection across
     );
     expect(transactionButtons()).toHaveLength(1);
     await act(async () => pressable('POS').props.onPress());
-    expect(transactionButtons()).toHaveLength(0);
+    expect(transactionButtons()).toHaveLength(1);
     expect(screen.root.findByType('Input' as any).props.value).toBe('counter pending');
     expect(pressable('Pending').props.accessibilityState.selected).toBe(true);
     await act(async () => pressable('POS').props.onPress());

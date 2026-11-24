@@ -111,15 +111,21 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
   const signedValue = `${maintenance || transfer ? '' : balanceEffect === 'credit' ? '+ ' : balanceEffect === 'debit' ? '− ' : ''}${value}`;
   const statusLabel =
     pending || failed || state === 'refunded' ? historyStatusLabel(entry, delivered) : '';
-  const label = activity
-    ? walletActivityTitle(activity)
-    : transfer
-      ? 'Transfer'
-      : request
-        ? 'Payment request'
-        : entry.type === 'send' && pending
-          ? `${statusLabel === 'Delivered' ? 'Delivered' : 'Created'} ecash`
-          : `${outgoing ? 'Sent' : 'Received'} ${rail === 'onchain' ? 'bitcoin' : rail === 'lightning' ? 'Lightning' : 'ecash'}`;
+  const posTitle =
+    historyMetadata(entry).pos === true
+      ? `POS ${failed ? 'not completed' : pending ? 'pending' : request ? 'request' : 'received'} (${entry.type === 'mint' ? 'Lightning' : 'Ecash'})`
+      : undefined;
+  const label =
+    posTitle ||
+    (activity
+      ? walletActivityTitle(activity)
+      : transfer
+        ? 'Transfer'
+        : request
+          ? 'Payment request'
+          : entry.type === 'send' && pending
+            ? `${statusLabel === 'Delivered' ? 'Delivered' : 'Created'} ecash`
+            : `${outgoing ? 'Sent' : 'Received'} ${rail === 'onchain' ? 'bitcoin' : rail === 'lightning' ? 'Lightning' : 'ecash'}`);
   const Icon = activity
     ? activity.kind === 'recovery'
       ? RotateCcw
@@ -133,21 +139,23 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
         : outgoing
           ? ArrowUpFromLine
           : ArrowDownToLine;
-  const title = activity
-    ? walletActivityTitle(activity)
-    : state === 'refunded'
-      ? 'Funds reclaimed'
-      : transfer
-        ? 'Transfer'
-        : request
-          ? 'Payment request'
-          : entry.type === 'send' && pending
-            ? statusLabel === 'Delivered'
-              ? 'Ecash delivered'
-              : 'Ecash created'
-            : outgoing
-              ? 'Sent'
-              : 'Received';
+  const title =
+    posTitle ||
+    (activity
+      ? walletActivityTitle(activity)
+      : state === 'refunded'
+        ? 'Funds reclaimed'
+        : transfer
+          ? 'Transfer'
+          : request
+            ? 'Payment request'
+            : entry.type === 'send' && pending
+              ? statusLabel === 'Delivered'
+                ? 'Ecash delivered'
+                : 'Ecash created'
+              : outgoing
+                ? 'Sent'
+                : 'Received');
   const paymentType = transfer
     ? 'Between mints'
     : rail === 'onchain'

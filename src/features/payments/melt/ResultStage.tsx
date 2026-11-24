@@ -6,7 +6,6 @@ import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { AppButton } from '~/shared/ui/AppButton';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
-import { Spinner } from '~/shared/ui/Spinner';
 import { appTypography } from '~/shared/theme/appearance';
 import { currencyService } from '~/services/wallet/currencyService';
 import { useWalletStore } from '~/state/walletStore';
@@ -152,7 +151,8 @@ export function MeltResultStage({
             emphasis="primary"
             disabled={processing}
             accessibilityState={{ busy: processing, disabled: processing }}
-            icon={processing ? <Spinner size={22} /> : undefined}
+            loading={processing}
+            loadingText="Processing"
             onPress={onClose}
           >
             {processing ? 'Processing' : 'Done'}

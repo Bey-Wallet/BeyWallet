@@ -7,7 +7,6 @@ import { YStack, Text } from 'tamagui';
 import { ArrowUpDown, KeyRound } from '~/shared/icons';
 
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
-import { Spinner } from '~/shared/ui/Spinner';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -343,7 +342,7 @@ export function P2PKAmountStage({
         onConfirm={onContinue}
         confirmLabel={isLoading ? 'Processing...' : 'Continue'}
         confirmDisabled={!isValidAmount || isLoading}
-        confirmIcon={isLoading ? <Spinner size="small" /> : undefined}
+        isLoading={isLoading}
       />
 
       <MintSelectorSheet

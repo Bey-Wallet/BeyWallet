@@ -507,6 +507,10 @@ const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: '024_pos_sale_links',
+    sql: 'ALTER TABLE bey_pos_origins ADD COLUMN saleId TEXT;',
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {

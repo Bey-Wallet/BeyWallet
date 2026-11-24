@@ -89,7 +89,7 @@ it.each(['standard', 'p2pk', 'nostr'] as const)(
     expect(tree.root.findByType('Header' as any).props.title).toBe('Processing payment');
     const button = tree.root.findByProps({ children: 'Processing' });
     expect(button.props.disabled).toBe(true);
-    expect(button.props.icon.type).toBe('Spinner');
+    expect(button.props.loading).toBe(true);
     expect(tree.root.findAllByType('StatusIcon' as any)).toHaveLength(0);
     expect(tree.root.findAllByType('Mint' as any)).toHaveLength(0);
     expect(tree.root.findAllByType('Lock' as any)).toHaveLength(0);

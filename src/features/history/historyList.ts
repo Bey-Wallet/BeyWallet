@@ -1,19 +1,20 @@
 import { historyMetadata, isOnchainHistory } from './transactionPresentation';
 import type { PosOrigin } from '~/storage/sqlite/repositories/PosRepository';
 
-export type HistoryScope = 'wallet' | 'pos';
+export type HistoryScope = 'all' | 'wallet' | 'pos';
 
 export function scopeHistory(
   entries: HistoryListEntry[],
   scope: HistoryScope,
   origins: PosOrigin[],
 ) {
-  const keys = new Set(
-    origins.map(({ kind, mintUrl, reference }) =>
-      JSON.stringify([kind, mintUrl.replace(/\/+$/, ''), reference]),
-    ),
+  const originKey = (kind: string, mintUrl: string, reference: string) =>
+    JSON.stringify([kind, mintUrl.replace(/\/+$/, ''), reference]);
+  const keys = new Map(
+    origins.map((origin) => [originKey(origin.kind, origin.mintUrl, origin.reference), origin]),
   );
-  return entries.filter((entry) => {
+  const groups = new Map<string, HistoryListEntry[]>();
+  const projected = entries.map((entry) => {
     const kind = entry.type === 'mint' ? 'quote' : 'request';
     const reference =
       entry.type === 'mint'
@@ -23,11 +24,48 @@ export function scopeHistory(
           : entry.type === 'receive'
             ? historyMetadata(entry).requestId
             : undefined;
-    const pos =
-      typeof reference === 'string' &&
-      keys.has(JSON.stringify([kind, entry.mintUrl.replace(/\/+$/, ''), reference]));
-    return scope === 'pos' ? pos : !pos;
+    const key = typeof reference === 'string' ? originKey(kind, entry.mintUrl, reference) : '';
+    const origin = keys.get(key);
+    if (!origin) return { entry, pos: false };
+    const tagged = { ...entry, metadata: { ...historyMetadata(entry), pos: true } };
+    const groupKey = origin.saleId ? `sale:${origin.saleId}` : key;
+    const group = groups.get(groupKey) || [];
+    group.push(tagged);
+    groups.set(groupKey, group);
+    return { entry: tagged, pos: true };
   });
+  const retained = new Set<HistoryListEntry>();
+  for (const group of groups.values()) {
+    // Hide unused checkout offers, never separate payments actually received.
+    const receipts = group.filter((entry) =>
+      entry.type === 'receive'
+        ? ![
+            'failed',
+            'error',
+            'expired',
+            'cancelled',
+            'canceled',
+            'rolled_back',
+            'rolledback',
+          ].includes(entry.state?.toLowerCase() || '')
+        : entry.type === 'mint' &&
+          ['paid', 'issued', 'completed', 'received', 'confirmed'].includes(
+            entry.state?.toLowerCase() || '',
+          ),
+    );
+    if (receipts.length) receipts.forEach((entry) => retained.add(entry));
+    else {
+      const representative = [...group].sort(
+        (a, b) =>
+          Number(isPendingHistory(b)) - Number(isPendingHistory(a)) ||
+          historyTimestamp(b.createdAt) - historyTimestamp(a.createdAt),
+      )[0];
+      retained.add(representative);
+    }
+  }
+  return projected
+    .filter(({ entry, pos }) => (pos ? scope !== 'wallet' && retained.has(entry) : scope !== 'pos'))
+    .map(({ entry }) => entry);
 }
 
 export interface HistoryListEntry {

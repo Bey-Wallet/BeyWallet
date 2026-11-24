@@ -5,6 +5,7 @@ import {
   buildReceiptDetails,
   invoiceDisplayDetails,
   needsFullScreenReceipt,
+  buildTransferReceiptDetails,
 } from '~/features/history/receiptDetails';
 
 const entry = {
@@ -182,4 +183,91 @@ it('rejects bearer tokens placed in invoice or request fields from technical exp
     paymentRequest: 'bitcoin:bc1example?cashu=cashuASPENDABLE',
   });
   expect(JSON.stringify(onchain.extra)).not.toContain('SPENDABLE');
+});
+
+it('exports only public on-chain details and separates a fee reserve from actual fees', () => {
+  const address = 'bc1q' + 'a'.repeat(38);
+  const txid = 'ab'.repeat(32);
+  const detail = buildReceiptDetails(
+    {
+      ...entry,
+      metadata: {
+        via: 'onchain',
+        address,
+        feeReserve: 12,
+        privKey: 'PRIVATE_SENTINEL',
+        inputs: [{ secret: 'PROOF_SENTINEL' }],
+        changeOutputs: ['OUTPUT_SENTINEL'],
+      },
+    },
+    { state: 'PENDING', outpoint: `${txid}:1` },
+  );
+  expect(detail.extra.find((field) => field.label === 'Destination')?.copyValue).toBe(address);
+  expect(
+    detail.extra.find((field) => field.label === 'Transaction ID' && field.section === 'Payment')
+      ?.copyValue,
+  ).toBe(txid);
+  expect(detail.extra.find((field) => field.label === 'Fee reserve')?.value).toBe('12 sat');
+  expect(detail.extra.find((field) => field.label === 'Fee')?.value).toBe('Unavailable');
+  expect(detail.extra.find((field) => field.label === 'Blockchain confirmations')?.value).toBe(
+    'Not verified',
+  );
+  expect(JSON.stringify(detail.extra)).not.toMatch(
+    /PRIVATE_SENTINEL|PROOF_SENTINEL|OUTPUT_SENTINEL/,
+  );
+});
+
+it('shows only observed on-chain deposit totals and excludes non-address metadata', () => {
+  const detail = buildReceiptDetails(
+    { ...entry, type: 'mint', metadata: { via: 'onchain', address: 'cashuASPENDABLE' } },
+    { amountPaid: 100, amountIssued: 80 },
+  );
+  expect(detail.extra.find((field) => field.label === 'Amount paid')?.value).toBe('100 sat');
+  expect(detail.extra.find((field) => field.label === 'Amount issued')?.value).toBe('80 sat');
+  expect(JSON.stringify(detail.extra)).not.toContain('SPENDABLE');
+});
+
+it('groups both original Transfer quotes and exports a matching payment proof without secrets', () => {
+  const preimage = new Uint8Array(32).fill(9);
+  const request = invoice(tag(1, sha256(preimage)));
+  const record = {
+    id: 'transfer-1',
+    sourceMintUrl: 'https://source.example',
+    targetMintUrl: 'https://target.example',
+    mintQuoteId: 'destination-quote',
+    meltQuoteId: 'source-quote',
+    operationId: 'source-operation',
+    amount: 100,
+    feeReserve: 7,
+    feePaid: 2,
+    expiresAt: 1700000300,
+    state: 'completed' as const,
+    stage: 'issuance' as const,
+    createdAt: 1700000000000,
+    secret: 'SECRET_SENTINEL',
+    inputs: [{ secret: 'INPUT_SENTINEL' }],
+  };
+  const detail = buildTransferReceiptDetails(record, {
+    source: {
+      request,
+      state: 'PAID',
+      amount: 100,
+      fee_reserve: 5,
+      payment_preimage: bytesToHex(preimage),
+    },
+    destination: { request, state: 'ISSUED', amount: 100 },
+  });
+  const field = (section: string, label: string) =>
+    detail.extra.find((item) => item.section === section && item.label === label);
+  expect(detail.method).toBe('Transfer');
+  expect(field('Transaction', 'Direction')?.value).toBe('Between mints');
+  expect(field('Transfer', 'Transfer ID')?.copyValue).toBe('transfer-1');
+  expect(field('Transfer', 'Fee paid')?.value).toBe('2 sat');
+  expect(field('Transfer', 'Maximum fee')?.value).toBe('7 sat');
+  expect(field('Transfer', 'Total')?.value).toBe('102 sat');
+  expect(field('Source quote', 'Quote ID')?.copyValue).toBe('source-quote');
+  expect(field('Destination quote', 'Quote ID')?.copyValue).toBe('destination-quote');
+  expect(field('Destination quote', 'State')?.value).toBe('ISSUED');
+  expect(field('Source quote', 'Payment proof')?.copyValue).toBe(bytesToHex(preimage));
+  expect(JSON.stringify(detail.extra)).not.toMatch(/SECRET_SENTINEL|INPUT_SENTINEL/);
 });

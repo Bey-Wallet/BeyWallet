@@ -3,7 +3,6 @@ import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
-import { Spinner } from '~/shared/ui/Spinner';
 import { appTypography } from '~/shared/theme/appearance';
 import { useWalletStore } from '~/state/walletStore';
 import { formatPaymentDateTime } from '~/shared/utils/time';
@@ -105,7 +104,8 @@ export function ReceiveResultStage({
             emphasis="primary"
             disabled={processing}
             accessibilityState={{ busy: processing, disabled: processing }}
-            icon={processing ? <Spinner size={22} /> : undefined}
+            loading={processing}
+            loadingText={saving ? 'Saving ecash' : 'Receiving ecash'}
             onPress={onClose}
           >
             {processing ? (saving ? 'Saving' : 'Receiving') : 'Done'}

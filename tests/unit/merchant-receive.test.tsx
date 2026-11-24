@@ -25,6 +25,8 @@ jest.mock('expo-router', () => ({
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 16 }) }));
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack', Theme: 'Theme' }));
 jest.mock('~/shared/ui/ListTable', () => ({
+  ListTable: 'Table',
+  ListTableRow: 'Row',
   ListTableVariantProvider: ({ children }: any) => children,
 }));
 jest.mock('~/shared/ui/AppBottomSheet', () => ({
@@ -40,9 +42,10 @@ jest.mock('~/shared/ui/PaymentStatusIcon', () => ({ PaymentStatusIcon: 'Status' 
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Method' }));
 jest.mock('~/shared/ui/PaymentStageLayout', () => ({
-  PaymentStageLayout: ({ hero, footer }: any) => (
+  PaymentStageLayout: ({ hero, footer, children }: any) => (
     <>
       {hero}
+      {children}
       {footer}
     </>
   ),
@@ -95,6 +98,8 @@ it('charges once, preserves both receivers across switches, and starts a clean n
   expect(tree.root.findAllByType('Lightning' as any)).toHaveLength(0);
   await act(async () => method('Lightning').props.onPress());
   const invoiceReceiver = tree.root.findByType('Lightning' as any);
+  expect(ecash().props.merchant.saleId).toEqual(expect.any(String));
+  expect(invoiceReceiver.props.saleId).toBe(ecash().props.merchant.saleId);
   expect(invoiceReceiver.props).toMatchObject({ amount: 64, mintUrl: 'mint-b', note: 'Coffee' });
   expect(ecash().props.merchant.active).toBe(false);
   await act(async () => method('Ecash').props.onPress());

@@ -25,7 +25,7 @@ export const posThemeOverrides = {
   color11: posColors.ink,
   color12: posColors.ink,
   gray1: posColors.canvas,
-  gray2: posColors.canvas,
+  gray2: posColors.surface,
   gray3: posColors.surface,
   gray4: posColors.raised,
   gray5: posColors.pressed,

@@ -43,6 +43,7 @@ export function buildHistorySearchIndex(
     const snapshot = metadata.quoteSnapshot;
     const activity = metadata.walletActivity;
     const fields = [
+      metadata.pos === true ? 'pos point of sale' : '',
       historyRail(entry),
       historyRail(entry) === 'onchain' ? 'bitcoin' : '',
       ['send', 'melt'].includes(entry.type) ? 'sent' : '',

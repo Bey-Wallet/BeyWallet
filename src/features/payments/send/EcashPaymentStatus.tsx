@@ -6,7 +6,6 @@ import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
-import { Spinner } from '~/shared/ui/Spinner';
 import { PaymentTechnicalDetails } from '../PaymentTechnicalDetails';
 import { useWalletStore } from '~/state/walletStore';
 import { currencyService } from '~/services/wallet/currencyService';
@@ -83,7 +82,8 @@ export function EcashPaymentStatus({
             emphasis="primary"
             disabled={processing}
             accessibilityState={{ busy: processing, disabled: processing }}
-            icon={processing ? <Spinner size={22} /> : undefined}
+            loading={processing}
+            loadingText="Processing"
             onPress={onClose}
           >
             {processing ? 'Processing' : 'Done'}

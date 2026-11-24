@@ -339,7 +339,8 @@ it('keeps receive processing locked with one footer spinner and no success or re
   const buttons = tree.root.findAllByType('Button' as any);
   expect(buttons).toHaveLength(1);
   expect(buttons[0].props).toMatchObject({ children: 'Receiving', disabled: true });
-  expect(buttons[0].props.icon.type).toBe('Spinner');
+  expect(buttons[0].props.loading).toBe(true);
+  expect(buttons[0].props.loadingText).toBe('Receiving ecash');
 });
 
 it('shows an offline saved token as awaiting claim without inventing a fee or timestamp', async () => {

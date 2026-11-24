@@ -7,6 +7,21 @@ interface PaymentHistory {
   paymentRequest?: string;
 }
 
+/** Lightning PAID is awaiting issuance; saved on-chain PAID follows local collection. */
+export function isPendingLightningMint(entry: PaymentHistory): boolean {
+  return (
+    entry.type === 'mint' &&
+    !isOnchainHistory(entry) &&
+    ['unpaid', 'paid'].includes(entry.state?.trim().toLowerCase() || '')
+  );
+}
+
+export function historyReceiptState(entry: PaymentHistory): string {
+  if (isPendingLightningMint(entry) && entry.state?.trim().toLowerCase() === 'paid')
+    return 'pending';
+  return entry.state || (entry.type === 'receive' ? 'completed' : 'unknown');
+}
+
 /** Presentation only: delivery is not proof that a recipient has claimed ecash. */
 export function historyStatusLabel(entry: PaymentHistory, delivered = false): string {
   const state = entry.state?.trim().toLowerCase() || '';

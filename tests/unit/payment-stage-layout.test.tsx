@@ -106,6 +106,34 @@ it('uses a compact 240px QR cap and preserves the 20px quiet margin on each side
   await act(async () => tree.unmount());
 });
 
+it('blends a POS QR into its canvas without a border and retains the quiet margin', async () => {
+  let size = 0;
+  const tree = await render(
+    <PaymentQRFrame appearance="pos" accessibilityLabel="POS QR">
+      {(value) => {
+        size = value;
+        return 'QR';
+      }}
+    </PaymentQRFrame>,
+  );
+  await act(async () =>
+    tree.root
+      .findByType('YStack' as any)
+      .props.onLayout({ nativeEvent: { layout: { width: 320 } } }),
+  );
+  const surface = tree.root.findByProps({ testID: 'payment-qr-surface' });
+  const style = StyleSheet.flatten(surface.props.style) || {};
+  expect(surface.props.bg).toBe('$background');
+  expect(surface.props.borderWidth ?? style.borderWidth).toBe(0);
+  expect(surface.props.p ?? style.padding ?? style.paddingLeft).toBe(20);
+  expect(size + 40).toBe(320);
+  await act(async () =>
+    tree.root.findByType('YStack' as any).props.onLayout({ nativeEvent: { layout: { width: 400 } } }),
+  );
+  expect(size + 40).toBe(400);
+  await act(async () => tree.unmount());
+});
+
 it('configures a disabled stack chevron with the local stage back action', async () => {
   const onBack = jest.fn();
   const tree = await render(<PaymentFlowHeader title="Confirm request" onBack={onBack} disabled />);

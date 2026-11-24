@@ -233,7 +233,8 @@ at the deadline. See [Cashu NUT-11](https://github.com/cashubtc/nuts/blob/main/1
 - Standard, locked/P2PK and Nostr sends share compact confirmation amounts, paying
   mint, creation fee and total. An unavailable fee must never appear as zero.
 - During submission, the header says Processing payment and the bottom button shows
-  Processing with the existing spinner. Editing, dismissal and duplicate submission
+  only the existing centered spinner. Its loading label remains available to screen readers.
+  Editing, dismissal and duplicate submission
   stay blocked by the existing flow guards.
 - A created or published token remains unclaimed: keep its QR, Copy/share/NFC controls
   and pending state. Copy is the only bottom action; the header closes the screen.
@@ -248,8 +249,111 @@ at the deadline. See [Cashu NUT-11](https://github.com/cashubtc/nuts/blob/main/1
   exact offline send, and interrupted request delivery. Verify balances and History
   after closing or backgrounding each flow.
 
-Next layout passes: Lightning receive/top-up, on-chain send/receive,
-mint-to-mint Transfer, then the NFC/POS-specific sheet layouts.
+All planned payment layout passes are implemented; native acceptance checks remain.
+
+## POS checkout layout
+
+- Preserve the light POS palette, with filled grouped details using its existing surface
+  color. Headers use the compact app header. Payment methods use a small filled pill for
+  the selected method and plain text for the inactive method, with stable accessible targets.
+- Amount entry keeps the same keypad, amount sizes, fiat minor-unit conversion and note
+  behavior. Compact mint/note rows replace the larger mint card in POS only. Keypad spacing
+  and bottom padding are reduced without shrinking its keys or changing regular wallet input.
+- Ecash and Lightning checkout keep one QR, Amount first below it, applicable note/status
+  details and a Copy action. Remove repeated scan instructions and the truncated invoice
+  row in POS; full invoice copying/sharing remains available. Preparation/receipt progress
+  uses a loader-only footer rather than a large standalone spinner.
+- Both POS QR frames blend into the green POS canvas, with black modules and no border.
+  Keep the 20-point quiet margin, responsive sizing and 240-point code cap. Regular wallet
+  QRs retain their white scan surface and existing border.
+- Success uses the shared status icon without an extra circle, compact title/amount,
+  grouped mint/note details and the standard Next sale button. Keep both receivers mounted
+  while switching methods; only verified receipt evidence completes the frozen sale.
+- Device checks: enter sats and fiat, add a note, switch methods and pay either the current
+  or previously displayed request. Test QR scanning of both green codes from another phone,
+  NFC receipt, offline preparation/retry, delayed Lightning issuance and Next sale. Check a
+  small display and large text, and ensure regular wallet screens retain their layouts.
+
+## NFC sheet layout
+
+- Keep NFC startup, tapping, delivery and settlement in the existing compact sheet.
+  Active progress moves into the header and a single loader-only primary action; there
+  is no large progress spinner above the amount. Retain instructions to keep phones
+  together. Pending and unconfirmed outcomes use a static pending indicator.
+- Amounts use the shared compact prominent style. One details group contains status,
+  mint, NFC method, saved event time and applicable fees/errors. A pay reserve is labelled
+  Maximum fee, not Fee paid; actual fees unavailable to the presentation remain unavailable.
+- Retry/refresh controls stay small and secondary when a primary Done action is present.
+  Keep at least 48-point touch targets. Done closes confirmed or unresolved receipts;
+  processing remains locked by the controller. Remove the extra View History action.
+- New-payment recovery remains guarded by the existing controller and warns that the
+  previous payment may still complete. Preserve same-token delivery retry and existing
+  Lightning retry eligibility; no NFC protocol or payment execution code is changed.
+- Device checks: startup/ready, successful ecash send/receive, Numo request and Lightning
+  tap, interrupted delivery/retry, pending/unconfirmed settlement, disabled NFC, locked
+  dismissal and background/resume. Check compact layout, both themes and large text.
+
+## Mint-to-mint Transfer layout
+
+- Review stays on the existing confirmation screen. Its compact amount, source/target mint
+  rows, maximum fee and maximum total use the approved payment layout. Preparation and
+  submission use a locked loader-only footer action, with status in the header.
+- Results show a primary Done action and grouped source/target, status, timestamp and fee
+  details. Only saved timestamps are shown. Known actual fees (including zero) replace the
+  reserve; unavailable actual fees are never inferred from the reviewed maximum fee.
+- Pending receipts distinguish source payment, destination issuance and conflicting
+  settlement evidence. Check status is a small action above details, shares an in-flight
+  lock and catches network failures without changing pending into failed. Offline checking
+  is disabled. Existing service guards control recovery and eligibility for a new attempt.
+- Live and History receipts share technical details built from the public transfer journal
+  and the two original local quotes. Groups contain Transfer ID/state/stage, source/destination
+  mint URLs, operation/quote references, fee reserve, recorded actual fee/total and expiry.
+  Source/destination quote groups include saved states, amounts, requests and expiry; a
+  source payment proof is exported only if it matches the invoice hash. No keys, proof
+  inputs or arbitrary metadata are exported. Opening details never submits a payment.
+- Device checks: transfer a small amount between two trusted compatible mints and compare
+  live/History receipts; copy/share technical details; test zero/unknown fees, delayed
+  destination issuance, offline/reconnect and background/resume. Verify no duplicate payment
+  after repeated checks, conflicting evidence remains pending, and review cancellation
+  releases reservations through the existing service cleanup.
+
+## On-chain send/receive layout
+
+- Preparing an address/quote and submitting a send use the shared receipt hierarchy:
+  status in the header, compact amount when known, grouped details and a locked loader-only
+  button. Existing quote creation and submission steps remain unchanged.
+- Review retains fee-option selection, mint selection and existing balance/expiry checks.
+  Destination copying uses the full address. Maximum fees/totals are labelled as estimates
+  and missing fee data remains unavailable; fee reserves never become actual fees paid.
+- Pending deposits retain the Bitcoin QR and Amount first below it when known. Pending
+  withdrawals retain a receipt without a QR, with a small Check status action and primary
+  Done. Copying the destination retains the full value. Status checks never resubmit a send.
+- Live pending/terminal flows expose the shared technical sheet. Exports add public network,
+  address, quote reserve and observed paid/issued totals where available. A mint-reported
+  outpoint may supply a transaction ID; blockchain confirmations remain explicitly unverified.
+  Signing keys, proof inputs and change outputs are never added to the receipt model.
+- Successful sends say Payment sent, without claiming blockchain confirmation. Actual fees
+  remain unavailable unless recorded. Error results close with Done rather than offering an
+  immediate new payment. Reconcile the original payment from History before retrying.
+- Device checks: create and copy/scan an address, receive and collect a small deposit, pay
+  with each offered fee option, and compare the live receipt with History. Test pending,
+  failed, offline/reconnect and background/resume states, long addresses, technical-detail
+  Copy/Share, light/dark themes and large text. Verify balance changes only after existing
+  proof reconciliation, and distinguish mint settlement from blockchain confirmation.
+
+## Lightning receive/top-up layout
+
+- Keep the existing confirmation, invoice and result layouts. Payment detection updates
+  the invoice's status to Issuing ecash without inserting a separate processing screen.
+  The result appears only after the existing redemption confirms local proof persistence.
+- Incomplete issuance remains on the invoice screen. Refresh status retries the original
+  quote through the existing redemption guard, including after a known-paid quote expires.
+- Saved paid top-ups retain their existing awaiting-ecash layout and menu collection action.
+  Offline collection remains disabled. Unpaid QR layouts retain Amount first in details.
+- Device checks: pay an unpaid invoice, wait for issuance and confirm one balance credit;
+  delay/fail issuance and retry the original quote, including after expiry and from History.
+  Test offline/reconnect, background/return, cancellation, expired invoices, conversation
+  requests, both themes, large text and invoice QR scanning. Verify POS remains unchanged.
 
 ## Ecash receive layout
 
@@ -278,9 +382,23 @@ mint-to-mint Transfer, then the NFC/POS-specific sheet layouts.
   Settings. A missing exchange rate must not become a zero fiat equivalent.
 - Unknown deposit amounts retain their existing amount-free state. Outgoing
   on-chain receipts without a QR retain their receipt amount presentation.
-- QR codes cap at 240 points, retaining the 20-point white quiet margin and
-  responsive sizing on narrow screens. Check scanning a Lightning invoice,
+- Normal wallet QR codes cap at 240 points, retaining the 20-point white quiet margin.
+  POS QR surfaces match the full details-list width, with a 20-point green quiet margin
+  and responsive sizing on narrow screens. Check scanning a Lightning invoice,
   static ecash and animated ecash on a phone, plus both POS payment methods.
+
+## POS history checks
+
+- Start fresh POS sales after reloading. Complete one through Ecash and another through
+  Lightning. Both must appear in the default transaction list as POS received with their
+  method. The POS toggle narrows the list; toggling it off restores all activity.
+- A new sale shares one persisted sale ID across its request and invoice. Only the paid
+  method remains in the list after receipt. If both methods actually receive funds,
+  both payment records remain visible. No balance or payment records are deleted.
+- Older sales without a saved sale ID cannot safely combine their separate Lightning
+  and Ecash offers. Their known POS payments still appear in the default list.
+- Check the larger POS entry amount on a narrow phone, including long fiat and sat
+  amounts, large system text and the on-screen keypad. Normal wallet entry stays unchanged.
 
 ## Grouped technical details
 

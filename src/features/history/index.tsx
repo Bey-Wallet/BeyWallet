@@ -95,7 +95,7 @@ function FilterPill({
 }
 
 export function HistoryScreen({
-  scope: requestedScope = 'wallet',
+  scope: requestedScope = 'all',
   showFilters = false,
   onFiltersClose,
   onFiltersActiveChange,
@@ -247,10 +247,7 @@ export function HistoryScreen({
     () => filterHistory(hasSearch ? searchHistory(searchIndex, searchQuery) : allEntries, filters),
     [allEntries, searchIndex, searchQuery, hasSearch, filters],
   );
-  const rows = useMemo(
-    () => groupHistory(hasSearch ? entries : entries.slice(0, 200)),
-    [entries, hasSearch],
-  );
+  const rows = useMemo(() => groupHistory(entries), [entries]);
   const resetFilters = () => setFilters(defaultHistoryFilters);
   const resetSearchAndFilters = () => {
     resetFilters();
@@ -380,7 +377,7 @@ export function HistoryScreen({
                 onPress={() => {
                   Keyboard.dismiss();
                   hapticService.selection();
-                  setScope((current) => (current === 'wallet' ? 'pos' : 'wallet'));
+                  setScope((current) => (current === 'pos' ? 'all' : 'pos'));
                 }}
               />
             </XStack>

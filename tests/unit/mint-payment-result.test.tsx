@@ -15,6 +15,7 @@ import * as Clipboard from 'expo-clipboard';
 import { PaymentStage } from '~/features/payments/mint/PaymentStage';
 import { ResultStage } from '~/features/payments/mint/ResultStage';
 import { formatPaymentDateTime } from '~/shared/utils/time';
+import { posColors } from '~/shared/theme/pos';
 
 let mockPrimaryCurrency = 'SATS';
 const mockToastShow = jest.fn();
@@ -181,6 +182,25 @@ it('copies the complete invoice and sizes the QR to the available space', async 
   await act(async () => button(tree, 'Copy').props.onPress());
   expect(Clipboard.setStringAsync).toHaveBeenCalledWith(paymentProps.invoice);
   expect(paymentProps.onPaid).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
+it('uses black-on-green POS QRs and keeps the note in details without repeating the invoice', async () => {
+  const tree = await render(<PaymentStage {...paymentProps} appearance="pos" note="Coffee" />);
+  await act(async () =>
+    tree.root
+      .findAllByProps({ accessibilityLabel: 'Lightning invoice QR code' })
+      .find((node) => typeof node.props.onLayout === 'function')!
+      .props.onLayout({ nativeEvent: { layout: { width: 320 } } }),
+  );
+  expect(tree.root.findByType('QRCode' as any).props).toMatchObject({
+    backgroundColor: posColors.canvas,
+    color: 'black',
+    value: paymentProps.invoice,
+  });
+  expect(tree.root.findByProps({ label: 'Note' }).props.value).toBe('Coffee');
+  expect(tree.root.findAllByProps({ label: 'Invoice' })).toHaveLength(0);
+  expect(tree.root.findByProps({ testID: 'payment-qr-surface' }).props.bg).toBe('$background');
   await act(async () => tree.unmount());
 });
 

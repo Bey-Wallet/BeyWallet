@@ -481,7 +481,7 @@ export function NostrSendStage({
         onConfirm={onContinue}
         confirmLabel={isLoading ? 'Processing...' : 'Continue'}
         confirmDisabled={!isValidAmount || isLoading}
-        confirmIcon={isLoading ? <Spinner size="small" /> : undefined}
+        isLoading={isLoading}
       />
 
       {/* ── Contact Search Sheet ──────────────────────────────────── */}

@@ -12,9 +12,7 @@ import { FullWindowOverlay } from 'react-native-screens';
 
 import { Text, View, XStack, YStack, useTheme } from 'tamagui';
 import { AlertTriangle, Settings2, Ban, Check, Nfc, type AppIconProps } from '~/shared/icons';
-import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Spinner } from '~/shared/ui/Spinner';
 import { appTypography } from '~/shared/theme/appearance';
 import { useAuthStore } from '~/state/authStore';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -24,14 +22,14 @@ import { nfcFlow } from './nfcFlow';
 import { nfcReceiveCoordinator } from '~/services/wallet/nfcReceiveCoordinator';
 
 const stateIcons = {
-  starting: Spinner,
+  starting: Nfc,
   ready: (props: AppIconProps) => <Nfc {...props} weight="fill" />,
-  reading: Spinner,
-  sending: Spinner,
-  receiving: Spinner,
-  paying: Spinner,
-  pausing: Spinner,
-  pending: Spinner,
+  reading: Nfc,
+  sending: Nfc,
+  receiving: Nfc,
+  paying: Nfc,
+  pausing: Nfc,
+  pending: Nfc,
   unconfirmed: AlertTriangle,
   confirmed: Check,
   error: AlertTriangle,
@@ -114,9 +112,14 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
     disabled: 'Enable NFC to continue',
     unsupported: 'NFC is unavailable on this device',
   };
-  const viewHistory = () => {
-    if (nfcFlow.dismiss()) router.push('/(tabs)/history');
-  };
+  const processing = ['starting', 'reading', 'sending', 'receiving', 'paying', 'pausing'].includes(
+    state.status,
+  );
+  const showDone =
+    processing ||
+    ['confirmed', 'pending', 'unconfirmed'].includes(state.status) ||
+    (state.status === 'error' && state.hasPayment);
+  const knownFee = state.fees != null && Number.isSafeInteger(state.fees) && state.fees >= 0;
   const retryDelivery = ['error', 'unconfirmed'].includes(state.status) && state.canRetryDelivery;
   const close = () => {
     if (!nfcFlow.getSnapshot().locked) nfcFlow.dismiss();
@@ -144,7 +147,7 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
     <AppBottomSheet
       ref={sheetRef}
       backgroundColor="$background"
-      title="NFC"
+      title={processing ? titles[state.status] : 'NFC'}
       titleSize={appTypography.title3.fontSize}
       titleLiveRegion="polite"
       navigationLabel="Close NFC"
@@ -161,100 +164,127 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
           <YStack
             testID="nfc-sheet-status"
             width="100%"
-            minHeight={200}
+            minHeight={processing ? 120 : 200}
             py="$4"
             gap="$3"
             items="center"
             justify="center"
           >
-            {state.status === 'confirmed' || state.status === 'error' ? (
-              <PaymentStatusIcon status={state.status === 'confirmed' ? 'success' : 'error'} />
-            ) : (
-              <View
-                backgroundColor={badgeColor}
-                borderRadius={100}
-                width={72}
-                height={72}
-                alignItems="center"
-                justifyContent="center"
+            {!processing &&
+              (['confirmed', 'error', 'pending', 'unconfirmed'].includes(state.status) ? (
+                <PaymentStatusIcon
+                  status={
+                    state.status === 'confirmed'
+                      ? 'success'
+                      : state.status === 'error'
+                        ? 'error'
+                        : 'pending'
+                  }
+                />
+              ) : (
+                <View
+                  backgroundColor={badgeColor}
+                  borderRadius={100}
+                  width={72}
+                  height={72}
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <StateIcon size={40} color={iconColor} />
+                </View>
+              ))}
+            {!processing && (
+              <Text
+                fontFamily="$heading"
+                {...appTypography.title3}
+                color="$color"
+                textAlign="center"
+                accessibilityLiveRegion="polite"
               >
-                <StateIcon size={40} color={iconColor} />
-              </View>
+                {titles[state.status]}
+              </Text>
             )}
             {state.amount !== undefined && (
               <PaymentAmount amount={state.amount} compact size="prominent" />
             )}
-            <Text
-              fontFamily="$heading"
-              {...appTypography.title3}
-              color="$color"
-              textAlign="center"
-              accessibilityLiveRegion="polite"
-            >
-              {titles[state.status]}
-            </Text>
-            {state.message !== state.error && (
-              <Text
-                fontFamily="$body"
-                {...appTypography.body2}
-                color="$gray10"
-                textAlign="center"
-                maxWidth={360}
-                accessibilityLiveRegion="polite"
-              >
-                {state.message}
-              </Text>
-            )}
-          </YStack>
-          <YStack width="100%" gap="$3" items="center">
-            {state.error && (
-              <YStack width="100%" bg="$gray2" rounded="$6" p="$3">
+            {state.message !== state.error &&
+              !['confirmed', 'pending', 'unconfirmed', 'error'].includes(state.status) && (
                 <Text
-                  accessibilityRole="alert"
-                  accessibilityLiveRegion="assertive"
                   fontFamily="$body"
                   {...appTypography.body2}
-                  color="$red10"
+                  color="$gray10"
+                  textAlign="center"
+                  maxWidth={360}
+                  accessibilityLiveRegion="polite"
                 >
-                  {state.error}
+                  {state.message}
                 </Text>
-              </YStack>
+              )}
+          </YStack>
+          <YStack width="100%" gap="$3" items="center">
+            {!processing && primaryAction && primaryAction.label !== 'Done' && (
+              <AppButton
+                variant="default"
+                emphasis={showDone ? 'secondary' : 'primary'}
+                size={showDone ? 'small' : 'large'}
+                fullWidth={!showDone}
+                disabled={state.locked || state.checkingStatus}
+                loading={primaryAction.label === 'Refresh status' && state.checkingStatus}
+                loadingText="Checking status…"
+                onPress={primaryAction.run}
+              >
+                {primaryAction.label}
+              </AppButton>
             )}
-            {state.mintUrl && (
-              <ListTable width="100%">
-                <ListTableRow label="Mint" value={mint?.nickname || mint?.name || state.mintUrl} />
+            {(state.mintUrl || state.error || state.hasPayment) && (
+              <ListTable compact width="100%">
+                {!processing && <ListTableRow label="Status" value={titles[state.status]} />}
+                {!!state.mintUrl && (
+                  <ListTableRow
+                    label="Mint"
+                    value={mint?.nickname || mint?.name || state.mintUrl}
+                  />
+                )}
+                <ListTableRow label="Method" value="NFC" />
                 {state.eventTime && (
                   <ListTableRow label="Time" value={formatPaymentDateTime(state.eventTime)} />
                 )}
-                {state.status === 'confirmed' && state.fees != null && state.fees > 0 && (
-                  <ListTableRow label="Fee" value={`${state.fees} sat`} />
+                {knownFee && (
+                  <ListTableRow
+                    label={state.direction === 'pay' ? 'Maximum fee' : 'Creation fee'}
+                    value={`${state.fees} sat`}
+                  />
+                )}
+                {state.status === 'confirmed' && state.direction !== 'send' && (
+                  <ListTableRow label="Fee paid" value="Unavailable" />
+                )}
+                {!!state.error && (
+                  <ListTableRow
+                    label="Details"
+                    multiline
+                    value={
+                      <Text
+                        accessibilityRole="alert"
+                        accessibilityLiveRegion="assertive"
+                        fontFamily="$body"
+                        {...appTypography.body2}
+                        color="$red10"
+                      >
+                        {state.error}
+                      </Text>
+                    }
+                  />
                 )}
               </ListTable>
-            )}
-
-            {primaryAction && (
-              <XStack width="100%" gap="$3">
-                <AppButton
-                  variant="default"
-                  emphasis="primary"
-                  size="large"
-                  flex={1}
-                  disabled={state.locked || state.checkingStatus}
-                  loading={primaryAction.label === 'Refresh status' && state.checkingStatus}
-                  loadingText="Checking status…"
-                  onPress={primaryAction.run}
-                >
-                  {primaryAction.label}
-                </AppButton>
-              </XStack>
             )}
             {showNewPayment && (
               <YStack width="100%" gap="$2">
                 <AppButton
                   variant="default"
                   emphasis="secondary"
-                  size="large"
-                  fullWidth
+                  size="small"
+                  fullWidth={false}
+                  self="center"
                   disabled={state.locked}
                   onPress={nfcFlow.newPayment}
                 >
@@ -262,12 +292,12 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
                 </AppButton>
                 {state.hasPayment && (
                   <Text {...appTypography.body3} color="$gray10" textAlign="center">
-                    The previous payment may still complete. Check History before paying it again.
+                    The previous payment may still complete. Check status before paying it again.
                   </Text>
                 )}
               </YStack>
             )}
-            {(showHistory || showRefresh || showCheckNfc) && (
+            {(showRefresh || showCheckNfc) && (
               <XStack width="100%" items="center" justify="center" gap="$3" flexWrap="wrap">
                 {showRefresh && (
                   <AppButton
@@ -293,18 +323,21 @@ export function NfcSheetHost({ walletReady }: { walletReady: boolean }) {
                     Check NFC
                   </AppButton>
                 )}
-                {showHistory && (
-                  <AppButton
-                    variant="default"
-                    emphasis="secondary"
-                    size="xsmall"
-                    disabled={state.locked}
-                    onPress={viewHistory}
-                  >
-                    View History
-                  </AppButton>
-                )}
               </XStack>
+            )}
+            {showDone && (
+              <AppButton
+                variant="default"
+                emphasis="primary"
+                size="large"
+                fullWidth
+                disabled={state.locked || processing}
+                loading={processing}
+                loadingText={titles[state.status]}
+                onPress={close}
+              >
+                Done
+              </AppButton>
             )}
           </YStack>
         </YStack>

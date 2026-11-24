@@ -21,6 +21,7 @@ import { mintUrlKey, normalizeMintUrl } from '~/shared/utils/mintUrl';
 import { InteractionManager } from 'react-native';
 import { Mint as CashuMint, Wallet, OutputData } from '@cashu/cashu-ts';
 import { appLogger } from '~/shared/utils/appLogger';
+import { queryClient } from '~/shared/utils/queryClient';
 
 export type MintRestoreStatus = 'pending' | 'scanning' | 'done' | 'partial' | 'error';
 
@@ -520,6 +521,8 @@ export const useWalletStore = create<WalletState>()(
                   entry.quoteId,
                   'paid',
                 );
+                void queryClient.invalidateQueries({ queryKey: ['history'] }).catch(() => {});
+                void queryClient.invalidateQueries({ queryKey: ['transaction'] }).catch(() => {});
                 await publishWalletFeedback({
                   entity: { type: 'quote', id: quoteFeedbackId(entry.mintUrl, entry.quoteId) },
                   parentOperationId: entry.quoteId,
@@ -544,6 +547,8 @@ export const useWalletStore = create<WalletState>()(
                   entry.quoteId,
                   'failed',
                 );
+                void queryClient.invalidateQueries({ queryKey: ['history'] }).catch(() => {});
+                void queryClient.invalidateQueries({ queryKey: ['transaction'] }).catch(() => {});
                 get().refreshBalance();
               }
             } catch (err) {

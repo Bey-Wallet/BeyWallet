@@ -2,9 +2,24 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ResultStage } from '~/features/payments/swap/ResultStage';
 
-jest.mock('tamagui', () => ({ Text: 'Text' }));
-jest.mock('~/shared/ui/PaymentReceipt', () => ({ PaymentReceipt: 'Receipt' }));
-jest.mock('~/shared/ui/ListTable', () => ({ ListTableRow: 'Row' }));
+jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
+jest.mock('~/shared/ui/PaymentStageLayout', () => ({
+  PaymentStageLayout: ({ hero, children, footer }: any) => (
+    <>
+      {hero}
+      {children}
+      {footer}
+    </>
+  ),
+}));
+jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'Header' }));
+jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
+jest.mock('~/shared/ui/PaymentStatusIcon', () => ({ PaymentStatusIcon: 'StatusIcon' }));
+jest.mock('~/features/payments/swap/TransferTechnicalDetails', () => ({
+  TransferTechnicalDetails: 'TechnicalDetails',
+}));
+jest.mock('~/shared/hooks/useOfflineStatus', () => ({ useOfflineStatus: () => false }));
+jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'Table', ListTableRow: 'Row' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/services/wallet/currencyService', () => ({
   currencyService: { formatSats: (n: number) => String(n) },
@@ -35,13 +50,16 @@ it.each([
   ['pending', 'Transfer pending', false],
   ['success', 'Transfer completed', true],
   ['error', 'Transfer not completed', false],
-] as const)('shows the correct receipt for %s', async (status, title, completed) => {
+] as const)('shows the correct receipt for %s', async (status, title, _completed) => {
   await act(async () => {
     tree = create(<ResultStage {...props} status={status} />);
   });
-  const receipt = tree.root.findByType('Receipt' as any);
-  expect(receipt.props.title).toBe(title);
-  expect(receipt.props.completed).toBe(completed);
+  expect(tree.root.findByProps({ accessibilityRole: 'header' }).props.children).toBe(title);
+  expect(tree.root.findByType('StatusIcon' as any).props.status).toBe(status);
+  expect(
+    tree.root.findAllByType('Button' as any).find((button) => button.props.children === 'Done')!
+      .props.emphasis,
+  ).toBe('primary');
   expect(tree.root.findByProps({ label: 'From mint' }).props.value).toBe('Source');
   expect(tree.root.findByProps({ label: 'To mint' }).props.value).toBe('Destination');
 });
@@ -51,9 +69,10 @@ it('distinguishes delayed issuance from a failed transfer and retains its timest
   await act(async () => {
     tree = create(<ResultStage {...props} status="pending" record={record} />);
   });
-  const receipt = tree.root.findByType('Receipt' as any);
-  expect(receipt.props.statusLabel).toBe('Waiting for destination ecash');
-  expect(receipt.props.time).toBe(123);
+  expect(tree.root.findByProps({ label: 'Status' }).props.value).toBe(
+    'Waiting for destination ecash',
+  );
+  expect(tree.root.findByType('TechnicalDetails' as any).props.record.createdAt).toBe(123);
   expect(tree.root.findByProps({ label: 'Maximum fee' }).props.value).toBe('3');
 });
 
@@ -62,11 +81,16 @@ it('shows conflicting mint evidence as needing review rather than a failed payme
   await act(async () => {
     tree = create(<ResultStage {...props} status="pending" record={record} />);
   });
-  const receipt = tree.root.findByType('Receipt' as any);
-  expect(receipt.props.status).toBe('pending');
-  expect(receipt.props.title).toBe('Transfer needs review');
-  expect(receipt.props.statusLabel).toBe('Checking transfer outcome');
-  expect(tree.root.findAllByType('Button' as any)).toHaveLength(0);
+  expect(tree.root.findByType('StatusIcon' as any).props.status).toBe('pending');
+  expect(tree.root.findByProps({ accessibilityRole: 'header' }).props.children).toBe(
+    'Transfer needs review',
+  );
+  expect(tree.root.findByProps({ label: 'Status' }).props.value).toBe('Checking transfer outcome');
+  expect(
+    tree.root
+      .findAllByType('Button' as any)
+      .some((button) => button.props.children === 'Try again'),
+  ).toBe(false);
 });
 
 it('retains pending payment status when its status check fails and offers verification guidance', async () => {
@@ -76,13 +100,72 @@ it('retains pending payment status when its status check fails and offers verifi
       <ResultStage {...props} status="pending" statusCheckFailed onCheckStatus={check} />,
     );
   });
-  const receipt = tree.root.findByType('Receipt' as any);
-  expect(receipt.props.status).toBe('pending');
-  expect(receipt.props.completed).toBe(false);
-  expect(receipt.props.statusLabel).toBe('Last check unavailable');
-  expect(receipt.props.onCheckStatus).toBe(check);
+  expect(tree.root.findByType('StatusIcon' as any).props.status).toBe('pending');
   expect(String(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children)).toContain(
     'Could not verify this transfer',
   );
-  expect(tree.root.findAllByType('Button' as any)).toHaveLength(0);
+  await act(async () =>
+    tree.root
+      .findAllByType('Button' as any)
+      .find((button) => button.props.children === 'Check status')!
+      .props.onPress(),
+  );
+  expect(check).toHaveBeenCalledTimes(1);
+});
+
+it.each([null, 0, 2])(
+  'keeps actual completion fees separate from the reserve (%s)',
+  async (feePaid) => {
+    const record = {
+      state: 'completed',
+      stage: 'issuance',
+      amount: 100,
+      feePaid,
+      feeReserve: 9,
+    } as any;
+    await act(async () => {
+      tree = create(<ResultStage {...props} status="success" record={record} />);
+    });
+    expect(tree.root.findByProps({ label: 'Fee paid' }).props.value).toBe(
+      feePaid == null ? 'Unavailable' : String(feePaid),
+    );
+    expect(tree.root.findByProps({ label: 'Total' }).props.value).toBe(
+      feePaid == null ? 'Unavailable' : String(100 + feePaid),
+    );
+    expect(tree.root.findAllByProps({ label: 'Maximum fee' })).toHaveLength(0);
+  },
+);
+
+it('prevents overlapping checks and leaves the transfer pending after a failed check', async () => {
+  let fail!: (reason: Error) => void;
+  const check = jest.fn(
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        fail = reject;
+      }),
+  );
+  await act(async () => {
+    tree = create(
+      <ResultStage {...props} status="pending" onCheckStatus={check} onRetry={jest.fn()} />,
+    );
+  });
+  const button = () =>
+    tree.root
+      .findAllByType('Button' as any)
+      .find((item) => item.props.children === 'Check status')!;
+  await act(async () => {
+    button().props.onPress();
+    button().props.onPress();
+  });
+  expect(check).toHaveBeenCalledTimes(1);
+  expect(button().props.loading).toBe(true);
+  await act(async () => fail(new Error('Network unavailable')));
+  expect(button().props.loading).toBe(false);
+  expect(tree.root.findByType('StatusIcon' as any).props.status).toBe('pending');
+  expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toContain(
+    'Could not verify',
+  );
+  expect(
+    tree.root.findAllByType('Button' as any).some((item) => item.props.children === 'Try again'),
+  ).toBe(false);
 });

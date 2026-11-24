@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { selectTransferSource } from './mintSelection';
 import { usePreventRemove } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { YStack, Text } from 'tamagui';
+import { YStack } from 'tamagui';
 import { useWalletStore } from '~/state/walletStore';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
@@ -16,7 +16,6 @@ import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { AppButton } from '~/shared/ui/AppButton';
-import { Spinner } from '~/shared/ui/Spinner';
 import { currencyService } from '~/services/wallet/currencyService';
 import {
   getMintTransferService,
@@ -175,7 +174,13 @@ export default function SwapScreen() {
       ) : (
         <>
           <PaymentFlowHeader
-            title="Confirm transfer"
+            title={
+              isProcessing
+                ? 'Processing transfer'
+                : quoting
+                  ? 'Preparing transfer'
+                  : 'Confirm transfer'
+            }
             onBack={() => setStep('amount')}
             disabled={isProcessing}
             headerRight={infoAction}
@@ -184,17 +189,7 @@ export default function SwapScreen() {
             disabled={isProcessing}
             hero={
               <>
-                <PaymentAmount
-                  amount={Number(amount)}
-                  size="prominent"
-                  label="You're transferring"
-                />
-                {quoting && <Spinner size="small" />}
-                {error && (
-                  <Text color="$red10" textAlign="center" accessibilityRole="alert">
-                    {error}
-                  </Text>
-                )}
+                <PaymentAmount amount={Number(amount)} size="prominent" compact />
               </>
             }
             footer={
@@ -202,8 +197,8 @@ export default function SwapScreen() {
                 haptic
                 size="large"
                 fullWidth
-                loading={isProcessing}
-                loadingText="Transferring ecash…"
+                loading={quoting || isProcessing}
+                loadingText={quoting ? 'Preparing transfer' : 'Transferring ecash'}
                 disabled={quoting || isProcessing || !record}
                 onPress={submit}
               >
@@ -238,10 +233,17 @@ export default function SwapScreen() {
                     : 'Unavailable'
                 }
               />
+              {!!error && <ListTableRow label="Details" value={error} multiline />}
             </ListTable>
             {!quoting && error && (
-              <AppButton size="large" emphasis="secondary" onPress={() => setStep('amount')}>
-                Change amount or retry
+              <AppButton
+                size="small"
+                fullWidth={false}
+                self="center"
+                emphasis="secondary"
+                onPress={() => setStep('amount')}
+              >
+                Edit transfer
               </AppButton>
             )}
           </PaymentStageLayout>

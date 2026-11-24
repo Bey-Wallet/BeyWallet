@@ -16,7 +16,16 @@ export function paymentReceiptStatus(state: string, broadcast = false): PaymentS
   if (['expired', 'cancelled', 'canceled'].includes(value)) return 'cancelled';
   if (
     !broadcast &&
-    ['success', 'claimed', 'completed', 'finalized', 'paid', 'issued', 'refunded'].includes(value)
+    [
+      'success',
+      'claimed',
+      'received',
+      'completed',
+      'finalized',
+      'paid',
+      'issued',
+      'refunded',
+    ].includes(value)
   )
     return 'success';
   return 'pending';

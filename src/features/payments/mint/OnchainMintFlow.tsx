@@ -4,17 +4,17 @@ import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
 import { OnchainTransactionRows } from '~/features/history/components/OnchainTransactionRows';
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
-import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
+import { OnchainPaymentStatus } from '../OnchainPaymentStatus';
+import { PaymentTechnicalDetails } from '../PaymentTechnicalDetails';
+import type { ReceiptSnapshot } from '~/features/history/receiptDetails';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
-import { Landmark } from '~/shared/icons';
 
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { YStack, Text, Paragraph } from 'tamagui';
+import { Text } from 'tamagui';
 
 import { networkService } from '~/services/platform/networkService';
 import { hapticService } from '~/services/platform/hapticService';
@@ -59,6 +59,7 @@ export function OnchainMintFlow() {
   const [amountPaid, setAmountPaid] = useState(0);
   const [amountIssued, setAmountIssued] = useState(0);
   const [txState, setTxState] = useState('UNPAID');
+  const [quoteSnapshot, setQuoteSnapshot] = useState<ReceiptSnapshot>({});
 
   const { data: btcData } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
@@ -172,6 +173,13 @@ export function OnchainMintFlow() {
         setAmountPaid(status.amount_paid);
         setAmountIssued(status.amount_issued);
         setTxState(status.state);
+        setQuoteSnapshot({
+          request: quoteData.request,
+          state: status.state,
+          expiry: status.expiry,
+          amountPaid: status.amount_paid,
+          amountIssued: status.amount_issued,
+        });
 
         const delta = status.amount_paid - status.amount_issued;
         if (delta > 0) {
@@ -220,6 +228,24 @@ export function OnchainMintFlow() {
   );
 
   usePendingPaymentPolling(() => handleCheckPayment(false), step === 'deposit' && !!quoteData);
+
+  const technicalDetails = quoteData && (
+    <PaymentTechnicalDetails
+      entry={{
+        id: '',
+        type: 'mint',
+        amount: amountPaid,
+        unit: 'sat',
+        mintUrl: activeMintUrl || '',
+        createdAt: eventTime || 0,
+        quoteId: quoteData.quote,
+        paymentRequest: quoteData.request,
+        state: step === 'success' ? 'issued' : txState,
+        metadata: { via: 'onchain', address: quoteData.request },
+      }}
+      snapshot={quoteSnapshot}
+    />
+  );
 
   // Render loading state
   if (step === 'confirm')
@@ -271,29 +297,27 @@ export function OnchainMintFlow() {
 
   if (step === 'loading') {
     return (
-      <YStack flex={1} justify="center" items="center" gap="$4" bg="$background" p="$6">
-        <PaymentFlowHeader title="Preparing deposit" navigationAction="close" disabled />
-        <Landmark size={48} color="$accent10" />
-        <Paragraph color="$gray10">On-chain deposit</Paragraph>
-        <Text fontWeight="600">{mintDisplayName}</Text>
-        <Paragraph color="$gray10" textAlign="center">
-          Your deposit address will appear here.
-        </Paragraph>
-      </YStack>
+      <OnchainPaymentStatus
+        status="processing"
+        direction="deposit"
+        mint={mintDisplayName}
+        title="Preparing deposit"
+        onClose={() => router.back()}
+      />
     );
   }
 
   // Render error state
   if (step === 'error')
     return (
-      <PaymentReceipt
+      <OnchainPaymentStatus
         status="error"
-        inset={false}
-        title="Deposit not completed"
+        direction="deposit"
         amount={amountIssued || amountPaid}
-        mintUrl={activeMintUrl || undefined}
-        completed={false}
+        mint={mintDisplayName}
+        address={quoteData?.request}
         error={errorMsg}
+        technicalDetails={technicalDetails}
         onClose={() => router.back()}
       />
     );
@@ -301,17 +325,19 @@ export function OnchainMintFlow() {
   // Render success state
   if (step === 'success')
     return (
-      <PaymentReceipt
-        inset={false}
-        title="Funds added"
+      <OnchainPaymentStatus
+        status="success"
+        direction="deposit"
         amount={amountIssued || amountPaid}
-        mintUrl={activeMintUrl || undefined}
+        mint={mintDisplayName}
+        address={quoteData?.request}
         time={eventTime}
-        completed
+        technicalDetails={technicalDetails}
         onClose={() => router.back()}
-      >
-        <OnchainTransactionRows direction="deposit" address={quoteData?.request || ''} />
-      </PaymentReceipt>
+        transactionDetails={
+          <OnchainTransactionRows direction="deposit" address={quoteData?.request || ''} />
+        }
+      />
     );
 
   // Render deposit state (displays Bitcoin address and QR code)
@@ -326,6 +352,7 @@ export function OnchainMintFlow() {
       checking={isChecking}
       onClose={() => router.back()}
       inset={false}
+      technicalDetails={technicalDetails}
       transactionDetails={
         <OnchainTransactionRows direction="deposit" address={quoteData?.request || ''} pending />
       }

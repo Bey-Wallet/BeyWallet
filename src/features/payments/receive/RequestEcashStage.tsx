@@ -11,6 +11,7 @@ import type { BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { CircleHelp } from '~/shared/icons';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import { PaymentAmountRow } from '~/shared/ui/PaymentAmountRow';
+import { posColors } from '~/shared/theme/pos';
 import { ReceiptImageShare } from '~/features/history/components/ReceiptImageShare';
 import { buildShareableReceipt } from '~/features/history/shareableReceipt';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
@@ -58,6 +59,7 @@ interface RequestEcashStageProps {
   targetNpub?: string;
   targetUsername?: string;
   merchant?: {
+    saleId?: string;
     amount: number;
     mintUrl: string;
     active: boolean;
@@ -242,6 +244,7 @@ export function RequestEcashStage({
             kind: 'request',
             mintUrl: draft.mintUrl,
             reference: reqId,
+            ...(merchant.saleId ? { saleId: merchant.saleId } : {}),
           });
         }
         await addRequest({
@@ -567,44 +570,69 @@ export function RequestEcashStage({
         inset={!merchant}
         hero={
           <>
-            {merchant && (
-              <YStack items="center" gap="$2" width="100%">
-                {!!merchant.note && (
-                  <Text color="$color" fontSize={13} textAlign="center">
-                    {merchant.note}
-                  </Text>
-                )}
-                <Text color="$color" fontSize={13}>
-                  Scan to pay with Ecash
-                </Text>
-              </YStack>
+            {merchant && !creqString ? (
+              <Text color="$gray10" fontSize={13} textAlign="center">
+                {generateError
+                  ? 'Request unavailable'
+                  : !npub
+                    ? 'Wallet identity is unavailable.'
+                    : 'Preparing request'}
+              </Text>
+            ) : (
+              <PaymentQRFrame
+                appearance={merchant ? 'pos' : 'default'}
+                accessibilityLabel="Payment request QR code"
+                placeholder={!creqString}
+              >
+                {(size) =>
+                  creqString ? (
+                    <QRCode
+                      value={creqString}
+                      size={size}
+                      backgroundColor={merchant ? posColors.canvas : 'white'}
+                      color="black"
+                    />
+                  ) : (
+                    <YStack width={size} height={size} items="center" justify="center" p="$4">
+                      {isGenerating || isRestoring ? (
+                        <Spinner size="large" />
+                      ) : (
+                        <Text color="$gray10" textAlign="center">
+                          {!npub
+                            ? 'Wallet identity is unavailable.'
+                            : !activeMintUrl
+                              ? 'Select a mint to create a request.'
+                              : 'Set an amount to show your request QR.'}
+                        </Text>
+                      )}
+                    </YStack>
+                  )
+                }
+              </PaymentQRFrame>
             )}
-            <PaymentQRFrame accessibilityLabel="Payment request QR code" placeholder={!creqString}>
-              {(size) =>
-                creqString ? (
-                  <QRCode value={creqString} size={size} backgroundColor="white" color="black" />
-                ) : (
-                  <YStack width={size} height={size} items="center" justify="center" p="$4">
-                    {isGenerating || isRestoring ? (
-                      <Spinner size="large" />
-                    ) : (
-                      <Text color="$gray10" textAlign="center">
-                        {!npub
-                          ? 'Wallet identity is unavailable.'
-                          : !activeMintUrl
-                            ? 'Select a mint to create a request.'
-                            : 'Set an amount to show your request QR.'}
-                      </Text>
-                    )}
-                  </YStack>
-                )
-              }
-            </PaymentQRFrame>
             {creqString && !targetNpub && <RequestNfcBadge />}
           </>
         }
         footer={
-          !merchant && (
+          merchant ? (
+            <AppButton
+              size="large"
+              fullWidth
+              emphasis="secondary"
+              loading={!!isRequestBusy || isRestoring || isChecking}
+              loadingText={
+                isGenerating || isRestoring
+                  ? 'Preparing request'
+                  : isChecking
+                    ? 'Checking payment'
+                    : 'Receiving payment'
+              }
+              disabled={!!isRequestBusy || isRestoring || isChecking || !creqString}
+              onPress={handleCopy}
+            >
+              Copy
+            </AppButton>
+          ) : (
             <AppButton
               haptic
               size="large"
@@ -630,6 +658,7 @@ export function RequestEcashStage({
         )}
         <ListTable compact>
           {merchant && <PaymentAmountRow amount={merchant.amount} />}
+          {!!merchant?.note && <ListTableRow label="Note" value={merchant.note} multiline />}
           {creqString && (
             <PaymentStatusRow
               status={
@@ -643,7 +672,7 @@ export function RequestEcashStage({
                     : paymentStatus
               }
               onRefresh={handleCheckStatus}
-              checking={isChecking}
+              checking={isChecking && !merchant}
             />
           )}
           {!merchant && (

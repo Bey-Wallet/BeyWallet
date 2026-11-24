@@ -5,13 +5,16 @@ export function PaymentQRFrame({
   children,
   accessibilityLabel,
   placeholder = false,
+  appearance = 'default',
 }: {
   children: (size: number) => React.ReactNode;
   accessibilityLabel: string;
   placeholder?: boolean;
+  appearance?: 'default' | 'pos';
 }) {
   const [width, setWidth] = useState(0);
-  const size = Math.max(0, Math.min(240, width - 40));
+  const availableSize = Math.max(0, width - 40);
+  const size = appearance === 'pos' ? availableSize : Math.min(240, availableSize);
   return (
     <YStack
       width="100%"
@@ -23,11 +26,11 @@ export function PaymentQRFrame({
       {size > 0 && (
         <YStack
           testID="payment-qr-surface"
-          bg={placeholder ? '$gray2' : 'white'}
+          bg={appearance === 'pos' ? '$background' : placeholder ? '$gray2' : 'white'}
           p={20}
-          borderWidth={1}
+          borderWidth={appearance === 'pos' ? 0 : 1}
           borderColor="$borderColor"
-          rounded="$6"
+          rounded={appearance === 'pos' ? 0 : '$6'}
         >
           {children(size)}
         </YStack>

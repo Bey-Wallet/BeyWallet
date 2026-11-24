@@ -3,7 +3,7 @@ import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useRef } from 'react';
 import { YStack, Text, Input } from 'tamagui';
-import { ArrowUpDown } from '~/shared/icons';
+import { ArrowUpDown, ChevronDown } from '~/shared/icons';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -19,7 +19,7 @@ import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 
 import { BouncyAmount } from '~/shared/ui/BouncyAmount';
 import { MintBalanceRow } from '~/shared/ui/MintBalanceRow';
-import { ListTableRow } from '~/shared/ui/ListTable';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 
 interface AmountStageProps {
   appearance?: 'default' | 'pos';
@@ -221,49 +221,67 @@ export function AmountStage({
     return localInputValue;
   }, [localInputValue, inputMode, posFiat]);
 
+  const noteField = onNoteChange && (
+    <ListTableRow
+      label="Note"
+      verticalPadding={pos ? 0 : undefined}
+      value={
+        <Input
+          value={note || ''}
+          onChangeText={onNoteChange}
+          placeholder={pos ? 'Optional' : 'Coffee, for example'}
+          accessibilityLabel="Payment note"
+          maxLength={200}
+          fontFamily="$body"
+          fontSize={13}
+          minHeight={48}
+          width={180}
+          maxWidth="100%"
+          minWidth={0}
+          bg="transparent"
+          color="$color"
+          placeholderTextColor="$gray10"
+          borderWidth={0}
+          textAlign="right"
+        />
+      }
+    />
+  );
+
   return (
     <YStack flex={1} gap="$2">
       <YStack flex={1} minHeight={0} items="center" gap="$2" width="100%">
         {/* Mint Selector Row */}
-        <MintBalanceRow
-          activeMint={activeMint}
-          activeMintUrl={activeMintUrl || undefined}
-          displayName={displayName}
-          balance={balance}
-          showBalance={!onNoteChange}
-          isLoadingMint={isLoadingMint}
-          isSelector={true}
-          onPress={() => {
-            refreshMintList();
-            sheetRef.current?.present();
-          }}
-        >
-          {onNoteChange && (
+        {pos ? (
+          <ListTable compact width="100%">
             <ListTableRow
-              label="Note"
-              value={
-                <Input
-                  value={note || ''}
-                  onChangeText={onNoteChange}
-                  placeholder="Coffee, for example"
-                  accessibilityLabel="Payment note"
-                  maxLength={200}
-                  fontFamily="$body"
-                  fontSize={13}
-                  minHeight={48}
-                  width={180}
-                  maxWidth="100%"
-                  minWidth={0}
-                  bg="transparent"
-                  color="$color"
-                  placeholderTextColor="$gray10"
-                  borderWidth={0}
-                  textAlign="right"
-                />
-              }
+              label="Mint"
+              value={isLoadingMint ? 'Loading…' : displayName}
+              onPress={() => {
+                refreshMintList();
+                sheetRef.current?.present();
+              }}
+              rightContent={<ChevronDown size={18} color="$gray10" />}
             />
-          )}
-        </MintBalanceRow>
+            {noteField}
+          </ListTable>
+        ) : (
+          <MintBalanceRow
+            activeMint={activeMint}
+            activeMintUrl={activeMintUrl || undefined}
+            displayName={displayName}
+            balance={balance}
+            showBalance={!onNoteChange}
+            isLoadingMint={isLoadingMint}
+            isSelector={true}
+            onPress={() => {
+              refreshMintList();
+              sheetRef.current?.present();
+            }}
+          >
+            {noteField}
+          </MintBalanceRow>
+        )}
 
         {/* Card Box Container */}
         <YStack
@@ -273,19 +291,22 @@ export function AmountStage({
           justify="center"
           bg={pos ? 'transparent' : '$gray2'}
           rounded="$6"
-          p="$4"
+          p={pos ? 0 : '$4'}
           items="center"
           gap="$3"
           borderWidth={0}
           borderColor="$borderColor"
         >
           {/* Amount Display Section */}
-          <YStack items="center" justify="center" py="$4" gap="$2" width="100%">
-            <Text color="$gray10" fontSize={pos ? 14 : '$3'} fontWeight="500">
-              {pos ? 'New sale' : 'Enter Amount'}
-            </Text>
+          <YStack items="center" justify="center" py={pos ? '$2' : '$4'} gap="$2" width="100%">
+            {!pos && (
+              <Text color="$gray10" fontSize="$3" fontWeight="500">
+                Enter Amount
+              </Text>
+            )}
 
             <BouncyAmount
+              fontSize={pos ? 72 : undefined}
               value={formattedDisplayValue}
               prefix={inputMode === 'SATS' ? (showBitcoinSymbol ? '₿' : '') : currencySymbol}
               suffix={inputMode === 'SATS' && !showBitcoinSymbol ? ' sat' : ''}
@@ -296,7 +317,7 @@ export function AmountStage({
                 px={12}
                 py={4}
                 rounded="$10"
-                bg="$gray3"
+                bg={pos ? 'transparent' : '$gray3'}
                 pressStyle={{ scale: 0.96, bg: '$gray5' }}
                 onPress={toggleMode}
                 minHeight={pos ? 48 : 36}
@@ -305,7 +326,7 @@ export function AmountStage({
                 justify="center"
                 gap={8}
               >
-                <Text fontSize="$5" fontWeight="600" color="$accent10">
+                <Text fontSize={pos ? 13 : '$5'} fontWeight={pos ? '500' : '600'} color="$accent10">
                   {conversionValue}
                 </Text>
                 <ArrowUpDown size={14} color="$accent10" strokeWidth={2.5} />
