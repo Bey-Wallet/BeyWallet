@@ -1,40 +1,44 @@
-import { BUIActionButton } from '~/shared/ui/BUI/BUIButton';
+import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useCallback } from 'react';
-import { XStack } from 'tamagui';
-import { ArrowDown, ArrowRightLeft, ArrowUp, Scan } from '~/shared/icons';
+import { Text, XStack, YStack } from 'tamagui';
+import { ArrowDown, ArrowRightLeft, Scan, Send, type AppIconProps } from '~/shared/icons';
 import { useRouter } from 'expo-router';
 import ActionSelectorSheet, { ActionSelectorSheetRef } from '~/shared/ui/ActionSelectorSheet';
-import { appSpacing } from '~/shared/theme/appearance';
+import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { hapticService } from '~/services/platform/hapticService';
 
 function HomeAction({
   label,
   accessibilityLabel = label,
   icon: Icon,
-  iconSize = 24,
-  iconStrokeWidth = 3,
   onPress,
 }: {
   label: string;
   accessibilityLabel?: string;
-  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
-  iconSize?: number;
-  iconStrokeWidth?: number;
+  icon: React.ComponentType<AppIconProps>;
   onPress: () => void;
 }) {
   return (
-    <BUIActionButton
+    <AppPressable
       flex={1}
-      plain
-      title={label}
+      minWidth={appDimensions.touchTarget}
+      minHeight={appDimensions.touchTarget}
+      items="center"
+      justify="center"
+      gap={appSpacing.compact}
       accessibilityLabel={accessibilityLabel}
       onPress={() => {
         hapticService.selection();
         onPress();
       }}
     >
-      <Icon size={iconSize} color="$accent1" strokeWidth={iconStrokeWidth} />
-    </BUIActionButton>
+      <YStack height={24} justify="center" aria-hidden>
+        <Icon size={20} color="$color" strokeWidth={3} weight="bold" />
+      </YStack>
+      <Text {...appTypography.body3} fontWeight="600" color="$gray10">
+        {label}
+      </Text>
+    </AppPressable>
   );
 }
 
@@ -67,13 +71,11 @@ export default React.memo(function ActionButtons() {
           label="Scan"
           accessibilityLabel="Scan QR code"
           icon={Scan}
-          iconSize={22}
-          iconStrokeWidth={3.5}
           onPress={handleScan}
         />
         <HomeAction label="Transfer" icon={ArrowRightLeft} onPress={handleTransfer} />
         <HomeAction label="Receive" icon={ArrowDown} onPress={handleReceive} />
-        <HomeAction label="Send" icon={ArrowUp} onPress={handleSend} />
+        <HomeAction label="Send" icon={Send} onPress={handleSend} />
       </XStack>
 
       <ActionSelectorSheet ref={actionSheetRef} />

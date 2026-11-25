@@ -6,13 +6,13 @@ Scope: production routes and development-client-only BUI previews, including ali
 
 ## Main and detail routes
 
-| Review  | Route file                    | Owner                                            | Scope / exception                                       |
-| ------- | ----------------------------- | ------------------------------------------------ | ------------------------------------------------------- |
-| Pending | `src/app/(tabs)/history.tsx`  | `~/features/history/HistoryTabScreen`            | Review neutral groups, typography and shared actions.   |
-| Pending | `src/app/(tabs)/index.tsx`    | `~/features/home`                                | Home; full-width circular actions and inset mint panel. |
-| Pending | `src/app/(tabs)/people.tsx`   | `~/features/people`                              | Review neutral groups, typography and shared actions.   |
-| Pending | `src/app/txn-details.tsx`     | `~/features/history/TransactionDetailsScreen`    | Review neutral groups, typography and shared actions.   |
-| Pending | `src/app/wallet-activity.tsx` | `~/features/history/WalletActivityDetailsScreen` | Review neutral groups, typography and shared actions.   |
+| Review  | Route file                    | Owner                                            | Scope / exception                                            |
+| ------- | ----------------------------- | ------------------------------------------------ | ------------------------------------------------------------ |
+| Pending | `src/app/(tabs)/history.tsx`  | `~/features/history/HistoryTabScreen`            | Review neutral groups, typography and shared actions.        |
+| Pending | `src/app/(tabs)/index.tsx`    | `~/features/home`                                | Home with compact, unfilled actions and an inset mint panel. |
+| Pending | `src/app/(tabs)/people.tsx`   | `~/features/people`                              | Review neutral groups, typography and shared actions.        |
+| Pending | `src/app/txn-details.tsx`     | `~/features/history/TransactionDetailsScreen`    | Review neutral groups, typography and shared actions.        |
+| Pending | `src/app/wallet-activity.tsx` | `~/features/history/WalletActivityDetailsScreen` | Review neutral groups, typography and shared actions.        |
 
 ## Every Settings destination and category
 

@@ -59,8 +59,8 @@ isolated from production wallet screens.
 
 - **BUI:** development-client-only previews retain their own geometry, typography
   and colors. They do not migrate production screens or invoke wallet operations.
-- **Home:** the requested Tangem-inspired layout uses a centered balance, large circular actions and a
-  single inset mint panel. Preserve this grouping, Bey's typography and the wallet interactions.
+- **Home:** a centered balance, compact icon-and-label actions on the canvas, and a single inset mint
+  panel. Action tap targets are at least 48 points. Preserve this grouping and the wallet interactions.
 - **POS:** preserve the lime/black light_pos palette, sale-action pills and white QR surfaces.
   Apply structural rules within that theme instead of replacing it with neutral fills.
 - **QR/scanner/camera:** preserve code contrast, white QR backgrounds where required, camera

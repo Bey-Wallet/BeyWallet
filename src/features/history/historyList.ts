@@ -122,12 +122,25 @@ export function historyRail(entry: HistoryListEntry): string {
   return ['mint', 'melt'].includes(entry.type) ? 'lightning' : 'ecash';
 }
 
+export function historyMintUrls(entry: HistoryListEntry): string[] {
+  const { targetMintUrl, walletActivity } = historyMetadata(entry);
+  const urls = [entry.mintUrl];
+  if (typeof targetMintUrl === 'string' && historyRail(entry) === 'transfer') {
+    urls.push(targetMintUrl);
+  }
+  if (Array.isArray(walletActivity?.mintUrls)) urls.push(...walletActivity.mintUrls);
+  return urls
+    .filter((url): url is string => typeof url === 'string' && url.length > 0)
+    .map((url) => url.replace(/\/+$/, ''));
+}
+
 export function filterHistory(
   entries: HistoryListEntry[],
   filters: HistoryFilters,
   now = new Date(),
 ) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const mint = filters.mint.replace(/\/+$/, '');
   const cutoff =
     filters.time === 'today'
       ? today
@@ -138,27 +151,9 @@ export function filterHistory(
           : 0;
   return entries
     .filter((entry) => {
-      const targetMint = historyMetadata(entry).targetMintUrl;
-      const activityMints = historyMetadata(entry).walletActivity?.mintUrls;
       // Address creation is persisted for recovery, but is not payment activity.
       if (isOnchainHistory(entry) && !(entry.amount > 0)) return false;
-      if (
-        filters.mint !== 'all' &&
-        entry.mintUrl.replace(/\/$/, '') !== filters.mint.replace(/\/$/, '') &&
-        !(
-          Array.isArray(activityMints) &&
-          activityMints.some(
-            (url: unknown) =>
-              typeof url === 'string' && url.replace(/\/$/, '') === filters.mint.replace(/\/$/, ''),
-          )
-        ) &&
-        !(
-          historyRail(entry) === 'transfer' &&
-          typeof targetMint === 'string' &&
-          targetMint.replace(/\/$/, '') === filters.mint.replace(/\/$/, '')
-        )
-      )
-        return false;
+      if (mint !== 'all' && !historyMintUrls(entry).includes(mint)) return false;
       if (historyTimestamp(entry.createdAt) < cutoff) return false;
       if (filters.rail === 'payments') {
         if (['maintenance', 'requests'].includes(historyRail(entry))) return false;
