@@ -48,8 +48,8 @@ export const seedService = {
    * Derives a deterministic Nostr private key from the mnemonic.
    * We use the first 32 bytes of the BIP39 seed for simplicity and consistency.
    */
-  getNostrKeys: async (mnemonic: string) => {
-    const seed = await bip39.mnemonicToSeed(mnemonic);
+  getNostrKeys: async (mnemonic: string, derivedSeed?: Uint8Array) => {
+    const seed = derivedSeed ?? (await bip39.mnemonicToSeed(mnemonic));
     const privateKeyBytes = new Uint8Array(seed.slice(0, 32));
     const privateKeyHex = Buffer.from(privateKeyBytes).toString('hex');
 

@@ -72,7 +72,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockManager = null;
   jest.mocked(initService.walletExists).mockResolvedValue(true);
-  useOnboardingStore.setState({ isOnboarded: true, isCheckingOnboarding: false });
+  useOnboardingStore.setState({
+    isOnboarded: true,
+    isCheckingOnboarding: false,
+    currentStep: 'welcome',
+  });
   useSettingsStore.setState({ initialized: false });
 });
 afterEach(async () => {
@@ -91,6 +95,7 @@ it('opens Home after local privacy settings, before network initialization compl
     tree = create(<RootLayout />);
   });
   expect(JSON.stringify(tree.toJSON())).not.toContain('Home');
+  expect(JSON.stringify(tree.toJSON())).not.toContain('Opening wallet');
   expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
   await act(async () => {
     mockManager = {};

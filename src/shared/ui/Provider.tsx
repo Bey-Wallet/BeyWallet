@@ -35,12 +35,7 @@ function InnerProvider({ children, cocoManager, ...rest }: any) {
       defaultTheme={resolvedTheme}
       {...rest}
     >
-      <KeyboardProvider
-        preload={false}
-        statusBarTranslucent
-        navigationBarTranslucent
-        preserveEdgeToEdge
-      >
+      <KeyboardProvider preload={false}>
         <BottomSheetModalProvider>
           <ToastProvider swipeDirection="horizontal" duration={3000} native={[]}>
             <OperationFeedbackProvider>

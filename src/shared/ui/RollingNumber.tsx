@@ -27,58 +27,30 @@ interface RollingDigitProps {
 
 const NUMBERS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-function DigitSlide({
-  previous,
-  height,
-  children,
-}: {
-  previous: React.ReactNode;
-  height: number;
-  children: React.ReactNode;
-}) {
-  const offset = useSharedValue(height);
-  useLayoutEffect(() => {
-    offset.value = withTiming(0, { duration: 240, easing: Easing.out(Easing.cubic) });
-  }, [offset]);
-  const style = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
-  return (
-    <Animated.View style={style}>
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        aria-hidden
-        style={{ position: 'absolute', top: -height, left: 0, right: 0 }}
-      >
-        {previous}
-      </View>
-      {children}
-    </Animated.View>
-  );
-}
-
-function ChangedDigit({
+function DigitWheel({
   digit,
   height,
-  enabled,
   renderDigit,
 }: {
   digit: number;
   height: number;
-  enabled: boolean;
-  renderDigit: (digit: number) => React.ReactNode;
+  renderDigit: (digit: number, hidden?: boolean) => React.ReactNode;
 }) {
-  const [change, setChange] = useState<{ current: number; previous?: number }>({ current: digit });
-  if (change.current !== digit)
-    setChange({ current: digit, previous: enabled ? change.current : undefined });
-  if (change.previous === undefined) return renderDigit(digit);
+  const target = -digit * height;
+  const offset = useSharedValue(target);
+  const previousTarget = useRef(target);
+
+  useLayoutEffect(() => {
+    if (previousTarget.current === target) return;
+    previousTarget.current = target;
+    offset.value = withTiming(target, { duration: 460, easing: Easing.out(Easing.cubic) });
+  }, [offset, target]);
+
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
   return (
-    <DigitSlide
-      key={`${change.previous}:${digit}`}
-      previous={renderDigit(change.previous)}
-      height={height}
-    >
-      {renderDigit(digit)}
-    </DigitSlide>
+    <Animated.View style={style}>
+      {NUMBERS.map((number) => renderDigit(number, number !== digit))}
+    </Animated.View>
   );
 }
 
@@ -130,8 +102,14 @@ const RollingDigit = ({
     };
   });
 
-  const renderDigit = (num: number) => (
-    <View key={num} style={{ height, justifyContent: 'center', alignItems: 'center' }}>
+  const renderDigit = (num: number, hidden = false) => (
+    <View
+      key={num}
+      accessibilityElementsHidden={hidden}
+      importantForAccessibility={hidden ? 'no-hide-descendants' : undefined}
+      aria-hidden={hidden}
+      style={{ height, justifyContent: 'center', alignItems: 'center' }}
+    >
       <Text
         color={color}
         fontWeight={fontWeight}
@@ -180,15 +158,13 @@ const RollingDigit = ({
         {parsedDigit}
       </Text>
       {animateChanges === undefined ? (
-        <Animated.View style={animatedStyle}>{NUMBERS.map(renderDigit)}</Animated.View>
+        <Animated.View style={animatedStyle}>
+          {NUMBERS.map((number) => renderDigit(number))}
+        </Animated.View>
+      ) : animateChanges ? (
+        <DigitWheel key={height} digit={parsedDigit} height={height} renderDigit={renderDigit} />
       ) : (
-        <ChangedDigit
-          key={`${animateChanges}:${height}`}
-          digit={parsedDigit}
-          height={height}
-          enabled={animateChanges}
-          renderDigit={renderDigit}
-        />
+        renderDigit(parsedDigit)
       )}
     </View>
   );
@@ -266,6 +242,8 @@ export const RollingNumber = ({
 
   // Track if we've passed the decimal point
   let isDecimal = false;
+  // Formatter punctuation and currency affixes must not shift the rolling digit columns.
+  let digitsRemaining = (valueStr.match(/[0-9]/g) || []).length;
 
   return (
     <View style={[{ flexDirection: 'row', alignItems: 'baseline' }, style]} key={trigger}>
@@ -280,9 +258,10 @@ export const RollingNumber = ({
         const currentOpacity = isDecimal ? decimalOpacity : 1;
 
         if (/[0-9]/.test(char)) {
+          const digitIndex = digitsRemaining--;
           return (
             <RollingDigit
-              key={`digit-${animateChanges === undefined ? index : valueStr.length - index}`}
+              key={`digit-${animateChanges === undefined ? index : digitIndex}`}
               digit={char}
               animateChanges={animateChanges}
               height={itemHeight}

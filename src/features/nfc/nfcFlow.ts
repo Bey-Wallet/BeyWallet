@@ -93,50 +93,7 @@ function nfcErrorMessage(error: unknown, status: NfcStatus): string {
 }
 
 /** Secrets and operation controllers live only here, never in navigation or persisted UI state. */
-const nfcLogMessages = {
-  state: '[NFC] state',
-  wallet_ready: '[NFC] wallet_ready',
-  wallet_not_ready: '[NFC] wallet_not_ready',
-  read_complete: '[NFC] read_complete',
-  lightning_detected: '[NFC] lightning_detected',
-  lightning_preview: '[NFC] lightning_preview',
-  lightning_prepare_failed: '[NFC] lightning_prepare_failed',
-  lightning_submit: '[NFC] lightning_submit',
-  dismiss_requested: '[NFC] dismiss_requested',
-  dismiss_blocked: '[NFC] dismiss_blocked',
-  app_background: '[NFC] app_background',
-  host_unmount: '[NFC] host_unmount',
-  foreground: '[NFC] foreground',
-  failed: '[NFC] failed',
-  sheet_closed: '[NFC] sheet_closed',
-} as const;
-
 export class NfcFlow {
-  /** Development diagnostics deliberately omit every payment payload and native error. */
-  private trace(
-    event:
-      | 'state'
-      | 'wallet_ready'
-      | 'wallet_not_ready'
-      | 'read_complete'
-      | 'lightning_detected'
-      | 'lightning_preview'
-      | 'lightning_prepare_failed'
-      | 'lightning_submit'
-      | 'dismiss_requested'
-      | 'dismiss_blocked'
-      | 'app_background'
-      | 'host_unmount'
-      | 'foreground'
-      | 'failed'
-      | 'sheet_closed',
-    error?: unknown,
-  ) {
-    if (!__DEV__) return;
-    if (error === undefined) appLogger.debug(nfcLogMessages[event]);
-    else
-      appLogger.debug(nfcLogMessages[event], this.lightning?.preparationDiagnostic?.error ?? error);
-  }
   private state: NfcPresentation = {
     visible: false,
     status: 'ready',
@@ -208,15 +165,12 @@ export class NfcFlow {
     this.update({});
   };
   private update(change: Partial<NfcPresentation>) {
-    const previous = this.state;
     if ('requestStatus' in change && change.requestStatus !== 'paused')
       change.requestPauseReason = undefined;
     if (change.status === 'ready') change.eventTime = undefined;
     if (change.status === 'confirmed' && this.state.status !== 'confirmed')
       change.eventTime = Date.now();
     this.state = { ...this.state, ...change };
-    if (previous.status !== this.state.status || previous.visible !== this.state.visible)
-      this.trace('state');
     if (this.state.visible && this.state.locked)
       this.releaseNavigation ??= feedbackNavigationGuard.acquire();
     else {
@@ -235,7 +189,6 @@ export class NfcFlow {
   setReady(ready: boolean) {
     const changed = this.ready !== ready;
     this.ready = ready;
-    if (changed) this.trace(ready ? 'wallet_ready' : 'wallet_not_ready');
     if (!ready && this.interruptedLightning && this.state.visible) {
       this.interruptedLightning.closed = false;
       this.hide();
@@ -433,11 +386,7 @@ export class NfcFlow {
     await this.cleanup;
   }
   dismiss = () => {
-    this.trace('dismiss_requested');
-    if (this.state.locked) {
-      this.trace('dismiss_blocked');
-      return false;
-    }
+    if (this.state.locked) return false;
     this.interruptedLightning = undefined;
     this.hide();
     if (this.state.status === 'confirmed') {
@@ -501,7 +450,6 @@ export class NfcFlow {
     void this.stopSession();
   }
   background = (reason: 'app_background' | 'host_unmount' = 'app_background') => {
-    this.trace(reason);
     if (
       reason === 'app_background' &&
       this.lightning &&
@@ -544,7 +492,6 @@ export class NfcFlow {
     return this.cleanup;
   };
   foreground = () => {
-    this.trace('foreground');
     this.appActive = true;
     this.resumeInterruptedLightning();
     this.resumeRequest();
@@ -552,7 +499,6 @@ export class NfcFlow {
 
   /** Finish the background dismissal before presenting its interrupted Lightning payment. */
   sheetClosed = () => {
-    this.trace('sheet_closed');
     if (this.state.visible) {
       this.dismiss();
       return;
@@ -728,7 +674,6 @@ export class NfcFlow {
           });
       });
       if (!this.alive(generation)) return;
-      this.trace('read_complete');
       const input = parsePaymentInput(decodePaymentNdef(tag));
       if (!input.matched || !input.ok)
         throw new Error(input.matched ? input.reason : 'Unsupported NFC payment');
@@ -826,9 +771,9 @@ export class NfcFlow {
         await this.payLightning(payment.value, generation);
       } else throw new Error('This NFC payment method is not supported');
     } catch (error) {
-      this.trace('failed');
       await this.stopSession();
-      if (this.alive(generation))
+      if (this.alive(generation)) {
+        appLogger.debug('[NFC] session_failed', error);
         this.update({
           status: this.payment?.publicationState === 'unconfirmed' ? 'unconfirmed' : 'error',
           hasPayment: !!this.payment?.operationId || !!this.lightning || !!this.send,
@@ -837,6 +782,7 @@ export class NfcFlow {
             this.payment?.failureMessage || 'NFC could not complete. Check contact and try again.',
           error: this.payment?.failureMessage || nfcErrorMessage(error, this.state.status),
         });
+      }
       if (this.payment && !this.payment.operationId) {
         this.requests.delete(this.payment.request.raw);
         this.payment = undefined;
@@ -861,7 +807,6 @@ export class NfcFlow {
     }
   }
   private async payLightning(invoice: string, generation: number, mintUrl?: string) {
-    this.trace('lightning_detected');
     // Disabling Android reader mode while the other phone is still in range
     // hands its NDEF tag back to Android dispatch, which can background Bey.
     // Keep ownership until dismissal/new payment/background, just as write-back
@@ -902,14 +847,16 @@ export class NfcFlow {
         });
       return;
     }
-    this.trace('lightning_preview');
     let preview;
     try {
       preview = await this.lightning.preview();
     } catch (error) {
       await this.lightning.dispose().catch(() => {});
-      this.trace('lightning_prepare_failed', error);
       if (this.alive(generation)) {
+        appLogger.debug(
+          '[NFC] lightning_prepare_failed',
+          this.lightning.preparationDiagnostic?.error ?? error,
+        );
         const reason = nfcErrorMessage(error, 'paying');
         this.update({
           status: 'error',
@@ -934,7 +881,6 @@ export class NfcFlow {
       fees: preview.fee_reserve,
       hasPayment: true,
     });
-    this.trace('lightning_submit');
     const result = await this.lightning.pay();
     if (this.alive(generation)) {
       this.update({

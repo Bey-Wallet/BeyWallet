@@ -38,7 +38,8 @@ export function RootLayout() {
   const restorePhase = useFileRestoreStore((state) => state.phase);
   const initialize = useWalletStore((state) => state.initialize);
   const isInitializing = useWalletStore((state) => state.isInitializing);
-  const { isOnboarded, isCheckingOnboarding, checkOnboardingStatus } = useOnboardingStore();
+  const { isOnboarded, isCheckingOnboarding, checkOnboardingStatus, currentStep } =
+    useOnboardingStore();
   const [walletExists, setWalletExists] = useState<boolean | null>(null);
 
   // Cache manager in state instead of re-computing inside render body
@@ -82,11 +83,11 @@ export function RootLayout() {
         );
         return;
       }
-      const onboarded = await checkOnboardingStatus();
-      const exists = await initService.walletExists();
-      setWalletExists(exists);
-
-      if (exists && !onboarded) {
+      try {
+        const [, exists] = await Promise.all([checkOnboardingStatus(), initService.walletExists()]);
+        setWalletExists(exists);
+      } catch {
+        setStorageError('Your wallet could not be checked. Retry opening it.');
       }
     };
     checkStatus();
@@ -219,6 +220,15 @@ export function RootLayout() {
       </Providers>
     );
   }
+
+  // Keep the native splash through cold local setup and mount the app providers once.
+  if (
+    (!manager || !settingsReady) &&
+    !startupFinished &&
+    !startupAttempt &&
+    currentStep !== 'complete'
+  )
+    return null;
 
   return (
     <Providers cocoManager={manager}>

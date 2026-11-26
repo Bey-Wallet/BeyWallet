@@ -258,16 +258,25 @@ async function initializeWithMnemonic(
   await repositories.init();
 
   // Reuse the existing seed-derived Nostr identity for both receiving protocols.
-  const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
+  const [
+    { privkey, pubkey },
+    { prepareRecoverySession },
+    { FeedbackRepository },
+    { feedbackCoordinator },
+    { useSettingsStore },
+  ] = await Promise.all([
+    seedService.getNostrKeys(mnemonic, seed),
+    import('~/state/recoverySessionStore'),
+    import('~/storage/sqlite/repositories/FeedbackRepository'),
+    import('~/services/feedback/feedbackCoordinator'),
+    import('~/state/settingsStore'),
+  ]);
   if (options.nostrRestoredAt !== undefined) {
     const { useNostrHistoryStore } =
       require('~/state/nostrHistoryStore') as typeof import('~/state/nostrHistoryStore');
     useNostrHistoryStore.getState().beginRestore(pubkey, options.nostrRestoredAt);
   }
-  const { prepareRecoverySession } = await import('~/state/recoverySessionStore');
   await prepareRecoverySession(pubkey);
-  const { FeedbackRepository } = await import('~/storage/sqlite/repositories/FeedbackRepository');
-  const { feedbackCoordinator } = await import('~/services/feedback/feedbackCoordinator');
   const feedback = new FeedbackRepository(repositories.db);
   await feedback.init();
   feedbackCoordinator.bind(pubkey, feedback);
@@ -288,7 +297,6 @@ async function initializeWithMnemonic(
   repo = repositories;
   // Hydrate privacy/authentication settings and the identity cache before
   // network watchers. A slow/offline mint must not gate the first Home paint.
-  const { useSettingsStore } = await import('~/state/settingsStore');
   await useSettingsStore.getState().initialize(true);
   if (!options.localOnly) setupAppStateListener();
 
@@ -498,7 +506,7 @@ export const initService = {
       const repositories = new ExpoSqliteRepositories({ database: db });
       await repositories.init();
 
-      const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic);
+      const { privkey, pubkey } = await seedService.getNostrKeys(mnemonic, seed);
       const { prepareRecoverySession } = await import('~/state/recoverySessionStore');
       await prepareRecoverySession(pubkey);
 

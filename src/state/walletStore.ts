@@ -61,6 +61,7 @@ interface WalletState {
   mints: MintInfo[];
   refreshCounter: number;
   balances: Record<string, number>;
+  hasBalanceSnapshot: boolean;
   isRestoring: boolean;
   restoringMintUrl: string | null;
   restoreQueue: string[];
@@ -97,6 +98,7 @@ export const useWalletStore = create<WalletState>()(
       mints: [],
       refreshCounter: 0,
       balances: {},
+      hasBalanceSnapshot: false,
       isRestoring: false,
       restoringMintUrl: null,
       restoreQueue: [],
@@ -253,7 +255,13 @@ export const useWalletStore = create<WalletState>()(
           if (generation !== walletStorageGeneration()) return;
           const balance = activeUrl ? (balances[activeUrl] ?? 0) : 0;
 
-          set({ balance, balances, refreshCounter: get().refreshCounter + 1, isRefreshing: false });
+          set({
+            balance,
+            balances,
+            hasBalanceSnapshot: true,
+            refreshCounter: get().refreshCounter + 1,
+            isRefreshing: false,
+          });
 
           // Auto-check and redeem pending on-chain quotes in the background
           InteractionManager.runAfterInteractions(() => {
@@ -611,6 +619,7 @@ export const useWalletStore = create<WalletState>()(
         activeMintUrl: state.activeMintUrl,
         balance: state.balance,
         balances: state.balances,
+        hasBalanceSnapshot: state.hasBalanceSnapshot,
         mints: state.mints,
       }),
     },
