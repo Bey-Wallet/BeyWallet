@@ -111,34 +111,23 @@ it('defaults to compact proportional cells and bounds overly tight spacing', asy
   expect(margin()).toBe(0);
 });
 
-it.each([
-  ['$12.34', '$', undefined],
-  ['₹1,234.56', '₹', undefined],
-  ['12,34 €', undefined, '€'],
-  ['12.34 CHF', undefined, 'CHF'],
-])('adds a layout gap to %s without changing digit tracking', async (value, leading, trailing) => {
-  await act(async () => {
-    tree = create(
-      <RollingNumber
-        value={value}
-        fontSize={44}
-        fontWeight={500}
-        letterSpacing={-2.5}
-        affixGap={8}
-      />,
+it.each(['$12.34', '₹1,234.56', '12,34\u00a0€', '12.34 CHF'])(
+  'keeps the formatted symbols and spaces in %s',
+  async (value) => {
+    await act(async () => {
+      tree = create(
+        <RollingNumber value={value} fontSize={44} fontWeight={500} letterSpacing={-2.5} />,
+      );
+    });
+    const symbols = tree.root
+      .findAllByType('Text' as any)
+      .map((node) => node.props.children)
+      .filter((text): text is string => typeof text === 'string' && /^\D$/.test(text));
+    expect(symbols.join('')).toBe(value.replace(/\d/g, ''));
+    const digits = measures();
+    expect(StyleSheet.flatten(digits[0].parent!.props.style).marginRight).toBe(-2.5);
+    expect(StyleSheet.flatten(digits[digits.length - 1].parent!.props.style).marginRight).toBe(
+      -2.5,
     );
-  });
-  const prefix = tree.root.findAllByProps({ testID: 'rolling-leading-affix' });
-  const suffix = tree.root.findAllByProps({ testID: 'rolling-trailing-affix' });
-  if (leading) {
-    expect(prefix[0].props.children).toBe(leading);
-    expect(StyleSheet.flatten(prefix[0].props.style).marginRight).toBe(8);
-  } else expect(prefix).toHaveLength(0);
-  if (trailing) {
-    expect(suffix[0].props.children).toBe(trailing);
-    expect(StyleSheet.flatten(suffix[0].props.style).marginLeft).toBe(8);
-  } else expect(suffix).toHaveLength(0);
-  const digits = measures();
-  expect(StyleSheet.flatten(digits[0].parent!.props.style).marginRight).toBe(-2.5);
-  expect(StyleSheet.flatten(digits[digits.length - 1].parent!.props.style).marginRight).toBe(0);
-});
+  },
+);

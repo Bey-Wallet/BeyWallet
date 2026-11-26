@@ -31,7 +31,13 @@ export const MintDiscoverySheet = forwardRef<
   return (
     <AppBottomSheet
       ref={ref}
-      title={stage === 'discover' ? 'Discover mints' : 'Trust these mints?'}
+      title={
+        stage === 'discover'
+          ? 'Discover mints'
+          : selection.length === 1
+            ? 'Trust this mint?'
+            : 'Trust these mints?'
+      }
       navigation={stage === 'trust' ? 'back' : 'close'}
       onNavigate={stage === 'trust' ? () => setStage('discover') : undefined}
       footer={

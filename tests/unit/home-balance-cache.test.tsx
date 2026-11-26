@@ -102,7 +102,7 @@ it('toggles balance privacy by holding or tapping the main amount', async () => 
   expect(stopPropagation).toHaveBeenCalledTimes(1);
 });
 
-it('uses Medium at 44 points with a 6-point currency gap and keeps existing tracking', async () => {
+it('uses 44-point Medium with the formatted currency and existing tracking', async () => {
   await act(async () => {
     tree = create(<Balance />);
   });
@@ -110,9 +110,10 @@ it('uses Medium at 44 points with a 6-point currency gap and keeps existing trac
     fontSize: 44,
     fontWeight: 500,
     letterSpacing: -2.8,
-    affixGap: 6,
+    children: '$10.00',
   });
-  expect(displayed()[1].affixGap).toBeUndefined();
+  await act(async () => useSettingsStore.setState({ secondaryCurrency: 'EUR' }));
+  expect(displayed()[0].children).toBe('10,00\u00a0€');
   await act(async () =>
     useSettingsStore.setState({ primaryCurrency: 'SATS', showBitcoinSymbol: true }),
   );
@@ -121,10 +122,9 @@ it('uses Medium at 44 points with a 6-point currency gap and keeps existing trac
     fontWeight: 500,
     prefix: '₿',
     letterSpacing: -2.8,
-    affixGap: 6,
   });
   await act(async () => useSettingsStore.setState({ hideBalance: true }));
-  expect(displayed()[0].affixGap).toBeUndefined();
+  expect(displayed()[0].value).toBe('****');
 });
 
 it('briefly confirms successful refreshes without claiming success after errors', async () => {

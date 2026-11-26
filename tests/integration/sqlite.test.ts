@@ -9,6 +9,23 @@ describe('SQLite integration contracts', () => {
     expect(ids.length).toBeGreaterThan(0);
   });
 
+  it('removes only the retired mint disclaimer setting', () => {
+    const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(':memory:');
+    try {
+      db.exec(MIGRATIONS.find(({ id }) => id === '012_settings')!.sql);
+      db.exec(
+        "INSERT INTO coco_cashu_settings (key, value) VALUES ('hideMintConnectionDisclaimer', 'true');",
+      );
+      db.exec(MIGRATIONS.find(({ id }) => id === '025_remove_mint_disclaimer_preference')!.sql);
+      expect(db.prepare('SELECT key, value FROM coco_cashu_settings').all()).toEqual([
+        { key: 'theme', value: 'system' },
+      ]);
+    } finally {
+      db.close();
+    }
+  });
+
   it('commits transactions and persists repository values', async () => {
     const values = new Map<string, string>();
     const raw = {

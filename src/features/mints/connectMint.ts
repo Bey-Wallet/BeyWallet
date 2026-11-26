@@ -3,7 +3,7 @@ import { useWalletStore } from '~/state/walletStore';
 import { mintUrlKey } from '~/shared/utils/mintUrl';
 import { mintHealthUrl } from '~/services/api/mintHealthService';
 
-/** Shared by explicit confirmation and the user's remembered consent. */
+/** Connects a mint after the user confirms the trust review. */
 export async function connectMint(url: string) {
   try {
     mintHealthUrl(url);

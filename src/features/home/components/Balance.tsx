@@ -154,7 +154,6 @@ export default function Balance() {
 
             fontSize={balanceFontSize}
             fontWeight={500}
-            affixGap={hideBalance ? undefined : 6}
             letterSpacing={balanceLetterSpacing}
             color="$accent1"
 
@@ -182,7 +181,6 @@ export default function Balance() {
 
             fontSize={balanceFontSize}
             fontWeight={500}
-            affixGap={hideBalance ? undefined : 6}
             letterSpacing={balanceLetterSpacing}
             color="$accent1"
 

@@ -103,7 +103,7 @@ points using `Math.round(original * 0.9)`. Captions are 9 points; body and label
 headings use 18/22/29; amount summaries use 29/25. Home balances and prominent payment amounts
 use 44 points. Standard and prominent payment amounts use 44-point Medium primary text,
 with 13-point and 14-point secondary conversions respectively. Large numeric tracking
-matches Home through `getAmountLetterSpacing`; the explicit currency-symbol gap remains Home-only.
+matches Home through `getAmountLetterSpacing`. Fiat symbols use the currency formatter's spacing.
 Explicit screen text, keypads, POS, responsive amount entry and receipt-image text follow the same
 reduction. Role-specific tracking, font weights, icons, padding, control heights and system
 accessibility scaling retain Bey's conventions. This is one reduction from the committed baseline,

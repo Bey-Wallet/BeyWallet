@@ -15,7 +15,13 @@ export function ExpandableWallet({ availableHeight }: { availableHeight: number 
       height={expanded ? availableHeight : undefined}
       pb={expanded ? '$2' : undefined}
     >
-      <YStack testID="balance-area" flex={expanded ? 1 : undefined} width="100%" justify="center">
+      <YStack
+        testID="balance-area"
+        flex={expanded ? 1 : undefined}
+        minHeight={expanded ? undefined : 224}
+        width="100%"
+        justify="center"
+      >
         <WalletCard />
       </YStack>
       <ActionButtons />

@@ -15,7 +15,6 @@ import { hapticService } from '~/services/platform/hapticService';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { useWalletStore } from '~/state/walletStore';
-import { useSettingsStore } from '~/state/settingsStore';
 import type { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
 import { useIsFocused, usePreventRemove } from '@react-navigation/native';
@@ -44,8 +43,6 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
   const isFocused = useIsFocused();
   const toast = useAppToast();
   const { mints } = useWalletStore();
-  const hideDisclaimer = useSettingsStore((state) => state.hideMintConnectionDisclaimer);
-  const [dontShowAgain, setDontShowAgain] = useState(false);
   const connectionSheetRef = React.useRef<AppBottomSheetRef>(null);
   const connectionLock = React.useRef(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -71,27 +68,19 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
       return false;
     }
   }, [url]);
-  const handleAction = async () => {
+  const handleAction = () => {
     if (connectionLock.current) return;
 
     setConnectionError(null);
-    if (hideDisclaimer) {
-      await handleConfirmConnection(true);
-      return;
-    }
-    setDontShowAgain(false);
     connectionSheetRef.current?.present();
   };
-  const handleConfirmConnection = async (rememberChoice: boolean) => {
+  const handleConfirmConnection = async () => {
     if (connectionLock.current) return;
     connectionLock.current = true;
     setIsConnecting(true);
     setConnectionError(null);
     try {
       await connectMint(url);
-      if (rememberChoice !== hideDisclaimer) {
-        await useSettingsStore.getState().setHideMintConnectionDisclaimer(rememberChoice);
-      }
       toast.showFeedback(interactionCopy.mintConnected);
     } catch (error) {
       setConnectionError(
@@ -258,11 +247,6 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
       />
 
       <YStack p="$4" pb={insets.bottom || '$4'} bg="$background" gap="$3">
-        {hideDisclaimer && connectionError && (
-          <Text color="$red10" accessibilityRole="alert">
-            {connectionError}
-          </Text>
-        )}
         <AppButton
           haptic
           variant="default"
@@ -283,9 +267,8 @@ function MintProfileContent({ url }: MintProfileScreenProps) {
         mint={{ url, name, icon: iconToUse }}
         busy={isConnecting}
         error={connectionError}
-        remember={dontShowAgain}
-        onRememberChange={setDontShowAgain}
-        onConfirm={() => handleConfirmConnection(dontShowAgain)}
+        onPreview={() => connectionSheetRef.current?.dismiss()}
+        onConfirm={handleConfirmConnection}
       />
       <MintUrlQrOverlay url={url} visible={showQr} onClose={() => setShowQr(false)} />
     </YStack>

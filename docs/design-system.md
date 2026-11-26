@@ -53,7 +53,7 @@ multiplied by 0.9 and rounded to whole points for headings 29/22/18, body and la
 14/13/11, and captions 9. Main balances and payment amounts now match Home at
 44-point Medium, with -2.8 tracking. Secondary amount summaries retain 25 points.
 Larger POS inputs and receipt images keep their sizes with proportionally scaled
-numeric tracking. The explicit currency-affix gap is Home-only. Geometry,
+numeric tracking. Fiat symbols use the currency formatter's spacing. Geometry,
 icon sizes and system accessibility scaling are unchanged. `variant` accepts every `appTypography` role. `tone`
 accepts primary, secondary, success, warning, or error; default primary. Existing Tamagui text
 props and refs are forwarded, with explicit overrides applied after the role defaults.

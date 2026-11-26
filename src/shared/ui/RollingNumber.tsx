@@ -207,8 +207,6 @@ export interface RollingNumberProps {
   trigger?: any;
   prefix?: string;
   suffix?: string;
-  /** Optional layout gap around currency affixes; numeric tracking stays unchanged. */
-  affixGap?: number;
   /** When provided, roll only changed digits or display them immediately if false. */
   animateChanges?: boolean;
   decimalOpacity?: number;
@@ -229,7 +227,6 @@ export const RollingNumber = ({
   trigger,
   prefix = '',
   suffix = '',
-  affixGap,
   animateChanges,
   decimalOpacity = 1,
   precision = 2,
@@ -253,10 +250,6 @@ export const RollingNumber = ({
 
   const hasSatsSuffix = suffix.trim() === 'sat';
   const valueStr = prefix + formattedValue + (hasSatsSuffix ? '' : suffix);
-  const affixes = affixGap === undefined ? null : valueStr.match(/^(\D*)([\s\S]*\d)(\D*)$/);
-  const leadingAffix = affixes?.[1].trim();
-  const trailingAffix = affixes?.[3].trim();
-  const numberText = affixes ? affixes[2] : valueStr;
   const itemHeight = Math.round(lineHeight || fontSize * 1.1);
   const resolvedFamily = fontFamily ?? (fontSize >= 25 ? '$display' : '$body');
   // Glyphs occupy separate cells. Allow the measured compact balance tracking,
@@ -276,23 +269,7 @@ export const RollingNumber = ({
 
   return (
     <View style={[{ flexDirection: 'row', alignItems: 'baseline' }, style]} key={trigger}>
-      {!!leadingAffix && (
-        <Text
-          testID="rolling-leading-affix"
-          color={color}
-          fontWeight={fontWeight}
-          fontFamily={resolvedFamily}
-          fontSize={fontSize}
-          lineHeight={itemHeight}
-          letterSpacing={characterSpacing}
-          style={{ marginRight: affixGap }}
-        >
-          {leadingAffix}
-        </Text>
-      )}
-      {numberText.split('').map((char, index) => {
-        const spacing =
-          affixGap !== undefined && index === numberText.length - 1 ? 0 : characterSpacing;
+      {valueStr.split('').map((char, index) => {
         if (char === '.' || char === ',') {
           // Check if this comma is a decimal separator (some locales use , for decimal)
           // But usually in English formatting it's a dot.
@@ -305,7 +282,7 @@ export const RollingNumber = ({
         if (/[0-9]/.test(char)) {
           return (
             <RollingDigit
-              key={`digit-${animateChanges === undefined ? index : numberText.length - index}`}
+              key={`digit-${animateChanges === undefined ? index : valueStr.length - index}`}
               digit={char}
               animateChanges={animateChanges}
               height={itemHeight}
@@ -314,7 +291,7 @@ export const RollingNumber = ({
               fontWeight={fontWeight}
               fontFamily={resolvedFamily}
               fontSize={fontSize}
-              letterSpacing={spacing}
+              letterSpacing={characterSpacing}
             />
           );
         } else {
@@ -325,7 +302,7 @@ export const RollingNumber = ({
                 height: itemHeight,
                 justifyContent: 'center',
                 alignItems: 'center',
-                marginRight: spacing,
+                marginRight: characterSpacing,
               }}
             >
               <Text
@@ -343,20 +320,6 @@ export const RollingNumber = ({
           );
         }
       })}
-      {!!trailingAffix && (
-        <Text
-          testID="rolling-trailing-affix"
-          color={color}
-          fontWeight={fontWeight}
-          fontFamily={resolvedFamily}
-          fontSize={fontSize}
-          lineHeight={itemHeight}
-          letterSpacing={characterSpacing}
-          style={{ marginLeft: affixGap }}
-        >
-          {trailingAffix}
-        </Text>
-      )}
       {hasSatsSuffix && (
         <Text
           color={color}

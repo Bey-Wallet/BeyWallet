@@ -37,7 +37,6 @@ let mockMintMetadata: Record<string, Record<string, unknown>> = {};
 let mockMintErrors: Record<string, Error> = {};
 let mockDeviceOffline = false;
 let mockHideBalance = false;
-let mockSkipDisclaimer = false;
 const mockRecheckMint = jest.fn();
 const mockRefreshDiscovery = jest.fn(async () => ({}));
 const mockInvalidateQueries = jest.fn();
@@ -94,22 +93,11 @@ jest.mock('@tanstack/react-query', () => ({
 }));
 jest.mock('~/state/walletStore', () => ({ useWalletStore: require('zustand').create(() => ({})) }));
 jest.mock('~/state/settingsStore', () => ({
-  useSettingsStore: Object.assign(
-    () => ({
-      primaryCurrency: 'SATS',
-      secondaryCurrency: 'NONE',
-      hideBalance: mockHideBalance,
-      hideMintConnectionDisclaimer: mockSkipDisclaimer,
-    }),
-    {
-      getState: () => ({
-        hideMintConnectionDisclaimer: mockSkipDisclaimer,
-        setHideMintConnectionDisclaimer: async (hide: boolean) => {
-          mockSkipDisclaimer = hide;
-        },
-      }),
-    },
-  ),
+  useSettingsStore: () => ({
+    primaryCurrency: 'SATS',
+    secondaryCurrency: 'NONE',
+    hideBalance: mockHideBalance,
+  }),
 }));
 const mockToast = jest.fn();
 jest.mock('@tamagui/toast', () => ({ useToastController: () => ({ show: mockToast }) }));
@@ -120,7 +108,10 @@ jest.mock('~/shared/ui/AppBottomSheet', () => ({
     require('react').useImperativeHandle(ref, () => ({
       present: () => setOpen(true),
       dismiss: () => {
-        if (props.canDismiss) setOpen(false);
+        if (props.canDismiss) {
+          setOpen(false);
+          props.onClose?.();
+        }
       },
     }));
     return open ? require('react').createElement('TrustSheet', props, children) : null;
@@ -195,7 +186,6 @@ beforeEach(() => {
   mockMintErrors = {};
   mockDeviceOffline = false;
   mockHideBalance = false;
-  mockSkipDisclaimer = false;
   mockCheckingMints = [];
   mockRemovalEligibility = {};
   mockRemoveConnected.mockResolvedValue({ removed: [], blocked: {} });
@@ -442,8 +432,7 @@ it('opens trust directly from the detected URL Add button and adds only after co
   expect(tree.root.findAllByType('TrustSheet' as any)).toHaveLength(0);
 });
 
-it('connects an entered mint directly from Add after remembered consent', async () => {
-  mockSkipDisclaimer = true;
+it('opens the mint preview from the trust sheet without connecting', async () => {
   await render();
   await act(async () =>
     tree.root.findByType('Input' as any).props.onChangeText('mint.example/Bitcoin/'),
@@ -452,17 +441,17 @@ it('connects an entered mint directly from Add after remembered consent', async 
     .findAllByType('AppIconButton' as any)
     .find((node) => node.props.accessibilityLabel === 'Add mint')!;
   await act(async () => add.props.onPress());
-  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith('https://mint.example/Bitcoin', {
-    trusted: true,
+  const preview = tree.root.findByProps({ accessibilityLabel: 'View mint preview' });
+  await act(async () => preview.props.onPress());
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
+  expect(tree.root.findAllByType('TrustSheet' as any)).toHaveLength(0);
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(modals)/mint-profile',
+    params: { url: 'https://mint.example/Bitcoin' },
   });
-  expect(useWalletStore.getState().mints).toEqual([
-    { mintUrl: 'https://mint.example/Bitcoin', trusted: true },
-  ]);
-  expect(mockPush).not.toHaveBeenCalled();
 });
 
 it('shows button loading and prevents duplicate Add operations for a discovered mint', async () => {
-  mockSkipDisclaimer = true;
   const mintUrl = 'https://mint.example/Bitcoin';
   mockDiscoveredMints = [{ url: mintUrl, name: 'Example mint' }];
   let finish!: () => void;
@@ -482,10 +471,11 @@ it('shows button loading and prevents duplicate Add operations for a discovered 
     tree.root
       .findAllByType('AppIconButton' as any)
       .find((node) => node.props.accessibilityLabel?.startsWith('Add '))!;
-  const press = add().props.onPress;
+  await act(async () => add().props.onPress({ stopPropagation: jest.fn() }));
+  const press = tree.root.findByProps({ children: 'Confirm add' }).props.onPress;
   await act(async () => {
-    press({ stopPropagation: jest.fn() });
-    press({ stopPropagation: jest.fn() });
+    void press();
+    void press();
   });
   expect(add().props).toMatchObject({ loading: true, disabled: true });
   expect(useWalletStore.getState().addMint).toHaveBeenCalledTimes(1);
@@ -497,7 +487,6 @@ it('shows button loading and prevents duplicate Add operations for a discovered 
 });
 
 it('keeps validation failures visible and allows retry from the mint list', async () => {
-  mockSkipDisclaimer = true;
   mockDiscoveredMints = [{ url: 'https://mint.example', name: 'Example mint' }];
   useWalletStore.setState({
     addMint: jest.fn(async () => {
@@ -510,6 +499,7 @@ it('keeps validation failures visible and allows retry from the mint list', asyn
       .findAllByType('AppIconButton' as any)
       .find((node) => node.props.accessibilityLabel?.startsWith('Add '))!;
   await act(async () => add().props.onPress({ stopPropagation: jest.fn() }));
+  await act(async () => tree.root.findByProps({ children: 'Confirm add' }).props.onPress());
   expect(
     tree.root.findAllByProps({ accessibilityRole: 'alert' }).map((node) => node.props.children),
   ).toContain('Mint validation failed');
@@ -704,9 +694,7 @@ it('opens the shared trust sheet for Home suggestions without navigating to prev
   expect(mockPush).not.toHaveBeenCalled();
   expect(tree.root.findByType('TrustSheet' as any).props.title).toBe('Trust this mint?');
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
-  await act(async () =>
-    tree.root.findByProps({ accessibilityLabel: 'Do not show again' }).props.onPress(),
-  );
+  expect(tree.root.findAllByProps({ accessibilityRole: 'checkbox' })).toHaveLength(0);
   await act(async () =>
     tree.root
       .findAllByType('AppButton' as any)
@@ -716,7 +704,6 @@ it('opens the shared trust sheet for Home suggestions without navigating to prev
   expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(RECOMMENDED_MINTS[0].mintUrl, {
     trusted: true,
   });
-  expect(mockSkipDisclaimer).toBe(true);
   expect(tree.root.findAllByType('TrustSheet' as any)).toHaveLength(0);
   expect(mockPush).not.toHaveBeenCalled();
 });
@@ -741,8 +728,7 @@ it('opens trust directly from a discovered mint quick-add button', async () => {
   expect(mockRouter.back).not.toHaveBeenCalled();
 });
 
-it('shows Home quick-add progress and prevents duplicates when consent is remembered', async () => {
-  mockSkipDisclaimer = true;
+it('shows Home quick-add progress and prevents duplicate confirmations', async () => {
   let finish!: () => void;
   const mintUrl = RECOMMENDED_MINTS[0].mintUrl;
   useWalletStore.setState({
@@ -761,10 +747,11 @@ it('shows Home quick-add progress and prevents duplicates when consent is rememb
   });
   const add = () =>
     tree.root.findByProps({ accessibilityLabel: `Add ${RECOMMENDED_MINTS[0].name}` });
-  const press = add().props.onPress;
+  await act(async () => add().props.onPress());
+  const press = tree.root.findByProps({ children: 'Confirm add' }).props.onPress;
   await act(async () => {
-    press();
-    press();
+    void press();
+    void press();
   });
   expect(useWalletStore.getState().addMint).toHaveBeenCalledTimes(1);
   expect(add().props).toMatchObject({ loading: true, disabled: true });

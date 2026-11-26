@@ -4,7 +4,7 @@ import { Text, XStack, YStack } from 'tamagui';
 import { ArrowDown, ArrowRightLeft, Scan, Send, type AppIconProps } from '~/shared/icons';
 import { useRouter } from 'expo-router';
 import ActionSelectorSheet, { ActionSelectorSheetRef } from '~/shared/ui/ActionSelectorSheet';
-import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
+import { appDimensions, appIconSizes, appSpacing, appTypography } from '~/shared/theme/appearance';
 import { hapticService } from '~/services/platform/hapticService';
 
 function HomeAction({
@@ -32,8 +32,8 @@ function HomeAction({
         onPress();
       }}
     >
-      <YStack height={24} justify="center" aria-hidden>
-        <Icon size={20} color="$color" strokeWidth={3} weight="bold" />
+      <YStack height={appIconSizes.navigation} justify="center" aria-hidden>
+        <Icon size={appIconSizes.navigation} color="$color" strokeWidth={3} weight="bold" />
       </YStack>
       <Text {...appTypography.body3} fontWeight="600" color="$gray10">
         {label}

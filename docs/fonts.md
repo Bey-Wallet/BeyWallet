@@ -42,12 +42,8 @@ Larger POS inputs and receipt-image amounts retain their larger sizes. Tracking 
 Small inline rolling balances retain their previous tracking, and explicit zero
 remains supported. Headings, list values and button labels are unchanged.
 
-Home's primary balance uses 44-point Medium (500). Currency symbols/codes are
-separate text elements with a 6-point gap from the digits, preserving prefix or
-suffix placement. The numeric tracking is -2.8; the secondary balance and
-privacy placeholder keep their existing layout.
-The 6-point affix gap is Home-only; other amount displays keep their current
-currency formatting and spacing around symbols.
+Home's primary balance uses 44-point Medium (500) with -2.8 numeric tracking.
+Fiat symbols and codes use the currency formatter's placement and spacing.
 
 ## Source, license and preparation
 

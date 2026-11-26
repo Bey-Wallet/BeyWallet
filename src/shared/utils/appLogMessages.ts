@@ -156,7 +156,6 @@ export const appLogMessages = [
   '[SendModal] Failed to send:',
   '[SendModal] Nostr send failed:',
   '[SettingsStore] Could not save expanded Home preference',
-  '[SettingsStore] Could not save mint disclaimer preference',
   '[SettingsStore] Could not save notification preference',
   '[SettingsStore] Failed to set backupDirectoryUri:',
   '[SettingsStore] Failed to set backupDismissedAt:',

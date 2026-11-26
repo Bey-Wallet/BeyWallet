@@ -8,7 +8,6 @@ import { MintAboutRows } from '~/features/mints/components/MintAboutRows';
 import { MintInfoRow } from '~/features/mints/components/MintInfoRow';
 import { MintProfileScreen } from '~/features/mints';
 import { useWalletStore } from '~/state/walletStore';
-import { useSettingsStore } from '~/state/settingsStore';
 import { MintPreviewHealth } from '~/features/mints/components/MintPreviewHealth';
 import {
   MintPreviewMethods,
@@ -162,6 +161,8 @@ jest.mock('~/shared/icons', () =>
       'Mail',
       'Globe',
       'Info',
+      'Landmark',
+      'TriangleAlert',
       'Copy',
       'Check',
       'X',
@@ -272,12 +273,6 @@ beforeEach(() => {
       useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true } as any] });
     }),
     removeMint: jest.fn(),
-  });
-  useSettingsStore.setState({
-    hideMintConnectionDisclaimer: false,
-    setHideMintConnectionDisclaimer: jest.fn(async (hide) => {
-      useSettingsStore.setState({ hideMintConnectionDisclaimer: hide });
-    }),
   });
 });
 afterEach(async () => {
@@ -734,17 +729,15 @@ it('shows mint identity and disclaimer, then connects only after confirmation', 
     .map((node) => node.props.children)
     .flat()
     .join(' ');
-  expect(copy).toContain('Bey Wallet does not operate these mints');
+  expect(copy).toContain('Bey doesn’t run this mint or cover losses.');
   expect(sheet.findByType('MintImage' as any).props.mintUrl).toBe(url);
   expect(sheet.findAllByType('Text' as any).map((node) => node.props.children)).toEqual(
     expect.arrayContaining(['Example mint', url]),
   );
-  const checkboxes = sheet.findAllByProps({ accessibilityRole: 'checkbox' });
-  expect(checkboxes).toHaveLength(1);
-  expect(checkboxes[0].props).toMatchObject({
-    accessibilityLabel: 'Do not show again',
-    self: 'center',
-  });
+  expect(sheet.findAllByProps({ accessibilityRole: 'checkbox' })).toHaveLength(0);
+  expect(copy).toContain(
+    'By adding this mint, you acknowledge the risks and confirm you trust its operator.',
+  );
   expect(button('Confirm add').props.disabled).toBe(false);
   expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
   await act(async () => button('Confirm add').props.onPress());
@@ -771,17 +764,16 @@ it('keeps the confirmation open when the wallet reports an add error', async () 
   );
   expect(button('Confirm add').props.disabled).toBe(false);
   expect(mockReplace).not.toHaveBeenCalled();
-  expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).not.toHaveBeenCalled();
 });
 
-it('shows the full warning list and remembers the checkbox only after a successful connection', async () => {
+it('shows compact trust warnings with icons and lets users return to the current preview', async () => {
   await render('preview');
   await act(async () => button('Connect').props.onPress());
   const warnings = [
-    'These mints hold the bitcoin backing your ecash.',
-    'You rely on each operator to redeem your ecash. If a mint shuts down or refuses redemption, you could lose your funds.',
-    'Only connect to mints you trust. Discovery is not an endorsement.',
-    'Bey Wallet does not operate these mints and is not responsible for losses they cause.',
+    'The mint holds the bitcoin backing your ecash.',
+    'You could lose funds if the mint closes or refuses to redeem.',
+    'Only add mints you trust. Discovery isn’t an endorsement.',
+    'Bey doesn’t run this mint or cover losses.',
   ];
   expect(
     tree.root
@@ -789,56 +781,23 @@ it('shows the full warning list and remembers the checkbox only after a successf
       .map((node) => node.props.children)
       .filter((text) => warnings.includes(text)),
   ).toEqual(warnings);
-  const checkbox = () => tree.root.findByProps({ accessibilityLabel: 'Do not show again' });
-  expect(checkbox().props.accessibilityState.checked).toBe(false);
-  await act(async () => checkbox().props.onPress());
-  expect(checkbox().props.accessibilityState.checked).toBe(true);
-  expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).not.toHaveBeenCalled();
-  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
-  await act(async () => button('Confirm add').props.onPress());
-  expect(useSettingsStore.getState().setHideMintConnectionDisclaimer).toHaveBeenCalledWith(true);
-  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(url, { trusted: true });
-});
-
-it('connects directly with only button loading when consent is remembered, without opening a sheet', async () => {
-  useSettingsStore.setState({ hideMintConnectionDisclaimer: true });
-  let finish!: () => void;
-  useWalletStore.setState({
-    addMint: jest.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          finish = () => {
-            useWalletStore.setState({ mints: [{ mintUrl: url, trusted: true }] });
-            resolve();
-          };
-        }),
-    ),
+  const sheet = tree.root.findByType('AppBottomSheet' as any);
+  expect(sheet.findByType('TriangleAlert' as any).props).toMatchObject({
+    weight: 'fill',
+    color: '$orange10',
   });
-  await render('preview');
-  const connect = button('Connect').props.onPress;
-  let pending!: Promise<void>;
-  await act(async () => {
-    pending = connect();
-    void connect();
+  expect(sheet.findByType('ShieldCheck' as any).props).toMatchObject({
+    weight: 'fill',
+    color: '$green10',
   });
-  expect(useWalletStore.getState().addMint).toHaveBeenCalledTimes(1);
-  expect(useWalletStore.getState().addMint).toHaveBeenCalledWith(url, { trusted: true });
+  await act(async () =>
+    tree.root.findByProps({ accessibilityLabel: 'View mint preview' }).props.onPress(),
+  );
   expect(tree.root.findAllByType('AppBottomSheet' as any)).toHaveLength(0);
-  expect(button('Connect').props).toMatchObject({ loading: true, disabled: true });
-  expect(mockReplace).not.toHaveBeenCalled();
-  await act(async () => {
-    finish();
-    await pending;
-  });
-  expect(mockReplace).toHaveBeenCalledWith({
-    pathname: '/(modals)/mint-details',
-    params: { mintUrl: url },
-  });
-  expect(useSettingsStore.getState().hideMintConnectionDisclaimer).toBe(true);
+  expect(useWalletStore.getState().addMint).not.toHaveBeenCalled();
 });
 
-it('shows direct-connection errors on preview and allows retry without opening a sheet', async () => {
-  useSettingsStore.setState({ hideMintConnectionDisclaimer: true });
+it('allows retry from the trust sheet after a mint validation error', async () => {
   useWalletStore.setState({
     addMint: jest.fn(async () => {
       useWalletStore.setState({ error: 'Mint validation failed' });
@@ -846,11 +805,12 @@ it('shows direct-connection errors on preview and allows retry without opening a
   });
   await render('preview');
   await act(async () => button('Connect').props.onPress());
-  expect(tree.root.findAllByType('AppBottomSheet' as any)).toHaveLength(0);
+  await act(async () => button('Confirm add').props.onPress());
+  expect(tree.root.findAllByType('AppBottomSheet' as any)).toHaveLength(1);
   expect(tree.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
     'Mint validation failed',
   );
-  expect(button('Connect').props).toMatchObject({ loading: false, disabled: false });
+  expect(button('Confirm add').props).toMatchObject({ loading: false, disabled: false });
   expect(mockReplace).not.toHaveBeenCalled();
   await act(async () => {
     useWalletStore.setState({
@@ -859,7 +819,7 @@ it('shows direct-connection errors on preview and allows retry without opening a
       }),
     });
   });
-  await act(async () => button('Connect').props.onPress());
+  await act(async () => button('Confirm add').props.onPress());
   expect(mockReplace).toHaveBeenCalledWith({
     pathname: '/(modals)/mint-details',
     params: { mintUrl: url },

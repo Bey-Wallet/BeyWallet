@@ -85,8 +85,8 @@ advertised features with a numeric badge. Connected details ends with a secondar
 Remove mint button using the existing confirmation. Device review remains pending.
 Preview, mint-list quick add and Home suggestions share `MintTrustSheet`. Quick-add
 buttons open the trust review directly and stay on the current screen after adding.
-The review keeps the original mint image/name header, shared risk list, and a small
-centered Do not show again checkbox; remembered consent and connection locks apply.
+The compact review shows the mint identity, a preview button, and short risk rows with icons.
+Adding a mint requires confirmation each time.
 
 | Review  | Route file                               | Owner                                               | Scope / exception                                                  |
 | ------- | ---------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------ |

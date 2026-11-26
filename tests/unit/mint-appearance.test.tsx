@@ -17,6 +17,13 @@ jest.mock('tamagui', () => ({
   useThemeName: () => mockThemeName,
 }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
+jest.mock('~/shared/icons', () => ({
+  Check: 'Check',
+  Info: 'Info',
+  Landmark: 'Landmark',
+  ShieldCheck: 'ShieldCheck',
+  TriangleAlert: 'TriangleAlert',
+}));
 
 function Probe({ id }: { id: string }) {
   const theme = useBUITheme();
@@ -62,9 +69,11 @@ it('keeps trust dialog content on the wallet theme when the catalog differs, and
   useBUIStore.setState({ appearance: 'dark' });
   mockThemeName = 'light';
   const content = () => (
-    <MintTrustContent mints={[{ url: 'https://mint.example' }]} onConfirm={() => {}}>
-      <Probe id="trust-theme" />
-    </MintTrustContent>
+    <MintTrustContent
+      mints={[{ url: 'https://mint.example' }]}
+      identity={<Probe id="trust-theme" />}
+      onConfirm={() => {}}
+    />
   );
   let tree!: ReactTestRenderer;
   try {
