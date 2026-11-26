@@ -20,7 +20,7 @@ have not been performed on a connected device in this workspace.
    **Payments**, **Messages**, and **Review needed**.
 3. Leave **Show notification details OFF**. It should start off for both a new wallet and an existing
    wallet that has never opted in. An existing disabled Enable preference should stay disabled.
-4. Tap **Allow notifications** if shown, or turn Enable off and back on. Grant the OS prompt.
+4. Tap **Interw notifications** if shown, or turn Enable off and back on. Grant the OS prompt.
 5. Check that **System permission** updates. Merely receiving a payment must never open this prompt.
 
 Expected: status is informational; changing a toggle produces visible state, not a success toast.

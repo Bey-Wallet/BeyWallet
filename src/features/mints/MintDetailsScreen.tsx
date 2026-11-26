@@ -10,15 +10,7 @@ import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { YStack, XStack, View } from 'tamagui';
-import {
-  ArrowLeft,
-  QrCode,
-  Share2,
-  Pencil,
-  Check,
-  AlertTriangle,
-  Trash2,
-} from '@tamagui/lucide-icons';
+import { ArrowLeft, QrCode, Share2, Pencil, Check, AlertTriangle, Trash2 } from '~/shared/icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { hapticService } from '~/services/platform/hapticService';
 

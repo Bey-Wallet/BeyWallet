@@ -32,7 +32,7 @@ jest.mock('~/state/walletStore', () => ({
 }));
 jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn(), useQueryClient: jest.fn() }));
-jest.mock('@tamagui/lucide-icons', () => ({ ShieldCheck: 'Shield', Landmark: 'Mint' }));
+jest.mock('~/shared/icons', () => ({ ShieldCheck: 'Shield', Landmark: 'Mint' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/features/settings/components/SettingsLayout', () => ({

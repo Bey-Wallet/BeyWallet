@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { YStack } from 'tamagui';
 import { MintCard, MintRows, MintSection, MintDetailRow, MintText as Text } from './MintUI';
-import { Activity, ChevronDown, ChevronUp, RefreshCw } from '@tamagui/lucide-icons';
+import { Activity, ChevronDown, ChevronUp, RefreshCw } from '~/shared/icons';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { MintPreviewHealth, useCashuHealthList, useRadarHealth } from './MintPreviewHealth';
 import { mintHealthUrl } from '~/services/api/mintHealthService';

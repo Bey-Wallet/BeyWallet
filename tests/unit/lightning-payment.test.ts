@@ -51,6 +51,15 @@ it('never pays an expired quote', async () => {
   expect(quotes.executeMelt).not.toHaveBeenCalled();
   expect(quotes.rollbackMelt).toHaveBeenCalledWith('operation');
 });
+
+it('labels rollback after a failed quote check as a preparation failure, without submitting', async () => {
+  const { payment, quotes, checkMeltQuoteBolt11 } = harness();
+  checkMeltQuoteBolt11.mockRejectedValueOnce(new Error('offline'));
+  await expect(payment.preview()).rejects.toThrow('offline');
+  await payment.dispose();
+  expect(quotes.rollbackMelt).toHaveBeenCalledWith('operation', 'Bey: preparation failed');
+  expect(quotes.executeMelt).not.toHaveBeenCalled();
+});
 it('reconciles already paid or pending without a replacement quote', async () => {
   const { payment, quotes, operation } = harness();
   quotes.executeMelt.mockRejectedValue(new Error('already paid or pending'));

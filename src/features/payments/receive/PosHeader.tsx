@@ -12,6 +12,8 @@ export function PosHeader({
 }) {
   return (
     <BUIHeader
+      compact
+      transparent
       title="Checkout"
       navigation="close"
       navigationLabel="Close point of sale"

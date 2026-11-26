@@ -20,7 +20,9 @@ const tabularNumbers: Pick<TextStyle, 'fontVariant'> = { fontVariant: ['tabular-
 // Base Text is unnamed in Tamagui, so named config defaults do not reach it.
 // Update its existing defaults before configuring the named text variants below.
 const baseText = Text as unknown as { staticConfig?: { defaultProps?: Record<string, unknown> } };
-Object.assign(baseText.staticConfig?.defaultProps ?? {}, tabularNumbers, { fontFamily: '$body' });
+Object.assign(baseText.staticConfig?.defaultProps ?? {}, tabularNumbers, {
+  fontFamily: '$body',
+});
 
 // Keep this type independent of TamaguiCustomConfig, which is inferred from config below.
 const textDefaults: Record<
@@ -57,9 +59,9 @@ const textDefaults: Record<
 
 const animations = createAnimations(appMotion.animations);
 
-const createAlloFont = (optical: 'Text' | 'Display') =>
+const createAppFont = () =>
   createFont({
-    family: `Allo${optical}Regular`,
+    family: 'TikTokSansRegular',
     size: {
       1: appTypography.caption.fontSize,
       2: 11,
@@ -116,22 +118,22 @@ const createAlloFont = (optical: 'Text' | 'Display') =>
       10: appTypography.display.letterSpacing,
     },
     face: {
-      100: { normal: `Allo${optical}Regular` },
-      200: { normal: `Allo${optical}Regular` },
-      300: { normal: `Allo${optical}Regular` },
-      400: { normal: `Allo${optical}Regular` },
-      500: { normal: `Allo${optical}Medium` },
-      600: { normal: `Allo${optical}SemiBold` },
-      700: { normal: `Allo${optical}SemiBold` },
-      800: { normal: `Allo${optical}SemiBold` },
-      900: { normal: `Allo${optical}SemiBold` },
-      1000: { normal: `Allo${optical}SemiBold` },
-      bold: { normal: `Allo${optical}SemiBold` },
+      100: { normal: 'TikTokSansRegular' },
+      200: { normal: 'TikTokSansRegular' },
+      300: { normal: 'TikTokSansRegular' },
+      400: { normal: 'TikTokSansRegular' },
+      500: { normal: 'TikTokSansMedium' },
+      600: { normal: 'TikTokSansSemiBold' },
+      700: { normal: 'TikTokSansSemiBold' },
+      800: { normal: 'TikTokSansSemiBold' },
+      900: { normal: 'TikTokSansSemiBold' },
+      1000: { normal: 'TikTokSansSemiBold' },
+      bold: { normal: 'TikTokSansSemiBold' },
     },
   });
 
-const alloTextFont = createAlloFont('Text');
-const alloDisplayFont = createAlloFont('Display');
+const appTextFont = createAppFont();
+const appDisplayFont = createAppFont();
 for (const name of ['H1', 'H2', 'H3']) textDefaults[name].fontFamily = '$display';
 
 const superblueColors = {
@@ -241,10 +243,10 @@ export const config = createTamagui({
   },
   fonts: {
     ...defaultConfig.fonts,
-    heading: alloTextFont,
-    body: alloTextFont,
-    display: alloDisplayFont,
-    mono: alloTextFont,
+    heading: appTextFont,
+    body: appTextFont,
+    display: appDisplayFont,
+    mono: appTextFont,
   },
   themes: {
     ...defaultConfig.themes,

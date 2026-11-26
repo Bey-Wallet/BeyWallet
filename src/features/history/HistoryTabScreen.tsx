@@ -4,7 +4,7 @@ import { Keyboard } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { Text, XStack } from 'tamagui';
 import { appDimensions, appSpacing } from '~/shared/theme/appearance';
-import { SlidersHorizontal, Search, X } from '@tamagui/lucide-icons';
+import { SlidersHorizontal, Search, X } from '~/shared/icons';
 import { HistoryScreen } from './index';
 
 export function HistoryTabScreen() {

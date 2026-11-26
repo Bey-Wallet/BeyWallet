@@ -26,7 +26,7 @@ jest.mock('tamagui', () => ({
   useTheme: () => ({ background: { val: '#000' }, color: { val: '#fff' } }),
 }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'AppIconButton' }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   ChevronLeft: 'ChevronLeft',
   Check: 'Check',
   X: 'X',
@@ -85,7 +85,7 @@ it.each(['confirm', 'qr', 'receipt'] as const)(
   },
 );
 
-it('matches the mint QR frame with a 280px cap and 20px quiet margin on each side', async () => {
+it('uses a compact 240px QR cap and preserves the 20px quiet margin on each side', async () => {
   let size = 0;
   const tree = await render(
     <PaymentQRFrame accessibilityLabel="Request QR">
@@ -102,7 +102,35 @@ it('matches the mint QR frame with a 280px cap and 20px quiet margin on each sid
   const style = StyleSheet.flatten(surface.props.style) || {};
   expect(surface.props.p ?? style.padding ?? style.paddingLeft).toBe(20);
   await act(async () => frame.props.onLayout({ nativeEvent: { layout: { width: 600 } } }));
-  expect(size).toBe(280);
+  expect(size).toBe(240);
+  await act(async () => tree.unmount());
+});
+
+it('blends a POS QR into its canvas without a border and retains the quiet margin', async () => {
+  let size = 0;
+  const tree = await render(
+    <PaymentQRFrame appearance="pos" accessibilityLabel="POS QR">
+      {(value) => {
+        size = value;
+        return 'QR';
+      }}
+    </PaymentQRFrame>,
+  );
+  await act(async () =>
+    tree.root
+      .findByType('YStack' as any)
+      .props.onLayout({ nativeEvent: { layout: { width: 320 } } }),
+  );
+  const surface = tree.root.findByProps({ testID: 'payment-qr-surface' });
+  const style = StyleSheet.flatten(surface.props.style) || {};
+  expect(surface.props.bg).toBe('$background');
+  expect(surface.props.borderWidth ?? style.borderWidth).toBe(0);
+  expect(surface.props.p ?? style.padding ?? style.paddingLeft).toBe(20);
+  expect(size + 40).toBe(320);
+  await act(async () =>
+    tree.root.findByType('YStack' as any).props.onLayout({ nativeEvent: { layout: { width: 400 } } }),
+  );
+  expect(size + 40).toBe(400);
   await act(async () => tree.unmount());
 });
 

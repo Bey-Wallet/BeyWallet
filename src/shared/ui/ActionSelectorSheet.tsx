@@ -17,7 +17,7 @@ import {
   StoreActionIcon as Store,
   type FilledActionIconProps,
 } from '~/shared/icons/FilledActionIcons';
-import { Nfc } from '@tamagui/lucide-icons';
+import { Nfc } from '~/shared/icons';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
@@ -30,6 +30,17 @@ import {
   appTypography,
 } from '~/shared/theme/appearance';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
+import { AppState, Keyboard } from 'react-native';
+import { Spinner } from '~/shared/ui/Spinner';
+import { LightningPayment } from '~/services/wallet/lightningPayment';
+import {
+  saveLightningReview,
+  discardLightningReview,
+} from '~/services/wallet/lightningReviewSession';
+import { useWalletStore } from '~/state/walletStore';
+import { useSettingsStore } from '~/state/settingsStore';
+import { networkService } from '~/services/platform/networkService';
+import type { UniversalInputResult } from '~/shared/utils/universalInputResolver';
 
 export type ActionSheetType = 'mint' | 'send' | 'receive';
 export type ActionSheetStage = 'main' | 'bitcoin';
@@ -49,10 +60,6 @@ interface OptionConfig {
   action?: () => void;
 }
 
-function NfcActionIcon(props: FilledActionIconProps) {
-  return <Nfc {...props} strokeWidth={2.5} />;
-}
-
 const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
   function ActionSelectorSheet(_, ref) {
     const router = useRouter();
@@ -63,14 +70,109 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     const [stage, setStage] = useState<ActionSheetStage>('main');
     const [processing, setProcessing] = useState(false);
     const [dismissAfterInput, setDismissAfterInput] = useState(false);
+    const [preparing, setPreparing] = useState(false);
+    const [preparationError, setPreparationError] = useState<string | null>(null);
+    const [reviewId, setReviewId] = useState<string | null>(null);
+    const preparation = useRef<LightningPayment | null>(null);
+    const preparationGeneration = useRef(0);
+    const busy = processing || preparing;
+
+    const cancelPreparation = useCallback(() => {
+      ++preparationGeneration.current;
+      const payment = preparation.current;
+      preparation.current = null;
+      void payment?.dispose().catch(() => {});
+    }, []);
+
+    useEffect(() => {
+      const subscription = AppState.addEventListener('change', (state) => {
+        if (state !== 'active' && preparation.current) {
+          cancelPreparation();
+          setPreparing(false);
+          setPreparationError('Payment preparation paused. Continue when you are ready.');
+        }
+      });
+      return () => {
+        subscription.remove();
+        cancelPreparation();
+      };
+    }, [cancelPreparation]);
+
+    useEffect(() => {
+      if (!reviewId || busy) return;
+      actionPending.current = true;
+      sheetRef.current?.dismiss();
+      try {
+        router.push({ pathname: '/(modals)/melt', params: { reviewId } });
+      } catch {
+        discardLightningReview(reviewId);
+        actionPending.current = false;
+        setPreparationError('Could not open payment confirmation. Try again.');
+      }
+      setReviewId(null);
+    }, [reviewId, busy, router]);
+
+    const handleResolved = async (result: UniversalInputResult): Promise<boolean> => {
+      if (result.type !== 'lightning_invoice') return false;
+      if (preparation.current || actionPending.current) return true;
+      const { activeMintUrl } = useWalletStore.getState();
+      const walletId = useSettingsStore.getState().npub;
+      if (!activeMintUrl || !walletId) return false;
+      const generation = ++preparationGeneration.current;
+      const payment = new LightningPayment(
+        activeMintUrl,
+        result.resolvedData?.invoice || result.cleaned,
+      );
+      preparation.current = payment;
+      setPreparationError(null);
+      setPreparing(true);
+      Keyboard.dismiss();
+      try {
+        if (await networkService.isOffline()) throw new Error('offline');
+        if (generation !== preparationGeneration.current) return true;
+        const quote = await payment.preview();
+        if (
+          generation !== preparationGeneration.current ||
+          useSettingsStore.getState().npub !== walletId
+        )
+          return true;
+        if (quote.expiry && quote.expiry <= Date.now() / 1000) throw new Error('expired');
+        if (!Number.isFinite(quote.amount) || quote.amount <= 0) throw new Error('amount');
+        const id = saveLightningReview(walletId, payment, quote);
+        preparation.current = null;
+        setReviewId(id);
+      } catch (error) {
+        await payment.dispose().catch(() => {});
+        if (generation !== preparationGeneration.current) return true;
+        const reason = error instanceof Error ? error.message : '';
+        setPreparationError(
+          reason === 'offline'
+            ? 'You are offline. Connect and try again.'
+            : reason === 'expired'
+              ? 'Invoice expired. Ask for a new invoice.'
+              : reason === 'amount'
+                ? 'Ask for an invoice with an amount.'
+                : 'Could not prepare payment. Check your mint and try again.',
+        );
+      } finally {
+        if (preparation.current === payment) {
+          preparation.current = null;
+          await payment.dispose().catch(() => {});
+        }
+        if (generation === preparationGeneration.current) setPreparing(false);
+      }
+      return true;
+    };
 
     const dismiss = useCallback(() => {
       actionPending.current = true;
+      cancelPreparation();
+      setPreparing(false);
       inputRef.current?.clear();
       setProcessing(false);
-      if (processing) setDismissAfterInput(true);
+      if (busy) setDismissAfterInput(true);
       else sheetRef.current?.dismiss();
-    }, [processing]);
+    }, [busy, cancelPreparation]);
 
     const handleInputRedirect = useCallback(() => {
       actionPending.current = true;
@@ -82,17 +184,20 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
     }, []);
 
     useEffect(() => {
-      if (dismissAfterInput && !processing) {
+      if (dismissAfterInput && !busy) {
         sheetRef.current?.dismiss();
         setDismissAfterInput(false);
       }
-    }, [dismissAfterInput, processing]);
+    }, [dismissAfterInput, busy]);
 
     useImperativeHandle(
       ref,
       () => ({
         present: (sheetType) => {
           actionPending.current = false;
+          cancelPreparation();
+          setPreparing(false);
+          setPreparationError(null);
           setDismissAfterInput(false);
           setType(sheetType);
           setStage('main');
@@ -102,7 +207,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
         },
         dismiss,
       }),
-      [dismiss],
+      [dismiss, cancelPreparation],
     );
 
     const options: OptionConfig[] =
@@ -153,7 +258,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
               type === 'send'
                 ? {
                     label: 'Tap to pay',
-                    icon: NfcActionIcon,
+                    icon: Nfc,
                     iconColor: 'nfc',
                     description: 'Pay with NFC',
                     action: nfcFlow.openReader,
@@ -223,7 +328,7 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
         : `${type === 'send' ? 'Send' : 'Receive'}${stage === 'bitcoin' ? ' Bitcoin' : ''}`;
 
     const handleOption = (option: OptionConfig) => {
-      if (actionPending.current || processing) return;
+      if (actionPending.current || busy) return;
 
       if (option.stage) {
         setStage(option.stage);
@@ -344,52 +449,81 @@ const ActionSelectorSheet = forwardRef<ActionSelectorSheetRef>(
 
     const content = (
       <YStack gap="$3">
-        {type === 'mint' ? (
-          <YStack gap="$4">
+        {preparing && (
+          <YStack
+            minHeight={180}
+            items="center"
+            justify="center"
+            gap="$4"
+            accessibilityLiveRegion="polite"
+          >
+            <Spinner size={40} color="$color" accessibilityLabel="Preparing payment" />
+            <Text fontFamily="$body" {...appTypography.body2} color="$gray10">
+              Getting your payment ready…
+            </Text>
+          </YStack>
+        )}
+        {preparationError && (
+          <Text
+            fontFamily="$body"
+            {...appTypography.body2}
+            color="$red10"
+            accessibilityRole="alert"
+          >
+            {preparationError}
+          </Text>
+        )}
+        <YStack display={preparing ? 'none' : 'flex'}>
+          {type === 'mint' ? (
+            <YStack gap="$4">
+              <UniversalInputCard
+                ref={inputRef}
+                layout="stacked"
+                inputComponent={BottomSheetTextInput}
+                label="Payment details"
+                placeholder="Paste or type payment details"
+                onBeforeRedirect={handleInputRedirect}
+                onProcessingChange={setProcessing}
+                onHandleResolved={handleResolved}
+              />
+              {optionContent}
+            </YStack>
+          ) : (
             <UniversalInputCard
               ref={inputRef}
-              layout="stacked"
+              layout="screen"
+              compact
+              contentSized
               inputComponent={BottomSheetTextInput}
               label="Payment details"
-              placeholder="Paste or type payment details"
               onBeforeRedirect={handleInputRedirect}
               onProcessingChange={setProcessing}
-            />
-            {optionContent}
-          </YStack>
-        ) : (
-          <UniversalInputCard
-            ref={inputRef}
-            layout="screen"
-            compact
-            contentSized
-            inputComponent={BottomSheetTextInput}
-            label="Payment details"
-            onBeforeRedirect={handleInputRedirect}
-            onProcessingChange={setProcessing}
-          >
-            {optionContent}
-          </UniversalInputCard>
-        )}
+              onHandleResolved={handleResolved}
+            >
+              {optionContent}
+            </UniversalInputCard>
+          )}
+        </YStack>
       </YStack>
     );
 
     return (
       <AppBottomSheet
         ref={sheetRef}
-        title={title}
+        title={preparing ? 'Preparing payment' : title}
         navigation={stage === 'main' ? 'close' : 'back'}
         onNavigate={() => {
-          if (processing || actionPending.current) return;
+          if (busy || actionPending.current) return;
           if (stage === 'main') dismiss();
           else {
             setStage('main');
           }
         }}
         backgroundColor={type === 'mint' ? undefined : '$background'}
-        canDismiss={!processing}
+        canDismiss={!busy}
         onClose={() => {
           actionPending.current = true;
+          cancelPreparation();
           inputRef.current?.clear();
         }}
       >

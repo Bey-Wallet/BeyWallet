@@ -15,7 +15,7 @@ let mockPrice: number | undefined = 100_000;
 jest.mock('tamagui', () =>
   Object.fromEntries(['YStack', 'XStack', 'Text', 'Input'].map((name) => [name, name])),
 );
-jest.mock('@tamagui/lucide-icons', () => ({ ArrowUpDown: 'ArrowUpDown' }));
+jest.mock('~/shared/icons', () => ({ ArrowUpDown: 'ArrowUpDown', ChevronDown: 'ChevronDown' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/shared/ui/HomeMintSelector', () => ({ MintSelectorSheet: 'MintSheet' }));
 jest.mock('~/shared/ui/NumericKeypad', () => ({ NumericKeypad: 'Keypad' }));
@@ -25,6 +25,7 @@ jest.mock('~/shared/ui/MintBalanceRow', () => ({
     require('react').createElement('MintRow', props, children),
 }));
 jest.mock('~/shared/ui/ListTable', () => ({
+  ListTable: 'Table',
   ListTableRow: ({ value, ...props }: any) => require('react').createElement('Row', props, value),
 }));
 jest.mock('~/state/walletStore', () => ({
@@ -97,6 +98,17 @@ function Entry({ pos = true }: { pos?: boolean }) {
 const keypad = () => tree.root.findByType('Keypad' as any);
 const displayed = () => tree.root.findByType('Amount' as any).props.value;
 const sats = () => tree.root.findByType(AmountStage).props.amount;
+
+it('uses a larger amount for POS while preserving the normal wallet amount size', async () => {
+  await act(async () => {
+    tree = create(<Entry />);
+  });
+  expect(tree.root.findByType('Amount' as any).props.fontSize).toBe(72);
+  await act(async () => {
+    tree.update(<Entry pos={false} />);
+  });
+  expect(tree.root.findByType('Amount' as any).props.fontSize).toBeUndefined();
+});
 
 it('enters fiat minor units in POS, converts to whole sats and deletes one minor-unit digit', async () => {
   mockSettings.primaryCurrency = 'FIAT';

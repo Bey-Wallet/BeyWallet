@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { ChevronDown } from '@tamagui/lucide-icons';
+import { ChevronDown } from '~/shared/icons';
 import { ListTableRow } from '~/shared/ui/ListTable';
 import { MintSelectorSheet } from '~/shared/ui/HomeMintSelector';
 import type { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';

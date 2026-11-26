@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy } from '@tamagui/lucide-icons';
+import { Copy } from '~/shared/icons';
 import { Text, XStack, YStack } from 'tamagui';
 import { ListTableRow } from '~/shared/ui/ListTable';
 import { appTypography } from '~/shared/theme/appearance';

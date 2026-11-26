@@ -15,7 +15,7 @@ import { AppPressable } from '~/shared/ui/AppPressable';
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { YStack, XStack, Text } from 'tamagui';
-import { Search, ClipboardPaste, User, ArrowUpDown } from '@tamagui/lucide-icons';
+import { Search, ClipboardPaste, User, ArrowUpDown } from '~/shared/icons';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
 import { Spinner } from '~/shared/ui/Spinner';
 import { useRouter } from 'expo-router';
@@ -481,7 +481,7 @@ export function NostrSendStage({
         onConfirm={onContinue}
         confirmLabel={isLoading ? 'Processing...' : 'Continue'}
         confirmDisabled={!isValidAmount || isLoading}
-        confirmIcon={isLoading ? <Spinner size="small" /> : undefined}
+        isLoading={isLoading}
       />
 
       {/* ── Contact Search Sheet ──────────────────────────────────── */}

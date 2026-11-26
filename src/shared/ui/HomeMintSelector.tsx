@@ -5,7 +5,7 @@ import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
-import { Check, ChevronDown, Plus, Landmark } from '@tamagui/lucide-icons';
+import { Check, ChevronDown, Plus, Landmark } from '~/shared/icons';
 import { Text, YStack, View } from 'tamagui';
 
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -384,8 +384,9 @@ export const MintSelectorSheet = React.forwardRef<AppBottomSheetRef, MintSelecto
         >
           <>
             <BUIHeader
+              compact
               title="Choose mint"
-              divider
+              transparent
               navigation="close"
               navigationLabel="Close mint selector"
               navigationDisabled={locked}

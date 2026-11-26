@@ -25,6 +25,7 @@ import {
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { Buffer } from 'buffer';
 import { appLogger } from '~/shared/utils/appLogger';
+import { queryClient } from '~/shared/utils/queryClient';
 
 function mgr() {
   return initService.getManager();
@@ -442,6 +443,10 @@ export const quotesService = {
         quoteStatus.amount_paid,
       );
       const entry = await repo.historyRepository.getMintHistoryEntry(mintUrl, quoteId);
+      // Custom on-chain persistence bypasses the SDK's history event. Proof-save events
+      // can arrive before this final history write, so refresh receipts only afterward.
+      void queryClient.invalidateQueries({ queryKey: ['history'] }).catch(() => {});
+      void queryClient.invalidateQueries({ queryKey: ['transaction'] }).catch(() => {});
       if (entry)
         await publishWalletFeedback({
           entity: { type: 'quote', id: quoteFeedbackId(mintUrl, quoteId) },

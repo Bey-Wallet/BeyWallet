@@ -1,7 +1,7 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import React from 'react';
 import { Linking } from 'react-native';
-import { ExternalLink } from '@tamagui/lucide-icons';
+import { ExternalLink } from '~/shared/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { ListTableRow } from '~/shared/ui/ListTable';

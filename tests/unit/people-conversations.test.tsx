@@ -46,8 +46,9 @@ const eve = nip19.npubEncode('03'.repeat(32));
 const mockPush = jest.fn();
 const mockBack = jest.fn();
 const mockReplace = jest.fn();
+const mockSetParams = jest.fn();
 let mockCanGoBack = true;
-const mockParams = { npub: bob };
+const mockParams: { npub: string; scannedPerson?: string } = { npub: bob };
 let mockSavedMessages: ChatMessage[] = [];
 let mockHistory: any[] = [];
 let mockRemoteResults: any[] = [];
@@ -61,6 +62,7 @@ jest.mock('expo-router', () => ({
     push: mockPush,
     back: mockBack,
     replace: mockReplace,
+    setParams: mockSetParams,
     canGoBack: () => mockCanGoBack,
   }),
   useLocalSearchParams: () => mockParams,
@@ -92,10 +94,11 @@ jest.mock('~/shared/ui/AppIconButton', () => ({
   AppIconButton: ({ icon: _icon, ...props }: any) =>
     require('react').createElement('AppIconButton', props),
 }));
-jest.mock('@tamagui/lucide-icons', () =>
+jest.mock('~/shared/icons', () =>
   Object.fromEntries(
     [
       'Search',
+      'Scan',
       'ClipboardPaste',
       'Users',
       'X',
@@ -249,6 +252,8 @@ describe('People conversations and invitations', () => {
   };
   beforeEach(() => {
     mockParams.npub = bob;
+    delete mockParams.scannedPerson;
+    mockSetParams.mockClear();
     jest.mocked(nostrService.sendChat).mockReset();
     jest.mocked(nostrService.retryChat).mockReset();
     useSettingsStore.setState({ primaryCurrency: 'SATS', secondaryCurrency: 'USD' });
@@ -294,6 +299,24 @@ describe('People conversations and invitations', () => {
     jest.restoreAllMocks();
   });
 
+  it('opens the contact scanner and consumes its result in People search', async () => {
+    await act(async () => {
+      tree = create(<PeopleScreen />);
+    });
+    const scan = tree.root
+      .findAllByType('AppIconButton' as any)
+      .find((node) => node.props.accessibilityLabel === 'Scan npub or username')!;
+    await act(async () => scan.props.onPress());
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(modals)/scanner',
+      params: { peopleScan: '1' },
+    });
+    mockParams.scannedPerson = `nostr:${alice}`;
+    await act(async () => tree.update(<PeopleScreen />));
+    expect(tree.root.findByType('Input' as any).props.value).toBe(alice);
+    expect(mockSetParams).toHaveBeenCalledWith({ scannedPerson: undefined });
+  });
+
   it('has two tabs and counts one invitation for multiple offers without including blocked people', async () => {
     await act(async () => {
       tree = create(<PeopleScreen />);
@@ -301,7 +324,7 @@ describe('People conversations and invitations', () => {
     const text = tree!.root
       .findAllByType('Text' as any)
       .map((node) => node.children.filter((child) => typeof child === 'string').join(''));
-    expect(text).toContain('Recent');
+    expect(text).toContain('Added');
     expect(text).toContain('Requests');
     expect(text).not.toContain('Favorites');
     expect(
@@ -333,7 +356,7 @@ describe('People conversations and invitations', () => {
             node.props.accessibilityRole === 'tab' &&
             node.props.accessibilityLabel.startsWith(name),
         )!;
-    expect(tab('Recent').props.accessibilityLabel).toBe('Recent, 1 unread conversations');
+    expect(tab('Added').props.accessibilityLabel).toBe('Added, 1 unread conversations');
     expect(tab('Requests').props.accessibilityLabel).toBe('Requests, 1 unread conversations');
     expect(
       tree.root
@@ -349,9 +372,9 @@ describe('People conversations and invitations', () => {
     expect(tab('Requests').props.accessibilityState.selected).toBe(true);
     expect(activeList().findAllByType('PeopleRow' as any)[0].props.item.npub).toBe(bob);
     await swipe(0);
-    expect(tab('Recent').props.accessibilityState.selected).toBe(true);
+    expect(tab('Added').props.accessibilityState.selected).toBe(true);
     await act(async () => useMessageStore.setState({ unread: {} }));
-    expect(tab('Recent').props.accessibilityLabel).toBe('Recent, 0 unread conversations');
+    expect(tab('Added').props.accessibilityLabel).toBe('Added, 0 unread conversations');
     await act(async () => useNostrInboxStore.getState().markAllSeen());
     expect(tab('Requests').props.accessibilityLabel).toBe('Requests, 0 unread conversations');
   });

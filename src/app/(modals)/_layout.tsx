@@ -1,7 +1,7 @@
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme } from 'tamagui';
-import { ArrowLeft, X } from '@tamagui/lucide-icons';
+import { ArrowLeft, X } from '~/shared/icons';
 import React from 'react';
 import HomeHeaderMintSelector from '~/shared/ui/HomeMintSelector';
 import { useScreenHeaderOptions } from '~/shared/ui/useScreenHeaderOptions';

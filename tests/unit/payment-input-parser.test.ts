@@ -1,5 +1,6 @@
 import { parsePaymentInput } from '~/shared/utils/paymentInputParser';
 import { resolveUniversalInput } from '~/shared/utils/universalInputResolver';
+import { bech32, bech32m } from 'bech32';
 
 const CREQB =
   'CREQB1QYQQWER9D4HNZV3NQGQQSQQQQQQQQQQRAQPSQQGQQSQQZQG9QQVXSAR5WPEN5TE0D45KUAPWV4UXZMTSD3JJUCM0D5RQQRJRDANXVET9YPCXZ7TDV4H8GXHR3TQ';
@@ -7,6 +8,44 @@ const INVOICE = 'lnbc210n1ptestinvoice';
 const ADDRESS = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
 
 describe('parsePaymentInput', () => {
+  const regtestAddresses = [
+    bech32.encode('bcrt', [0, ...bech32.toWords(new Uint8Array(20).fill(1))]),
+    bech32m.encode('bcrt', [1, ...bech32m.toWords(new Uint8Array(32).fill(2))]),
+  ];
+  it.each(regtestAddresses)(
+    'recognizes a regtest address through paste and QR resolution (%s)',
+    async (address) => {
+      for (const input of [
+        address,
+        address.toUpperCase(),
+        `bitcoin:${address}?amount=0.001`,
+        `BITCOIN:${address}?label=Test`,
+      ]) {
+        const result = parsePaymentInput(input);
+        expect(result.matched && result.ok && result.value.primary).toEqual({
+          type: 'bitcoin_onchain',
+          value: input.includes(':') ? address : input,
+        });
+        expect(await resolveUniversalInput(input)).toMatchObject({
+          type: 'bitcoin_onchain',
+          resolvedData: { address: input.includes(':') ? address : input },
+        });
+      }
+    },
+  );
+  it('keeps unified payment priority and required-parameter checks for regtest URIs', () => {
+    const address = regtestAddresses[0];
+    const unified = parsePaymentInput(`bitcoin:${address}?lightning=${INVOICE}`);
+    expect(unified.matched && unified.ok && unified.value.alternatives).toEqual([
+      { type: 'lightning_invoice', value: INVOICE },
+      { type: 'bitcoin_onchain', value: address },
+    ]);
+    expect(parsePaymentInput(`bitcoin:${address}?req-unsupported=1`)).toMatchObject({
+      matched: true,
+      ok: false,
+    });
+    expect(parsePaymentInput('bcrt1')).toEqual({ matched: false });
+  });
   it('prefers the Cashu request in a Numo unified URI', () => {
     const result = parsePaymentInput(`bitcoin:?creq=${CREQB}&lightning=${INVOICE}`);
 

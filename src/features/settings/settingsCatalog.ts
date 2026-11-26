@@ -11,6 +11,8 @@ import {
   FileUp,
   Fingerprint,
   Globe,
+  XLogo,
+  TelegramLogo,
   Info,
   KeyRound,
   Palette,
@@ -32,7 +34,7 @@ import {
   Github,
   BookOpen,
   Vibrate,
-} from '@tamagui/lucide-icons';
+} from '~/shared/icons';
 import { isDevelopmentClient } from '~/shared/utils/developmentClient';
 import type { AppButtonIcon } from '~/shared/ui/AppButton';
 
@@ -182,6 +184,8 @@ export const settingsTitles: Record<string, string> = {
 export const settingsLinks = {
   website: 'https://bey.cash',
   github: 'https://github.com/Bey-Wallet/BeyWallet',
+  x: 'https://x.com/BeyWallet',
+  telegram: 'https://t.me/BeyWallet',
   support: 'https://github.com/Bey-Wallet/BeyWallet/issues',
   documentation: 'https://github.com/Bey-Wallet/BeyWallet#readme',
   legal: 'https://bey.cash/privacy-policy',
@@ -189,6 +193,8 @@ export const settingsLinks = {
 export const settingsLinkIcons = {
   website: Globe,
   github: Github,
+  x: XLogo,
+  telegram: TelegramLogo,
   support: CircleHelp,
   documentation: BookOpen,
 };

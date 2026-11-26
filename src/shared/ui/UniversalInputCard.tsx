@@ -5,16 +5,7 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { YStack, XStack, Text, View } from 'tamagui';
-import {
-  X,
-  Clipboard,
-  ArrowRight,
-  Zap,
-  Send,
-  Bitcoin,
-  CheckCircle2,
-  Search,
-} from '@tamagui/lucide-icons';
+import { X, Clipboard, ArrowRight, Zap, Send, Bitcoin, CheckCircle2, Search } from '~/shared/icons';
 import * as ClipboardAPI from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useAppToast } from '~/shared/hooks/useAppToast';
@@ -46,6 +37,8 @@ export interface UniversalInputCardProps {
   placeholder?: string;
   onBeforeRedirect?: () => void;
   onResolved?: (result: UniversalInputResult) => void;
+  /** Return true when the parent owns this input's preparation and navigation. */
+  onHandleResolved?: (result: UniversalInputResult) => Promise<boolean> | boolean;
   autoFocus?: boolean;
   height?: number;
   showBadge?: boolean;
@@ -66,6 +59,7 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
       placeholder = 'Token, request, invoice, address, LNURL or link',
       onBeforeRedirect,
       onResolved,
+      onHandleResolved,
       autoFocus = false,
       height = 70,
       showBadge = true,
@@ -131,6 +125,9 @@ export const UniversalInputCard = forwardRef<UniversalInputCardRef, UniversalInp
         }
 
         setDetectedType(result.type);
+        if (onHandleResolved) setAutomaticProcessing(false);
+        if (await onHandleResolved?.(result)) return true;
+        if (ticket !== generation.current) return false;
         const redirected = handleUniversalRedirect(result, {
           router,
           onBeforeRedirect: () => {

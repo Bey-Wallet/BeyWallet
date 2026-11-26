@@ -13,6 +13,7 @@ import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
 import QRCode from '~/shared/ui/PaymentQRCode';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { PaymentAmountRow } from '~/shared/ui/PaymentAmountRow';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { BUIList as ListTable, BUIListItem as ListTableRow } from '~/shared/ui/BUI/BUIList';
@@ -34,6 +35,7 @@ export function PendingOnchainLayout({
   menuActions = [],
   inset = true,
   extraDetails,
+  technicalDetails,
   transactionDetails,
   navigationAction = 'back',
   offline = false,
@@ -48,6 +50,7 @@ export function PendingOnchainLayout({
   menuActions?: PaymentMenuAction[];
   inset?: boolean;
   extraDetails?: React.ReactNode;
+  technicalDetails?: React.ReactNode;
   transactionDetails?: React.ReactNode;
   navigationAction?: 'back' | 'close';
   offline?: boolean;
@@ -55,6 +58,22 @@ export function PendingOnchainLayout({
   const deposit = direction === 'deposit';
   const toast = useAppToast();
   const [copied, setCopied] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshLock = useRef(false);
+  const busy = !!checking || refreshing;
+  const checkStatus = async () => {
+    if (offline || checking || refreshLock.current) return;
+    refreshLock.current = true;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } catch {
+      toast.showFeedback(interactionCopy.couldNotCheckPaymentStatusPleaseTry);
+    } finally {
+      refreshLock.current = false;
+      setRefreshing(false);
+    }
+  };
   const receiptAction = useRef<ReceiptImageShareAction>(null);
   const detailsSheet = useRef<BUISheetRef>(null);
   const appearance = useThemeName().startsWith('light') ? 'light' : 'dark';
@@ -79,17 +98,18 @@ export function PendingOnchainLayout({
         navigationAction={navigationAction}
         title={deposit ? 'On-chain deposit' : 'On-chain payment'}
         onBack={onClose}
-        disabled={checking}
+        disabled={busy}
         headerRight={() => (
           <PaymentActionsMenu
-            busy={checking}
+            busy={busy}
+            technicalDetails={technicalDetails}
             actions={[
               {
                 id: 'refresh',
                 title: 'Refresh status',
                 disabled: offline,
                 onPress: () => {
-                  void onRefresh();
+                  void checkStatus();
                 },
               },
               {
@@ -133,11 +153,11 @@ export function PendingOnchainLayout({
           <>
             {!deposit && <PaymentStatusIcon status="pending" />}
             {!deposit && (
-              <Text fontSize={13} fontWeight="500" color="$gray10">
+              <Text fontSize={18} fontWeight="600" color="$color" accessibilityRole="header">
                 Payment pending
               </Text>
             )}
-            {(!deposit || amount > 0) && <PaymentAmount amount={amount} compact />}
+            {!deposit && <PaymentAmount amount={amount} size="prominent" compact />}
             {deposit && !!address && (
               <PaymentQRFrame accessibilityLabel="Bitcoin deposit QR code">
                 {(size) => (
@@ -150,23 +170,44 @@ export function PendingOnchainLayout({
         footer={
           <AppButton
             variant="default"
-            emphasis="secondary"
+            emphasis={deposit ? 'secondary' : 'primary'}
             size="large"
             fullWidth
-            disabled={!destination}
+            disabled={deposit && !destination}
             onPress={async () => {
+              if (!deposit) {
+                onClose();
+                return;
+              }
               if (await copyWithFeedback(destination, toast)) setCopied(true);
             }}
           >
-            {copied ? 'Copied' : 'Copy'}
+            {deposit ? (copied ? 'Copied' : 'Copy') : 'Done'}
           </AppButton>
         }
       >
+        {!deposit && (
+          <AppButton
+            size="small"
+            fullWidth={false}
+            self="center"
+            emphasis="secondary"
+            loading={busy}
+            loadingText="Checking payment"
+            disabled={offline || busy}
+            onPress={() => {
+              void checkStatus();
+            }}
+          >
+            Check status
+          </AppButton>
+        )}
         <ListTable compact variant="filled">
+          {deposit && amount > 0 && <PaymentAmountRow amount={amount} />}
           <PaymentStatusRow
             status="pending"
             value={deposit ? (amount > 0 ? 'Payment detected' : 'Awaiting payment') : 'Pending'}
-            checking={checking}
+            checking={deposit && busy}
             disabled={offline}
           />
           <ListTableRow label="Mint" value={mint} />
@@ -176,6 +217,8 @@ export function PendingOnchainLayout({
           />
           <ListTableRow
             label={deposit ? 'Address' : 'Destination'}
+            isCopyable={!deposit && !!destination}
+            copyValue={destination}
             value={
               destination ? `${destination.slice(0, 12)}…${destination.slice(-8)}` : 'Unavailable'
             }
@@ -186,7 +229,7 @@ export function PendingOnchainLayout({
       {receipt && (
         <ReceiptImageShare
           receipt={receipt}
-          disabled={checking}
+          disabled={busy}
           hideTrigger
           actionRef={receiptAction}
         />
@@ -195,7 +238,7 @@ export function PendingOnchainLayout({
         ref={detailsSheet}
         title="Payment details"
         appearance={appearance}
-        canDismiss={!checking}
+        canDismiss={!busy}
       >
         <YStack>{extraDetails}</YStack>
       </BUISheet>

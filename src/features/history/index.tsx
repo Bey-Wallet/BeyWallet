@@ -2,7 +2,7 @@ import { LegendList } from '@legendapp/list/react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, RefreshControl, useWindowDimensions } from 'react-native';
 import { Text, XStack, YStack, useTheme } from 'tamagui';
-import { Store, Clock, Inbox, RotateCcw, Check, Search, X } from '@tamagui/lucide-icons';
+import { Store, Clock, Inbox, RotateCcw, Check, Search, X, ChevronDown } from '~/shared/icons';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -28,6 +28,7 @@ import {
   defaultHistoryFilters,
   filterHistory,
   groupHistory,
+  historyMintUrls,
   scopeHistory,
   type HistoryScope,
   type HistoryFilters,
@@ -36,7 +37,6 @@ import {
   type QuickFilter,
 } from './historyList';
 
-const quickFilters = [{ key: 'pending', label: 'Pending', icon: Clock }] as const;
 const rails = [
   { key: 'all', label: 'All activity' },
   { key: 'payments', label: 'Payments' },
@@ -59,12 +59,17 @@ function FilterPill({
   selected,
   onPress,
   icon: Icon,
+  count,
+  dropdown = false,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
   icon?: typeof Clock;
+  count?: number;
+  dropdown?: boolean;
 }) {
+  const foreground = selected ? '$onAccent' : '$color';
   return (
     <AppPressable
       minHeight={48}
@@ -74,7 +79,10 @@ function FilterPill({
       pressStyle={{ bg: 'transparent', opacity: 0.6 }}
       onPress={onPress}
       accessibilityLabel={label}
+      accessibilityHint={count ? `${count} matching ${count === 1 ? 'item' : 'items'}` : undefined}
       accessibilityState={{ selected }}
+      maxWidth="100%"
+      flexShrink={dropdown ? 1 : 0}
     >
       <XStack
         height={36}
@@ -83,19 +91,25 @@ function FilterPill({
         gap={6}
         items="center"
         justify="center"
-        bg={selected ? '$gray4' : '$buttonDefaultSecondary'}
+        bg={selected ? '$accentColor' : '$buttonDefaultSecondary'}
       >
-        {Icon && <Icon size={15} color={selected ? '$color' : '$gray10'} />}
-        <Text {...appTypography.label2} color="$color">
+        {Icon && <Icon size={15} color={selected ? foreground : '$gray10'} />}
+        <Text {...appTypography.label2} color={foreground} numberOfLines={1} flexShrink={1}>
           {label}
         </Text>
+        {!!count && (
+          <Text {...appTypography.label2} color={foreground}>
+            {count}
+          </Text>
+        )}
+        {dropdown && <ChevronDown size={14} color={foreground} aria-hidden />}
       </XStack>
     </AppPressable>
   );
 }
 
 export function HistoryScreen({
-  scope: requestedScope = 'wallet',
+  scope: requestedScope = 'all',
   showFilters = false,
   onFiltersClose,
   onFiltersActiveChange,
@@ -122,6 +136,7 @@ export function HistoryScreen({
     if (!showSearch) setSearchQuery('');
   }, [showSearch]);
   const filterSheet = useRef<AppBottomSheetRef>(null);
+  const mintSheet = useRef<AppBottomSheetRef>(null);
   const receiveSheet = useRef<ActionSelectorSheetRef>(null);
   const [receiveMounted, setReceiveMounted] = useState(false);
   useEffect(() => {
@@ -195,6 +210,10 @@ export function HistoryScreen({
     };
     const unsubs = [
       eventService.on('history:updated', handleUpdate),
+      eventService.on('melt-op:prepared', handleUpdate),
+      eventService.on('melt-op:pending', handleUpdate),
+      eventService.on('melt-op:finalized', handleUpdate),
+      eventService.on('melt-op:rolled-back', handleUpdate),
       eventService.on('receive:created', handleUpdate),
       eventService.on('send:created', handleUpdate),
       eventService.on('mint-quote:redeemed', handleUpdate),
@@ -239,14 +258,19 @@ export function HistoryScreen({
     () => (hasSearch ? buildHistorySearchIndex(allEntries, { people, mints }) : []),
     [allEntries, people, mints, hasSearch],
   );
-  const entries = useMemo(
-    () => filterHistory(hasSearch ? searchHistory(searchIndex, searchQuery) : allEntries, filters),
-    [allEntries, searchIndex, searchQuery, hasSearch, filters],
+  const candidates = useMemo(
+    () => (hasSearch ? searchHistory(searchIndex, searchQuery) : allEntries),
+    [allEntries, searchIndex, searchQuery, hasSearch],
   );
-  const rows = useMemo(
-    () => groupHistory(hasSearch ? entries : entries.slice(0, 200)),
-    [entries, hasSearch],
+  const entries = useMemo(() => filterHistory(candidates, filters), [candidates, filters]);
+  const pendingCount = useMemo(
+    () =>
+      filters.quick === 'pending'
+        ? entries.length
+        : filterHistory(candidates, { ...filters, quick: 'pending' }).length,
+    [candidates, entries.length, filters],
   );
+  const rows = useMemo(() => groupHistory(entries), [entries]);
   const resetFilters = () => setFilters(defaultHistoryFilters);
   const resetSearchAndFilters = () => {
     resetFilters();
@@ -289,12 +313,24 @@ export function HistoryScreen({
       ),
     [handlePress],
   );
-  const selectedMint = mints.find((mint) => mint.mintUrl === filters.mint);
+  const mintOptions = useMemo(() => {
+    const options = new Map([['all', 'All mints']]);
+    for (const mint of mints) {
+      const url = mint.mintUrl.replace(/\/+$/, '');
+      options.set(url, mint.nickname || mint.name || url.replace(/^https?:\/\//, ''));
+    }
+    for (const entry of history) {
+      for (const url of historyMintUrls(entry)) {
+        if (!options.has(url)) options.set(url, url.replace(/^https?:\/\//, ''));
+      }
+    }
+    return options;
+  }, [mints, history]);
+  const selectedMintLabel =
+    mintOptions.get(filters.mint) ?? filters.mint.replace(/^https?:\/\//, '');
   const filterSummary = [
     filters.rail !== 'all' && rails.find((item) => item.key === filters.rail)?.label,
     filters.time !== 'all' && times.find((item) => item.key === filters.time)?.label,
-    filters.mint !== 'all' &&
-      (selectedMint?.nickname || selectedMint?.name || filters.mint.replace(/^https?:\/\//, '')),
   ]
     .filter(Boolean)
     .join(' · ');
@@ -359,16 +395,14 @@ export function HistoryScreen({
                 )}
               </XStack>
             )}
-            <XStack gap={8} flexWrap="wrap">
-              {quickFilters.map((filter) => (
-                <FilterPill
-                  key={filter.key}
-                  label={filter.label}
-                  icon={filter.icon}
-                  selected={filters.quick === filter.key}
-                  onPress={() => setQuickFilter(filter.key)}
-                />
-              ))}
+            <XStack gap={8}>
+              <FilterPill
+                label="Pending"
+                icon={Clock}
+                count={pendingCount}
+                selected={filters.quick === 'pending'}
+                onPress={() => setQuickFilter('pending')}
+              />
               <FilterPill
                 label="POS"
                 icon={Store}
@@ -376,7 +410,16 @@ export function HistoryScreen({
                 onPress={() => {
                   Keyboard.dismiss();
                   hapticService.selection();
-                  setScope((current) => (current === 'wallet' ? 'pos' : 'wallet'));
+                  setScope((current) => (current === 'pos' ? 'all' : 'pos'));
+                }}
+              />
+              <FilterPill
+                label={selectedMintLabel}
+                selected={filters.mint !== 'all'}
+                dropdown
+                onPress={() => {
+                  Keyboard.dismiss();
+                  mintSheet.current?.present();
                 }}
               />
             </XStack>
@@ -487,6 +530,29 @@ export function HistoryScreen({
         keyboardDismissMode="on-drag"
       />
       {receiveMounted && <ActionSelectorSheet ref={receiveSheet} />}
+      <AppBottomSheet title="Filter by mint" ref={mintSheet}>
+        <ListTable>
+          {Array.from(mintOptions, ([url, label]) => (
+            <ListTableRow
+              key={url}
+              label={label}
+              selected={filters.mint === url}
+              onPress={() => {
+                hapticService.selection();
+                setFilters((current) => ({ ...current, mint: url }));
+                mintSheet.current?.dismiss();
+              }}
+              iconAfter={
+                filters.mint === url ? (
+                  <Check size={20} color="$iconPrimary" />
+                ) : (
+                  <YStack width={20} />
+                )
+              }
+            />
+          ))}
+        </ListTable>
+      </AppBottomSheet>
       <AppBottomSheet
         title="Filter history"
         headerActions={
@@ -534,28 +600,6 @@ export function HistoryScreen({
                 />
               ))}
             </XStack>
-          </YStack>
-          <YStack gap={8}>
-            <Text {...appTypography.label3} color="$gray10">
-              Mint
-            </Text>
-            <ListTable>
-              {[{ mintUrl: 'all', name: 'All mints', nickname: '' }, ...mints].map((mint) => (
-                <ListTableRow
-                  key={mint.mintUrl}
-                  label={mint.nickname || mint.name || mint.mintUrl.replace(/^https?:\/\//, '')}
-                  labelColor="$color"
-                  onPress={() => setFilters((current) => ({ ...current, mint: mint.mintUrl }))}
-                  iconAfter={
-                    filters.mint === mint.mintUrl ? (
-                      <Check size={20} color="$iconPrimary" />
-                    ) : (
-                      <YStack width={20} />
-                    )
-                  }
-                />
-              ))}
-            </ListTable>
           </YStack>
           <AppButton
             variant="default"

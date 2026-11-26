@@ -8,6 +8,8 @@ import {
   isOnchainHistory,
   historyDisplayAmount,
   nfcReceivingFeeNotice,
+  isPendingLightningMint,
+  historyReceiptState,
 } from '~/features/history/transactionPresentation';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
 import { OnchainTransactionRows } from './components/OnchainTransactionRows';
@@ -28,7 +30,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { PaymentStatusRow } from '~/shared/ui/PaymentStatusRow';
 import { YStack, XStack, Text, useThemeName } from 'tamagui';
-import { Trash2 } from '@tamagui/lucide-icons';
+import { Trash2 } from '~/shared/icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { formatPaymentDateTime } from '~/shared/utils/time';
@@ -58,6 +60,7 @@ import { Spinner } from '~/shared/ui/Spinner';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { TransactionReceiptSheet } from './components/TransactionReceiptSheet';
 import { ReceiptExtraDetails } from './components/ReceiptExtraDetails';
+import { TransferTechnicalDetails } from '~/features/payments/swap/TransferTechnicalDetails';
 import {
   buildReceiptDetails,
   needsFullScreenReceipt,
@@ -65,12 +68,13 @@ import {
 } from './receiptDetails';
 import {
   readLightningRecipient,
-  readLightningReceiptSnapshot,
   removeLightningRecipient,
 } from '~/services/wallet/lightningReceiptContext';
+import { readPaymentReceiptContext } from '~/services/wallet/paymentReceiptContext';
 import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { appLogger } from '~/shared/utils/appLogger';
+import { appTypography } from '~/shared/theme/appearance';
 
 interface HistoryEntry {
   id: string;
@@ -233,6 +237,8 @@ function TransactionDetailsContent() {
   const { data: receiptSnapshot, isPending: receiptSnapshotLoading } = useQuery<ReceiptSnapshot>({
     queryKey: ['receiptSnapshot', entry?.id, entry?.state, entry?.mintUrl, entry?.quoteId, npub],
     enabled: !!entry,
+    networkMode: 'always',
+    retry: false,
     queryFn: async () => {
       if (!entry) return {};
       const recipient = readLightningRecipient(
@@ -241,12 +247,15 @@ function TransactionDetailsContent() {
         entry.quoteId,
       );
       if (onchain || !entry.quoteId) return { recipient };
-      return readLightningReceiptSnapshot(
-        npub,
-        entry.mintUrl,
-        entry.quoteId,
-        entry.type === 'mint',
-      );
+      return (
+        await readPaymentReceiptContext({
+          wallet: npub,
+          mintUrl: entry.mintUrl,
+          type: entry.type,
+          quoteId: entry.quoteId,
+          operationId: entry.operationId,
+        })
+      ).snapshot;
     },
   });
 
@@ -328,8 +337,7 @@ function TransactionDetailsContent() {
 
   const isPendingMint = useMemo(() => {
     if (!entry) return false;
-    const s = (entry.state || '').toUpperCase();
-    return entry.type === 'mint' && (s === 'UNPAID' || s === 'PAID');
+    return isPendingLightningMint(entry);
   }, [entry]);
 
   const metadata = useMemo(() => {
@@ -643,9 +651,7 @@ function TransactionDetailsContent() {
 
       const isPendingSend =
         entry.type === 'send' && (status === 'pending' || status === 'unclaimed');
-      const isPendingMint =
-        entry.type === 'mint' &&
-        (status.toUpperCase() === 'UNPAID' || status.toUpperCase() === 'PAID');
+      const isPendingMint = isPendingLightningMint(entry);
 
       const isPendingOnchain = onchain && ['pending', 'unpaid', 'prepared'].includes(status);
       if (claimLock.current || reclaimLock.current || refreshLock.current || mintQuoteLock.current)
@@ -678,7 +684,10 @@ function TransactionDetailsContent() {
       }
     },
     !!entry &&
-      (isPendingMint || ['pending', 'unpaid', 'prepared', 'unclaimed'].includes(status)) &&
+      (isPendingMint ||
+        ['pending', 'unpaid', 'prepared', 'unclaimed', 'preparing', 'unresolved'].includes(
+          status,
+        )) &&
       !offline &&
       !isReclaiming &&
       !isClaiming,
@@ -704,6 +713,20 @@ function TransactionDetailsContent() {
     );
   }, [entry, savedInvoice, isQuoteExpired]);
 
+  const transactionTechnicalDetails =
+    entry &&
+    (transferRecord ? (
+      <TransferTechnicalDetails record={transferRecord} />
+    ) : (
+      <ReceiptExtraDetails
+        fields={
+          buildReceiptDetails(entry, {
+            ...receiptSnapshot,
+            request: receiptSnapshot?.request || savedInvoice || undefined,
+          }).extra
+        }
+      />
+    ));
   const headerOptions = {
     title: title || 'Transaction',
     headerTitleAlign: 'center' as const,
@@ -711,6 +734,7 @@ function TransactionDetailsContent() {
       <PaymentActionsMenu
         label="Transaction actions"
         actions={transactionActions}
+        technicalDetails={transactionTechnicalDetails}
         busy={isReclaiming || isClaiming || isCheckingPaid}
       />
     ),
@@ -772,9 +796,7 @@ function TransactionDetailsContent() {
     !onchain &&
     !showInvoiceLayout &&
     !(token && (entry.type === 'send' || entry.type === 'receive')) &&
-    paymentReceiptStatus(
-      entry.type === 'mint' && status === 'paid' ? 'pending' : entry.state || 'unknown',
-    ) === 'pending';
+    paymentReceiptStatus(historyReceiptState(entry)) === 'pending';
   const transactionActions: PaymentMenuAction[] = [
     ...(genericPending
       ? [
@@ -890,12 +912,7 @@ function TransactionDetailsContent() {
     return renderSheet(
       <>
         <TransferHistoryReceipt
-          pendingHeaderRight={() =>
-            publicReceipt && <ReceiptImageShare iconOnly receipt={publicReceipt} />
-          }
-          extraDetails={
-            <ReceiptExtraDetails fields={buildReceiptDetails(entry, receiptSnapshot).extra} />
-          }
+          pendingHeaderRight={headerOptions.headerRight}
           id={metadata.transferId}
           amount={entry.amount}
           sourceMintUrl={entry.mintUrl}
@@ -911,12 +928,7 @@ function TransactionDetailsContent() {
   }
 
   const isOutgoing = entry.type === 'send' || entry.type === 'melt';
-  const receiptStatus = paymentReceiptStatus(
-    transferRecord?.state ??
-      (entry.type === 'mint' && status === 'paid'
-        ? 'pending'
-        : entry.state || (entry.type === 'receive' ? 'completed' : 'unknown')),
-  );
+  const receiptStatus = paymentReceiptStatus(transferRecord?.state ?? historyReceiptState(entry));
   const paymentLayout = historyPaymentLayout(entry);
   const receiptData = buildReceiptDetails(entry, {
     ...receiptSnapshot,
@@ -932,7 +944,6 @@ function TransactionDetailsContent() {
           <TransactionNoteRows notes={notes} />
         </ListTable>
       )}
-      <ReceiptExtraDetails fields={receiptData.extra} />
     </YStack>
   );
   if (paymentLayout === 'onchain-deposit' || paymentLayout === 'onchain-withdrawal') {
@@ -952,6 +963,7 @@ function TransactionDetailsContent() {
           offline={offline}
           onClose={() => router.back()}
           menuActions={transactionActions}
+          technicalDetails={transactionTechnicalDetails}
           extraDetails={extraDetails}
           transactionDetails={
             <OnchainTransactionRows
@@ -975,6 +987,7 @@ function TransactionDetailsContent() {
       <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <PendingMintInvoiceLayout
           menuActions={transactionActions}
+          technicalDetails={transactionTechnicalDetails}
           savedInvoice={savedInvoice}
           timeLeft={timeLeft}
           entry={entry as any}
@@ -1030,6 +1043,7 @@ function TransactionDetailsContent() {
           onCheckStatus={handleRefresh}
           isCheckingStatus={isRefetching}
           menuActions={transactionActions}
+          technicalDetails={transactionTechnicalDetails}
           extraDetails={extraDetails}
         />
         {renderDeleteBottomSheet()}
@@ -1046,6 +1060,8 @@ function TransactionDetailsContent() {
     .getState()
     .mints?.find((item) => item.mintUrl.replace(/\/$/, '') === entry.mintUrl.replace(/\/$/, ''));
   const fee = transferRecord ? transferRecord.feePaid : onchain ? metadata.actualFee : metadata.fee;
+  const lightningReceipt = detail.method === 'Lightning';
+  const paidLightning = lightningReceipt && entry.type === 'melt' && detail.status === 'Confirmed';
   return renderSheet(
     <YStack gap="$4" pb="$3">
       <PaymentFlowHeader
@@ -1065,6 +1081,17 @@ function TransactionDetailsContent() {
                 : receiptStatus
           }
         />
+        {lightningReceipt && (
+          <Text
+            {...appTypography.title3}
+            color="$color"
+            textAlign="center"
+            accessibilityRole="header"
+            accessibilityLiveRegion="polite"
+          >
+            {paidLightning ? 'Payment completed' : title}
+          </Text>
+        )}
         <PaymentAmount amount={displayedAmount} size="prominent" compact />
       </YStack>
       {receivingFeeNotice && (
@@ -1087,9 +1114,15 @@ function TransactionDetailsContent() {
           disabled={offline}
         />
         <ListTableRow label="Date" value={formatPaymentDateTime(entry.createdAt)} />
-        {Number.isFinite(fee) && fee >= 0 && (
-          <ListTableRow label="Fee" value={currencyService.formatSats(fee)} />
+        {(paidLightning || (Number.isFinite(fee) && fee >= 0)) && (
+          <ListTableRow
+            label={paidLightning ? 'Fee paid' : 'Fee'}
+            value={
+              Number.isFinite(fee) && fee >= 0 ? currencyService.formatSats(fee) : 'Unavailable'
+            }
+          />
         )}
+        {lightningReceipt && <ListTableRow label="Method" value="Lightning" />}
         <ListTableRow
           label={metadata.transferId ? 'From mint' : 'Mint'}
           value={
@@ -1114,14 +1147,23 @@ function TransactionDetailsContent() {
         )}
         {detail.recipient && (
           <ListTableRow
-            label={isOutgoing ? 'Recipient' : 'Sender'}
+            label={
+              lightningReceipt ? (isOutgoing ? 'To' : 'From') : isOutgoing ? 'Recipient' : 'Sender'
+            }
             value={detail.recipient}
             isCopyable
             copyValue={detail.recipient}
+            expandValue={lightningReceipt}
+            multiline={lightningReceipt}
           />
         )}
         {detail.description && (
-          <ListTableRow label="Description" value={detail.description} multiline />
+          <ListTableRow
+            label="Description"
+            value={detail.description}
+            multiline
+            expandValue={lightningReceipt}
+          />
         )}
         {notes
           .filter((note) => note.value !== detail.description)
@@ -1167,7 +1209,6 @@ function TransactionDetailsContent() {
           />
         )}
       </ListTable>
-      <ReceiptExtraDetails fields={detail.extra} />
       {renderDeleteBottomSheet()}
     </YStack>,
     false,

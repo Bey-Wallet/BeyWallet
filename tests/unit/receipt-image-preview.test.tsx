@@ -33,7 +33,7 @@ jest.mock('tamagui', () => ({
   XStack: 'XStack',
   useTheme: () => ({ background: { val: mockDark ? '#000000' : '#FFFFFF' } }),
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Share2: 'Share2',
   X: 'X',
   Check: 'Check',

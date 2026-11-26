@@ -8,7 +8,7 @@ jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('tamagui', () => ({ YStack: 'YStack', XStack: 'XStack', Text: 'Text', View: 'View' }));
-jest.mock('@tamagui/lucide-icons', () => ({ Delete: 'Delete' }));
+jest.mock('~/shared/icons', () => ({ Delete: 'Delete' }));
 let tree: ReactTestRenderer;
 const change = jest.fn();
 const confirm = jest.fn();

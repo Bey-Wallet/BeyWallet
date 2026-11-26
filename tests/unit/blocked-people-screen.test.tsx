@@ -34,7 +34,7 @@ jest.mock('tamagui', () => ({
   getTokens: () => ({ radius: { $6: { val: 20 } } }),
   useTheme: () => ({ buttonDefaultSecondary: { val: '#222' } }),
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Check: 'Check',
   UserRound: 'UserRound',
   UserRoundCheck: 'UserRoundCheck',

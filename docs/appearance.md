@@ -4,7 +4,9 @@ Screen headers use centered `ModalHeaderTitle` text and the canvas background, w
 bottom shadow or an additional native back button. `useScreenHeaderOptions` shares these
 defaults between Settings, modals and payment stages. Header actions use `HeaderIconButton`:
 neutral Ghost circular controls with 22-point icons and at least 48-point touch areas.
-Shared bottom sheets use `$background` with a 1-point `$borderColor` top border.
+Shared bottom sheets use `$sheetBackground` without a border: `#0D0D0F` in dark mode and `#FFFFFF` in light mode. List tables and action buttons retain their existing fills.
+
+Sheet header rows use the compact 48-point height, preserving 48-point control touch targets. Screen headers retain their existing height.
 Pending payment screens use short header titles (at most two words) and a right-side header icon
 for receipt image sharing. Keep existing management actions alongside it and the title centered.
 Both navigation controls stay on the left: `ArrowLeft` returns to a previous screen or editable
@@ -15,6 +17,15 @@ and disabled states remain with each screen. Home and tab navigation keep their 
 Utility icon buttons, including Ghost buttons, use proportional 14/16/18/20/24-point glyphs
 from xxsmall through large. An explicit `iconSize` overrides the glyph size without shrinking
 the touch target. Home action cards, tab icons, and status artwork retain their own sizing.
+
+Interface icons use Phosphor through `src/shared/icons`, which resolves Tamagui color and
+size tokens before rendering SVGs. Use bold weight for controls and inactive navigation,
+and fill for selected navigation states. Phosphor has preset weights rather than arbitrary
+strokes; legacy stroke-width props do not override the bold default.
+NFC uses the same Phosphor ContactlessPayment glyph throughout. Buttons, triggers
+and request badges use its bold outline; the main NFC sheet artwork uses fill.
+Import individual icons through the package's exported icon subpaths so Metro does not
+load its entire catalog. App-specific Bey, Nostr, and payment artwork remains separate.
 
 My addresses follows the pending-payment layout with a BUI header, standalone QR and
 neutral address card. The header uses a back arrow in Settings and a close control in the
@@ -84,16 +95,17 @@ in idle, hover, and pressed states without an underline. `AppTextButton` is a co
 around that same Text implementation and accepts a custom foreground color. Sizes, icon placement,
 loading, disabled state, and native link semantics remain supported. Switch variants retain their API.
 
-Allo Text and Allo Display 400/500/600 are active at `ROND=0`, with tabular numbers
-(`tnum`), footed 1 (`cv01`), tailed l (`cv03`), serifed I (`cv04`) and a normal zero.
+TikTok Sans uses its 16pt optical cut at 400/500/600 with tabular
+figures and default character forms. See [fonts](fonts.md) for registration and tracking.
 Tracking is tuned by role as documented in [fonts](fonts.md). Common text sizes
 use the committed baseline reduced by 10%, with font sizes and line heights rounded to whole
 points using `Math.round(original * 0.9)`. Captions are 9 points; body and labels use 11/13/14;
 headings use 18/22/29; amount summaries use 29/25. Home balances and prominent payment amounts
-use 40 points. Standard payment amounts use 29-point primary text and 13-point secondary conversions;
-prominent amounts use 40-point primary text and 14-point secondary conversions.
+use 44 points. Standard and prominent payment amounts use 44-point Medium primary text,
+with 13-point and 14-point secondary conversions respectively. Large numeric tracking
+matches Home through `getAmountLetterSpacing`. Fiat symbols use the currency formatter's spacing.
 Explicit screen text, keypads, POS, responsive amount entry and receipt-image text follow the same
-reduction. Allo families, tracking, font weights, icons, padding, control heights and system
+reduction. Role-specific tracking, font weights, icons, padding, control heights and system
 accessibility scaling retain Bey's conventions. This is one reduction from the committed baseline,
 not repeated scaling. See the [current typography inventory](typography-10-percent.md).
 Body text uses 400, labels use 500, and buttons, headings and amounts use 600. Explicit larger
@@ -125,9 +137,9 @@ points high, with 24-point icons and the standard top padding, plus the device's
 Each tab retains a minimum 48-point touch target. Existing button sizes and their touch targets
 are preserved. Settings separators remain full width and 2 points thick.
 
-Allo Text is used for UI copy; Allo Display is used for large text, balances and primary amounts.
-Home balances use the 40-point display role; editable amounts use responsive 40/29/25/22/18-point
-steps, including POS. See the [complete typography screen audit](typography-10-percent.md) for
+TikTok Sans is used for UI copy, large text, balances and primary amounts.
+Home balances and main amount displays use a 44-point Medium treatment; editable amounts
+shrink to fit long values. POS retains its larger 72-point entry amount. See the [complete typography screen audit](typography-10-percent.md) for
 every route, feature component, shared surface and the remaining device checks.
 Payment amounts use `PaymentAmount` with `size="standard"` or `size="prominent"`;
 `compact` controls spacing only. Primary amounts use `$color` and secondary amounts use `$gray10`.

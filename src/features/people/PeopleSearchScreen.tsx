@@ -3,7 +3,7 @@ import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { useState, useEffect } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
-import { Search, ClipboardPaste, QrCode, ScanQrCode } from '@tamagui/lucide-icons';
+import { Search, ClipboardPaste, QrCode, ScanQrCode } from '~/shared/icons';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { nip19 } from 'nostr-tools';

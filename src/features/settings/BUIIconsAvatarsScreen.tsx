@@ -28,7 +28,7 @@ export function BUIIconsAvatarsScreen() {
   return (
     <BUIPage
       title="BUI / Icons & avatars"
-      status={`Preview presses: ${presses}. Existing Lucide icons use BUI tints. Image examples use local sample artwork.`}
+      status={`Preview presses: ${presses}. Phosphor icons use BUI tints. Image examples use local sample artwork.`}
       controls={
         <BUIChoices
           values={['Icons', 'Avatars'] as const}
@@ -41,7 +41,7 @@ export function BUIIconsAvatarsScreen() {
         <>
           <BUISection
             name="Icon family"
-            measurement="Existing Lucide glyphs, default sizes16/28 and stroke1.8. Original uses each slot's default size; back and navigation cues mirror in RTL."
+            measurement="Phosphor glyphs, default sizes16/28 and bold weight. Original uses each slot's default size; back and navigation cues mirror in RTL."
           >
             <YStack px={16} gap={12}>
               <BUIChoices

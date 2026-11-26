@@ -6,7 +6,7 @@ import {
 } from '~/features/mints/components/ConnectedMintSheetView';
 
 jest.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack' }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('~/shared/ui/AppText', () => ({ AppText: 'Text' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'Pressable' }));
 jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'HeaderButton' }));
@@ -51,14 +51,23 @@ it('shows connection first and allows every payment method to wrap without trunc
   expect(methods.props.numberOfLines).toBeUndefined();
   expect(methods.props.ellipsizeMode).toBeUndefined();
   const rows = tree.root.findAllByType('Row' as any);
-  expect(rows.map((row) => row.props.title)).toEqual([
-    'Units',
-    'Mint QR code',
-    'Rename mint',
-    'View full mint details',
-  ]);
+  expect(rows.map((row) => row.props.title)).toEqual(['Units', 'View full mint details']);
   expect(rows.at(-1)!.props.onPress).toBe(fields.onDetails);
   expect(tree.root.findAllByProps({ bg: '$green3' })).toHaveLength(0);
+});
+
+it('opens QR from its tile and separates name editing from URL copying', async () => {
+  await act(async () => {
+    tree = create(<ConnectedMintSheetView {...fields} />);
+  });
+  tree.root.findByProps({ accessibilityLabel: 'QR' }).props.onPress();
+  expect(fields.onQr).toHaveBeenCalledTimes(1);
+  tree.root.findByProps({ accessibilityLabel: 'Rename Mint' }).props.onPress();
+  expect(fields.onRename).toHaveBeenCalledTimes(1);
+  expect(fields.onCopy).not.toHaveBeenCalled();
+  tree.root.findByProps({ accessibilityLabel: 'Copy mint URL' }).props.onPress();
+  expect(fields.onCopy).toHaveBeenCalledTimes(1);
+  expect(tree.root.findByProps({ accessibilityLabel: 'Recover' })).toBeDefined();
 });
 
 it('keeps tile actions guarded while disabled or busy', async () => {

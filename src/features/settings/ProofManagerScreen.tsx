@@ -4,7 +4,7 @@ import { LegendList } from '@legendapp/list/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Coins, Landmark, RefreshCw, Share2, Trash2 } from '@tamagui/lucide-icons';
+import { Coins, Landmark, RefreshCw, Share2, Trash2 } from '~/shared/icons';
 import { Text, XStack, YStack } from 'tamagui';
 import { proofService, type CoreProof } from '~/services/wallet';
 import { useWalletStore } from '~/state/walletStore';

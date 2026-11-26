@@ -10,7 +10,7 @@ import {
   RefreshCw,
   Trash2,
   X,
-} from '@tamagui/lucide-icons';
+} from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { AppText } from '~/shared/ui/AppText';
@@ -111,37 +111,46 @@ export function ConnectedMintSheetView(props: ConnectedMintSheetViewProps) {
             </AppText>
           </YStack>
         ) : (
-          <AppPressable
-            flex={1}
-            minWidth={0}
-            minHeight={48}
-            justify="center"
-            accessibilityRole="button"
-            accessibilityLabel={`${props.name}. Copy mint URL`}
-            accessibilityHint="Tap the mint name or URL to copy its address"
-            onPress={props.onCopy}
-          >
-            <AppText variant="title3" numberOfLines={1} textAlign="center">
-              {props.name}
-            </AppText>
-            <XStack gap="$1" items="center" justify="center">
-              <AppText
-                variant="body3"
-                tone="secondary"
-                numberOfLines={1}
-                ellipsizeMode="middle"
-                textAlign="center"
-                flexShrink={1}
-              >
-                {props.url}
-              </AppText>
-              {props.copied ? (
-                <Check size={12} color="$gray10" />
-              ) : (
-                <Copy size={12} color="$gray10" />
-              )}
-            </XStack>
-          </AppPressable>
+          <YStack flex={1} minWidth={0} minHeight={48} justify="center">
+            <AppPressable
+              justify="center"
+              accessibilityRole="button"
+              accessibilityLabel={`Rename ${props.name}`}
+              disabled={props.busy}
+              onPress={props.onRename}
+            >
+              <XStack gap="$1" items="center" justify="center">
+                <AppText variant="title3" numberOfLines={1} textAlign="center" flexShrink={1}>
+                  {props.name}
+                </AppText>
+                <Pencil size={14} color="$gray10" />
+              </XStack>
+            </AppPressable>
+            <AppPressable
+              justify="center"
+              accessibilityRole="button"
+              accessibilityLabel="Copy mint URL"
+              onPress={props.onCopy}
+            >
+              <XStack gap="$1" items="center" justify="center">
+                <AppText
+                  variant="body3"
+                  tone="secondary"
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                  textAlign="center"
+                  flexShrink={1}
+                >
+                  {props.url}
+                </AppText>
+                {props.copied ? (
+                  <Check size={12} color="$gray10" />
+                ) : (
+                  <Copy size={12} color="$gray10" />
+                )}
+              </XStack>
+            </AppPressable>
+          </YStack>
         )}
         <HeaderIconButton
           icon={props.renameEditor ? Check : Trash2}
@@ -188,11 +197,12 @@ export function ConnectedMintSheetView(props: ConnectedMintSheetViewProps) {
             props.transferDisabled,
           )}
           {action(
-            'Recover funds',
+            'Recover',
             <RefreshCw size={22} color="$color" />,
             props.onRecover,
             props.recoverDisabled,
           )}
+          {action('QR', <QrCode size={22} color="$color" />, props.onQr)}
         </XStack>
         <SettingsGroup>
           <XStack
@@ -233,20 +243,6 @@ export function ConnectedMintSheetView(props: ConnectedMintSheetViewProps) {
               {props.payments}
             </AppText>
           </XStack>
-        </SettingsGroup>
-        <SettingsGroup>
-          <SettingsRow
-            title="Mint QR code"
-            icon={QrCode}
-            disabled={props.busy}
-            onPress={props.onQr}
-          />
-          <SettingsRow
-            title="Rename mint"
-            icon={Pencil}
-            disabled={props.busy}
-            onPress={props.onRename}
-          />
         </SettingsGroup>
         {props.children}
         <SettingsGroup>

@@ -11,7 +11,7 @@ import React from 'react';
 import StatusScreen from '~/shared/ui/StatusScreen';
 import BeyIcon from '~/shared/icons/BeyIcon';
 import { useLightningAddressStore } from '~/state/lightningAddressStore';
-import { ChevronRight, Zap } from '@tamagui/lucide-icons';
+import { ChevronRight, Zap } from '~/shared/icons';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { appDimensions, appSpacing, appTypography } from '~/shared/theme/appearance';
 

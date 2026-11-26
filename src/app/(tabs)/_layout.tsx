@@ -1,11 +1,12 @@
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
+import { hapticService } from '~/services/platform/hapticService';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { nfcFlow } from '~/features/nfc/nfcFlow';
 import React from 'react';
 import { router, Tabs } from 'expo-router';
 import { XStack, Text, useTheme, H1 } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Clock, Nfc, AtSign } from '@tamagui/lucide-icons';
+import { Clock, Nfc, AtSign, User } from '~/shared/icons';
 import { useAppTheme } from '~/shared/theme/ThemeContext';
 import { useAuthStore } from '~/state/authStore';
 import HomeHeaderMintSelector from '~/shared/ui/HomeMintSelector';
@@ -13,12 +14,9 @@ import SettingsIcon from '~/shared/icons/Settings';
 import WalletIcon from '~/shared/icons/Wallet';
 import BeyIcon from '~/shared/icons/BeyIcon';
 import LockIcon from '~/shared/icons/Lock';
-import NFCFillIcon from '~/shared/icons/NFC-fill';
 import HomeIcon from '~/shared/icons/Home';
-import Blockies from '~/shared/ui/Blockies';
-import { useSettingsStore } from '~/state/settingsStore';
 import { CustomTabBar } from '~/shared/ui/CustomTabBar';
-import { appDimensions, appSpacing } from '~/shared/theme/appearance';
+import { appDimensions, appSpacing, appIconSizes, appRadii } from '~/shared/theme/appearance';
 
 // Extracted to module scope + memoized so they aren't re-created on every render
 const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => (
@@ -27,25 +25,26 @@ const HeaderLeft = React.memo(({ resolvedTheme }: { resolvedTheme: string }) => 
     height={appDimensions.touchTarget}
     pl={appSpacing.page}
     items="center"
+    justify="center"
   >
     <AppPressable
       accessibilityRole="button"
       accessibilityLabel="My addresses"
-      minHeight={appDimensions.touchTarget}
-      width={appDimensions.touchTarget}
-      pressStyle={{ opacity: 0.7, scale: 0.95 }}
+      minHeight={36}
+      height={36}
+      width={36}
+      hitSlop={6}
+      rounded={appRadii.control}
+      bg="$buttonDefaultSecondary"
+      hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+      pressStyle={{ bg: '$buttonDefaultSecondaryPress', opacity: 0.8 }}
       onPress={() => {
         router.push('/(modals)/nostr-profile');
       }}
       items="center"
       justify="center"
     >
-      <Blockies
-        style={{ borderRadius: 9 }}
-        seed={useSettingsStore((state) => state.npub) || 'bey-cash'}
-        size={10}
-        scale={3.3}
-      />
+      <User size={appIconSizes.header} weight="fill" color="$buttonDefaultSecondaryIcon" />
     </AppPressable>
   </XStack>
 ));
@@ -90,7 +89,9 @@ export default function TabLayout() {
           headerTitleAlign: 'center',
           headerLeft: () => <HeaderLeft resolvedTheme={resolvedTheme} />,
           headerTitle: () => <HomeHeaderMintSelector />,
-          tabBarIcon: ({ color, size }) => <BeyIcon size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <BeyIcon size={size} color={color} variant={focused ? 'fill' : 'line'} />
+          ),
           headerRight: () => (
             <XStack
               width={appDimensions.touchTarget + appSpacing.page}
@@ -99,14 +100,24 @@ export default function TabLayout() {
               items="center"
               justify="center"
             >
-              <HeaderIconButton
+              <AppPressable
                 accessibilityLabel="Open NFC"
-                haptic
-                icon={<Nfc />}
+                width={36}
+                height={36}
+                minHeight={36}
+                rounded={appRadii.control}
+                bg="$buttonDefaultSecondary"
+                items="center"
+                justify="center"
+                hoverStyle={{ bg: '$buttonDefaultSecondaryHover' }}
+                pressStyle={{ bg: '$buttonDefaultSecondaryPress', opacity: 0.8 }}
                 onPress={() => {
+                  hapticService.selection();
                   nfcFlow.openReader();
                 }}
-              />
+              >
+                <Nfc size={appIconSizes.header} weight="bold" color="$buttonDefaultSecondaryIcon" />
+              </AppPressable>
             </XStack>
           ),
         }}
@@ -116,8 +127,8 @@ export default function TabLayout() {
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ color, size }) => (
-            <Clock size={size} strokeWidth={2.5} color={color as any} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Clock size={size} weight={focused ? 'fill' : 'bold'} color={color} />
           ),
         }}
       />
@@ -127,8 +138,8 @@ export default function TabLayout() {
         options={{
           title: 'People',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <AtSign size={size} strokeWidth={2.5} color={color as any} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AtSign size={size} weight={focused ? 'fill' : 'bold'} color={color} />
           ),
         }}
       />

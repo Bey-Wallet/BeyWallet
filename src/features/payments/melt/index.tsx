@@ -10,6 +10,10 @@ import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { LightningPayment } from '~/services/wallet/lightningPayment';
+import {
+  readLightningReview,
+  claimLightningReview,
+} from '~/services/wallet/lightningReviewSession';
 import { saveLightningRecipient } from '~/services/wallet/lightningReceiptContext';
 import { InteractionManager } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
@@ -37,16 +41,19 @@ import { decodeNostrPublicKey } from '~/services/api/nostrProfileService';
 import { historyService } from '~/services/wallet/historyService';
 import { normalizeNpub } from '~/shared/utils/nostr';
 import { appLogger } from '~/shared/utils/appLogger';
+import { invoiceDisplayDetails } from '~/features/history/receiptDetails';
+import { appTypography } from '~/shared/theme/appearance';
 
 type MeltStep = 'invoice' | 'confirm' | 'result';
 
 export default function MeltScreen() {
-  const { mode, lightningAddress, conversationNpub, username } = useLocalSearchParams<{
+  const { mode, lightningAddress, conversationNpub, username, reviewId } = useLocalSearchParams<{
     mode?: string;
     lightningAddress?: string;
     source?: string;
     conversationNpub?: string;
     username?: string;
+    reviewId?: string;
   }>();
 
   if (mode === 'onchain') {
@@ -58,18 +65,28 @@ export default function MeltScreen() {
     );
   }
 
-  const [step, setStep] = useState<MeltStep>('invoice');
+  const [initialReview] = useState(() =>
+    readLightningReview(reviewId, useSettingsStore.getState().npub),
+  );
+  const [step, setStep] = useState<MeltStep>(initialReview ? 'confirm' : 'invoice');
   const queryClient = useQueryClient();
   const [invoice, setInvoice] = useState(() =>
-    typeof lightningAddress === 'string' && detectLightningInputType(lightningAddress) === 'address'
-      ? normalizeLightningInput(lightningAddress)
-      : '',
+    initialReview
+      ? initialReview.payment.invoice
+      : typeof lightningAddress === 'string' &&
+          detectLightningInputType(lightningAddress) === 'address'
+        ? normalizeLightningInput(lightningAddress)
+        : '',
   );
   const [resolvedInvoice, setResolvedInvoice] = useState<string | null>(null);
   const [lnAddress, setLnAddress] = useState<string | null>(null);
-  const [lnAddressAmount, setLnAddressAmount] = useState('0');
+  const [lnAddressAmount, setLnAddressAmount] = useState(
+    initialReview?.quote.amount.toString() ?? '0',
+  );
   const [status, setStatus] = useState<'success' | 'error' | 'pending' | 'unresolved'>('success');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    reviewId && !initialReview ? 'Payment review expired. Enter the invoice again.' : null,
+  );
   const [isGettingQuote, setIsGettingQuote] = useState(false);
   const [isResolvingAddress, setIsResolvingAddress] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
@@ -80,13 +97,13 @@ export default function MeltScreen() {
     title: 'Preparing Lightning payment…',
   });
   const [resultTime, setResultTime] = useState<number>();
-  const [quoteAmount, setQuoteAmount] = useState(0);
-  const [feeReserve, setFeeReserve] = useState(0);
-  const [quoteId, setQuoteId] = useState<string | null>(null);
+  const [quoteAmount, setQuoteAmount] = useState(initialReview?.quote.amount ?? 0);
+  const [feeReserve, setFeeReserve] = useState(initialReview?.quote.fee_reserve ?? 0);
+  const [quoteId, setQuoteId] = useState<string | null>(initialReview?.quote.quote ?? null);
   useFeedbackOwner(quoteId);
   useSettingsBusy(isPaying);
   const router = useRouter();
-  const paymentRef = useRef<LightningPayment | null>(null);
+  const paymentRef = useRef<LightningPayment | null>(initialReview?.payment ?? null);
   const payLock = useRef(false);
   const authLock = useRef(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -108,13 +125,24 @@ export default function MeltScreen() {
 
   useEffect(() => {
     mounted.current = true;
+    if (reviewId && !claimLightningReview(reviewId, useSettingsStore.getState().npub)) {
+      paymentRef.current = null;
+      setStep('invoice');
+      setQuoteId(null);
+      setInvoice('');
+      setError('Payment review expired. Enter the invoice again.');
+    }
     return () => {
       mounted.current = false;
       void paymentRef.current?.dispose().catch(() => {});
     };
   }, []);
 
-  const { mintUrl: activeMintUrl, setMintUrl, balance } = useFlowMint();
+  const {
+    mintUrl: activeMintUrl,
+    setMintUrl,
+    balance,
+  } = useFlowMint(initialReview?.payment.mintUrl);
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const mints = useWalletStore((s) => s.mints);
   const { secondaryCurrency, showBitcoinSymbol } = useSettingsStore();
@@ -167,6 +195,16 @@ export default function MeltScreen() {
 
   // Fixed invoices go straight to review once their mint quote is ready.
   useEffect(() => {
+    // Adopt the sheet's exact prepared operation. A later mint/input change still
+    // follows the normal release-and-prepare path below.
+    if (
+      initialReview &&
+      paymentRef.current === initialReview.payment &&
+      activeMintUrl === initialReview.payment.mintUrl &&
+      invoice === initialReview.payment.invoice
+    )
+      return;
+    if (reviewId && !initialReview && !invoice) return;
     const generation = ++quoteGeneration.current;
     const reviewing = stepRef.current === 'confirm';
     const previousInvoice = resolvedInvoice;
@@ -263,6 +301,19 @@ export default function MeltScreen() {
     'Unknown Mint';
 
   const totalCost = quoteAmount + feeReserve;
+  const quoteReady = !!quoteId && !isGettingQuote;
+  const insufficientBalance = quoteReady && totalCost > balance;
+  const reviewInvoice = paymentRef.current?.invoice || resolvedInvoice || invoice;
+  const invoiceDescription = useMemo(
+    () => invoiceDisplayDetails(reviewInvoice).description,
+    [reviewInvoice],
+  );
+  const quoteValue = (value: number) =>
+    quoteReady
+      ? currencyService.formatSats(value)
+      : isGettingQuote
+        ? 'Calculating…'
+        : 'Unavailable';
 
   const fiatValue = useMemo(() => {
     if (secondaryCurrency === 'NONE') return '';
@@ -584,7 +635,7 @@ export default function MeltScreen() {
       )}
 
       {/* Step 2: Confirm */}
-      {step === 'confirm' && (
+      {step === 'confirm' && !isPaying && (
         <>
           <PaymentInfoHeader
             infoTopic="lightning-pay"
@@ -601,7 +652,9 @@ export default function MeltScreen() {
           />
           <PaymentStageLayout
             disabled={isPaying || isAuthenticating}
-            hero={<PaymentAmount amount={quoteAmount} size="prominent" label="You're paying" />}
+            hero={
+              <PaymentAmount amount={quoteAmount} size="prominent" compact label="You're paying" />
+            }
             footer={
               <AppButton
                 haptic
@@ -609,40 +662,70 @@ export default function MeltScreen() {
                 emphasis="primary"
                 size="large"
                 fullWidth
-                loading={isPaying}
-                loadingText="Paying Lightning invoice…"
+                accessibilityLabel="Pay Lightning"
+                loading={isPaying || isAuthenticating}
+                loadingText={isPaying ? 'Paying Lightning invoice…' : 'Confirming payment…'}
                 onPress={handleAuthenticate}
                 disabled={
                   isPaying || isAuthenticating || isGettingQuote || !quoteId || totalCost > balance
                 }
               >
-                {isPaying ? 'Paying…' : 'Pay'}
+                {`Pay ${currencyService.formatSats(quoteAmount)}`}
               </AppButton>
             }
           >
             <ListTable compact>
+              {lnAddress ? (
+                <ListTableRow label="To" value={lnAddress} expandValue multiline />
+              ) : (
+                <ListTableRow
+                  label="Invoice"
+                  value={
+                    reviewInvoice.length > 24
+                      ? `${reviewInvoice.slice(0, 10)}…${reviewInvoice.slice(-8)}`
+                      : reviewInvoice
+                  }
+                  isCopyable
+                  copyValue={reviewInvoice}
+                />
+              )}
+              {invoiceDescription && (
+                <ListTableRow
+                  label="Description"
+                  value={invoiceDescription}
+                  multiline
+                  expandValue
+                />
+              )}
               <PaymentMintRow
+                label="Pay from"
                 method="melt-lightning"
                 mintUrl={activeMintUrl || ''}
                 onSelect={setMintUrl}
                 disabled={isPaying || isAuthenticating}
               />
               <ListTableRow label="Method" value="Lightning" />
+              <ListTableRow label="Maximum fee" value={quoteValue(feeReserve)} />
               <ListTableRow
-                label="Maximum fee"
-                value={isGettingQuote ? 'Calculating…' : currencyService.formatSats(feeReserve)}
+                label="Maximum total"
+                value={
+                  <Text {...appTypography.label1} color="$color">
+                    {quoteValue(totalCost)}
+                  </Text>
+                }
               />
-              <ListTableRow label="Maximum total" value={currencyService.formatSats(totalCost)} />
-              {lnAddress && <ListTableRow label="Recipient" value={lnAddress} />}
+              {insufficientBalance && (
+                <ListTableRow label="Available" value={currencyService.formatSats(balance)} />
+              )}
             </ListTable>
-            {error && (
-              <Text color="$red10" p="$3">
-                {error}
+            {quoteReady && (
+              <Text {...appTypography.body3} color="$gray10" textAlign="center">
+                Includes the mint fee and a network fee reserve. Unused reserve is returned.
               </Text>
             )}
-            {totalCost > balance && !error && (
-              <Text color="$red10" p="$3">
-                Insufficient balance ({balance} sat available)
+            {(error || insufficientBalance) && (
+              <Text accessibilityRole="alert" {...appTypography.body2} color="$red10" p="$3">
+                {insufficientBalance ? 'Not enough balance. Choose another paying mint.' : error}
               </Text>
             )}
           </PaymentStageLayout>
@@ -650,13 +733,13 @@ export default function MeltScreen() {
       )}
 
       {/* Step 3: Result */}
-      {step === 'result' && (
+      {(step === 'result' || isPaying) && (
         <YStack flex={1}>
           <MeltResultStage
             invoice={paymentRef.current?.invoice || resolvedInvoice || invoice}
             quoteId={quoteId || undefined}
             recipient={lnAddress}
-            status={status}
+            status={isPaying ? 'processing' : status}
             amount={quoteAmount}
             feeReserve={feeReserve}
             mintUrl={activeMintUrl || undefined}

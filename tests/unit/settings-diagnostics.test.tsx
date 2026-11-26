@@ -29,7 +29,7 @@ jest.mock('~/features/settings/diagnosticSnapshot', () => ({
   }),
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'Stack' }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/AppInput', () => ({ AppTextArea: 'Field' }));
 jest.mock('~/shared/ui/AppText', () => ({ AppText: 'Label' }));

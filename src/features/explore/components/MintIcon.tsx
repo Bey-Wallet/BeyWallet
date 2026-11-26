@@ -3,7 +3,7 @@ import { MintImage } from '~/shared/ui/RemoteImage';
 import React from 'react';
 import { View } from 'tamagui';
 
-import { Landmark } from '@tamagui/lucide-icons';
+import { Landmark } from '~/shared/icons';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { mintMetadataFromInfo } from '~/features/explore/components/mintMeta';
 

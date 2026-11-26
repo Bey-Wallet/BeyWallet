@@ -12,7 +12,7 @@ import { useNostrRelayStore } from '~/state/nostrRelayStore';
 import { DEFAULT_NOSTR_RELAYS } from '~/shared/utils/nostrRelays';
 
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack', Input: 'Input' }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Plus: 'Plus',
   RotateCcw: 'RotateCcw',
   Trash2: 'Trash2',

@@ -2,7 +2,7 @@ import React from 'react';
 import { useNostrHistoryStore } from '~/state/nostrHistoryStore';
 import { SettingsPage, SettingsGroup, SettingsDescription } from './components/SettingsLayout';
 import { SettingsToggleRow } from './components/SettingsToggleRow';
-import { History } from '@tamagui/lucide-icons';
+import { History } from '~/shared/icons';
 
 export function NostrHistorySettingsScreen() {
   const includeOlder = useNostrHistoryStore((state) => state.includeOlder);

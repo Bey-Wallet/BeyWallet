@@ -1,7 +1,7 @@
 import { hapticService } from '~/services/platform/hapticService';
 import React, { useEffect, useRef } from 'react';
 import { Animated } from 'react-native';
-import { Check, Info } from '@tamagui/lucide-icons';
+import { Check, Info } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';

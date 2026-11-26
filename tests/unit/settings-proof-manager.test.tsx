@@ -47,7 +47,7 @@ jest.mock('@legendapp/list/react-native', () => ({
       ListFooterComponent,
     ),
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Coins: 'Coins',
   Landmark: 'Landmark',
   RefreshCw: 'Refresh',

@@ -57,12 +57,9 @@ export function RootLayout() {
   );
 
   const [loaded, error] = useFonts({
-    AlloTextRegular: require('~/assets/fonts/AlloText-Regular.ttf'),
-    AlloTextMedium: require('~/assets/fonts/AlloText-Medium.ttf'),
-    AlloTextSemiBold: require('~/assets/fonts/AlloText-SemiBold.ttf'),
-    AlloDisplayRegular: require('~/assets/fonts/AlloDisplay-Regular.ttf'),
-    AlloDisplayMedium: require('~/assets/fonts/AlloDisplay-Medium.ttf'),
-    AlloDisplaySemiBold: require('~/assets/fonts/AlloDisplay-SemiBold.ttf'),
+    TikTokSansRegular: require('~/assets/fonts/TikTokSans-Regular.ttf'),
+    TikTokSansMedium: require('~/assets/fonts/TikTokSans-Medium.ttf'),
+    TikTokSansSemiBold: require('~/assets/fonts/TikTokSans-SemiBold.ttf'),
   });
 
   // Check onboarding status and wallet existence on mount

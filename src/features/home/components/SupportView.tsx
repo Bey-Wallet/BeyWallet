@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ChevronRight } from '@tamagui/lucide-icons';
+import { ChevronRight } from '~/shared/icons';
 import { H6, XStack, YStack } from 'tamagui';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { SUPPORT_ITEMS, SupportItem } from '~/features/home/components/constants/support';

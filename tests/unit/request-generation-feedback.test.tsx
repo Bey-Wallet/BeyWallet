@@ -88,7 +88,6 @@ jest.mock('~/features/nfc/nfcFlow', () => ({
   },
 }));
 jest.mock('~/services/platform/nfcService', () => ({ nfcService: {} }));
-jest.mock('~/shared/icons/NfcIcon', () => 'NfcIcon');
 jest.mock('~/services/wallet/nostrClaimService', () => ({
   nostrClaimService: { enqueue: (...args: [string]) => mockEnqueue(...args) },
 }));
@@ -180,7 +179,7 @@ jest.mock('~/services/wallet/currencyService', () => ({
   },
   SUPPORTED_CURRENCIES: [{ code: 'USD', symbol: '$' }],
 }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, key) => String(key) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, key) => String(key) }));
 jest.mock('tamagui', () => ({
   useTheme: () => ({
     color: { val: '#000' },
@@ -237,6 +236,17 @@ it('creates one merchant request for the frozen sale and confirms only verified 
   });
   expect(onReceived).not.toHaveBeenCalled();
   expect(mockPresentRequest).toHaveBeenCalled();
+  await act(async () =>
+    tree.root
+      .findAllByProps({ accessibilityLabel: 'Payment request QR code' })
+      .find((node) => typeof node.props.onLayout === 'function')!
+      .props.onLayout({ nativeEvent: { layout: { width: 320 } } }),
+  );
+  expect(tree.root.findByType('QRCode' as any).props).toMatchObject({
+    backgroundColor: require('~/shared/theme/pos').posColors.canvas,
+    color: 'black',
+  });
+  expect(tree.root.findByProps({ label: 'Note' }).props.value).toBe('Coffee');
   const stopsBeforeSwitch = mockStopBroadcast.mock.calls.length;
   await act(async () =>
     tree.update(<RequestEcashStage merchant={{ ...merchant, active: false }} />),
@@ -594,7 +604,7 @@ it('allows switching a zero request to fiat, shows its sat equivalent and saves 
     tree = create(<RequestAmountEditor amount={0} onChange={onChange} />);
   });
   await act(async () => tree.root.findByProps({ label: 'Amount' }).props.onPress());
-  expect(tree.root.findByType('AppBottomSheet' as any).props.bottomInset).toBe(24);
+  expect(tree.root.findByType('AppBottomSheet' as any).props.title).toBe('Request amount');
   await act(async () =>
     tree.root.findByProps({ accessibilityLabel: 'Switch amount currency' }).props.onPress(),
   );

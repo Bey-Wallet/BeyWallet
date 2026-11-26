@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRightLeft, RefreshCw } from '@tamagui/lucide-icons';
+import { ArrowRightLeft, RefreshCw } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import { appSpacing } from '~/shared/theme/appearance';
 import { BUICard } from '~/shared/ui/BUI/BUICard';

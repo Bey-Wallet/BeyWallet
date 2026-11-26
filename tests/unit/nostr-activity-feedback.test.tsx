@@ -11,7 +11,7 @@ jest.mock('tamagui', () =>
     ['Text', 'YStack', 'XStack', 'View', 'Separator', 'H6', 'Theme'].map((name) => [name, name]),
   ),
 );
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/Blockies', () => ({ __esModule: true, default: 'Avatar' }));

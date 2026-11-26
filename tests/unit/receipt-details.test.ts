@@ -5,6 +5,7 @@ import {
   buildReceiptDetails,
   invoiceDisplayDetails,
   needsFullScreenReceipt,
+  buildTransferReceiptDetails,
 } from '~/features/history/receiptDetails';
 
 const entry = {
@@ -104,7 +105,7 @@ it('allowlists technical fields without exporting keys, proofs or spendable ecas
     { fee_reserve: 3 },
   );
   expect(JSON.stringify(detail.extra)).not.toMatch(/PRIVATE|PROOF|SPENDABLE/);
-  expect(detail.extra.find((field) => field.label === 'Maximum fee')?.value).toBe('3 sat');
+  expect(detail.extra.find((field) => field.label === 'Fee')?.value).toBe('Unavailable');
   expect(detail.extra.some((field) => field.label === 'Payment proof')).toBe(false);
 });
 it('separates on-chain addresses and Transfer references from Lightning invoices', () => {
@@ -121,4 +122,152 @@ it('separates on-chain addresses and Transfer references from Lightning invoices
   );
   expect(transfer.method).toBe('Transfer');
   expect(transfer.extra.some((field) => field.label === 'Payment proof')).toBe(false);
+});
+
+it('groups transaction, quote and verified payment fields with complete export values', () => {
+  const preimage = new Uint8Array(32).fill(7);
+  const request = invoice(tag(1, sha256(preimage)));
+  const detail = buildReceiptDetails(
+    { ...entry, createdAt: 1700000000000, operationId: 'operation', metadata: { fee: 1 } },
+    {
+      request,
+      amount: 21,
+      state: 'PAID',
+      fee_reserve: 3,
+      swapFee: 2,
+      payment_preimage: bytesToHex(preimage),
+    },
+  );
+  expect([...new Set(detail.extra.map((field) => field.section))]).toEqual([
+    'Transaction',
+    'Quote',
+    'Payment',
+  ]);
+  expect(detail.extra.find((field) => field.label === 'Date')?.fullValue).toBe(
+    '2023-11-14T22:13:20.000Z',
+  );
+  expect(detail.extra.find((field) => field.label === 'Fee')?.value).toBe('1 sat');
+  expect(detail.extra.find((field) => field.label === 'Fee reserve')?.value).toBe('3 sat');
+  expect(detail.extra.find((field) => field.label === 'Mint swap fee')?.value).toBe('2 sat');
+  expect(detail.extra.find((field) => field.label === 'Request')?.copyValue).toBe(request);
+  expect(detail.extra.find((field) => field.label === 'Payment proof')?.section).toBe('Payment');
+});
+
+it('keeps real ecash references, state and amount without adding Lightning-only fields', () => {
+  const detail = buildReceiptDetails({
+    ...entry,
+    type: 'send',
+    quoteId: undefined,
+    operationId: 'operation',
+    state: 'unclaimed',
+    metadata: { fee: 0 },
+  });
+  expect([...new Set(detail.extra.map((field) => field.section))]).toEqual(['Transaction']);
+  expect(detail.extra.find((field) => field.label === 'Status')?.value).toBe('Created');
+  expect(detail.extra.find((field) => field.label === 'Amount')?.value).toBe('21 sat');
+  expect(detail.extra.find((field) => field.label === 'Fee')?.value).toBe('0 sat');
+});
+
+it('rejects bearer tokens placed in invoice or request fields from technical exports', () => {
+  const detail = buildReceiptDetails(
+    { ...entry, paymentRequest: 'cashuASPENDABLE' },
+    {
+      request: 'cashuASPENDABLE',
+      cashuRequest: 'cashuBSPENDABLE',
+    },
+  );
+  expect(JSON.stringify(detail.extra)).not.toContain('SPENDABLE');
+  const onchain = buildReceiptDetails({
+    ...entry,
+    metadata: { via: 'onchain' },
+    paymentRequest: 'bitcoin:bc1example?cashu=cashuASPENDABLE',
+  });
+  expect(JSON.stringify(onchain.extra)).not.toContain('SPENDABLE');
+});
+
+it('exports only public on-chain details and separates a fee reserve from actual fees', () => {
+  const address = 'bc1q' + 'a'.repeat(38);
+  const txid = 'ab'.repeat(32);
+  const detail = buildReceiptDetails(
+    {
+      ...entry,
+      metadata: {
+        via: 'onchain',
+        address,
+        feeReserve: 12,
+        privKey: 'PRIVATE_SENTINEL',
+        inputs: [{ secret: 'PROOF_SENTINEL' }],
+        changeOutputs: ['OUTPUT_SENTINEL'],
+      },
+    },
+    { state: 'PENDING', outpoint: `${txid}:1` },
+  );
+  expect(detail.extra.find((field) => field.label === 'Destination')?.copyValue).toBe(address);
+  expect(
+    detail.extra.find((field) => field.label === 'Transaction ID' && field.section === 'Payment')
+      ?.copyValue,
+  ).toBe(txid);
+  expect(detail.extra.find((field) => field.label === 'Fee reserve')?.value).toBe('12 sat');
+  expect(detail.extra.find((field) => field.label === 'Fee')?.value).toBe('Unavailable');
+  expect(detail.extra.find((field) => field.label === 'Blockchain confirmations')?.value).toBe(
+    'Not verified',
+  );
+  expect(JSON.stringify(detail.extra)).not.toMatch(
+    /PRIVATE_SENTINEL|PROOF_SENTINEL|OUTPUT_SENTINEL/,
+  );
+});
+
+it('shows only observed on-chain deposit totals and excludes non-address metadata', () => {
+  const detail = buildReceiptDetails(
+    { ...entry, type: 'mint', metadata: { via: 'onchain', address: 'cashuASPENDABLE' } },
+    { amountPaid: 100, amountIssued: 80 },
+  );
+  expect(detail.extra.find((field) => field.label === 'Amount paid')?.value).toBe('100 sat');
+  expect(detail.extra.find((field) => field.label === 'Amount issued')?.value).toBe('80 sat');
+  expect(JSON.stringify(detail.extra)).not.toContain('SPENDABLE');
+});
+
+it('groups both original Transfer quotes and exports a matching payment proof without secrets', () => {
+  const preimage = new Uint8Array(32).fill(9);
+  const request = invoice(tag(1, sha256(preimage)));
+  const record = {
+    id: 'transfer-1',
+    sourceMintUrl: 'https://source.example',
+    targetMintUrl: 'https://target.example',
+    mintQuoteId: 'destination-quote',
+    meltQuoteId: 'source-quote',
+    operationId: 'source-operation',
+    amount: 100,
+    feeReserve: 7,
+    feePaid: 2,
+    expiresAt: 1700000300,
+    state: 'completed' as const,
+    stage: 'issuance' as const,
+    createdAt: 1700000000000,
+    secret: 'SECRET_SENTINEL',
+    inputs: [{ secret: 'INPUT_SENTINEL' }],
+  };
+  const detail = buildTransferReceiptDetails(record, {
+    source: {
+      request,
+      state: 'PAID',
+      amount: 100,
+      fee_reserve: 5,
+      payment_preimage: bytesToHex(preimage),
+    },
+    destination: { request, state: 'ISSUED', amount: 100 },
+  });
+  const field = (section: string, label: string) =>
+    detail.extra.find((item) => item.section === section && item.label === label);
+  expect(detail.method).toBe('Transfer');
+  expect(field('Transaction', 'Direction')?.value).toBe('Between mints');
+  expect(field('Transfer', 'Transfer ID')?.copyValue).toBe('transfer-1');
+  expect(field('Transfer', 'Fee paid')?.value).toBe('2 sat');
+  expect(field('Transfer', 'Maximum fee')?.value).toBe('7 sat');
+  expect(field('Transfer', 'Total')?.value).toBe('102 sat');
+  expect(field('Source quote', 'Quote ID')?.copyValue).toBe('source-quote');
+  expect(field('Destination quote', 'Quote ID')?.copyValue).toBe('destination-quote');
+  expect(field('Destination quote', 'State')?.value).toBe('ISSUED');
+  expect(field('Source quote', 'Payment proof')?.copyValue).toBe(bytesToHex(preimage));
+  expect(JSON.stringify(detail.extra)).not.toMatch(/SECRET_SENTINEL|INPUT_SENTINEL/);
 });

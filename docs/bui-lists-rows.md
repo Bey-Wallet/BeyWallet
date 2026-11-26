@@ -45,12 +45,12 @@ Disabled callbacks guard taps and long presses. Compact actions retain48-point
 touch areas. Interactive property rows grow to at least48; minimum heights expand
 with content. Custom slots accept explicit accessibility labels for composed rows.
 
-BUI light/dark secondary surfaces, Allo and Lucide are used. Standard list
+BUI light/dark secondary surfaces, TikTok Sans and Phosphor are used. Standard list
 measurements match confirmation/result screens. Explicit large/copy/account
 variants retain their own geometry and typography.
 
 This matches measured structure, not verified pixel-identical native rendering:
-Allo changes glyphs/wrapping; native ripple, island press-scale and animated
+TikTok Sans changes glyphs/wrapping; native ripple, island press-scale and animated
 shimmer are not reproduced. Android multiline values use tail truncation rather
 than unsupported middle ellipsis. Disabled opacity and accessibility growth are
 BUI extensions. Full activity/payment rows, cards, advanced feedback and legacy

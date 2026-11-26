@@ -58,16 +58,18 @@ jest.mock('tamagui', () => ({
     iconPrimary: { val: mockAppearance === 'dark' ? '#FFFFFF' : '#000000' },
   }),
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   ArrowUpRight: 'Icon',
   ArrowDownLeft: 'Icon',
   AlertTriangle: 'Icon',
   Settings2: 'Icon',
   Ban: 'Icon',
   Check: 'Icon',
+  Clock: 'Icon',
+  Minus: 'Icon',
+  Nfc: 'Icon',
   X: 'X',
 }));
-jest.mock('~/shared/icons/NfcIcon', () => 'Icon');
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'HeaderIconButton' }));
@@ -254,7 +256,7 @@ it('presents NFC as a bottom sheet and protects dismissal during a payment', asy
 });
 
 it.each(['dark', 'light'] as const)(
-  'keeps the NFC glyph visible on its neutral %s circle',
+  'keeps the filled NFC glyph visible on its neutral %s circle',
   async (appearance) => {
     mockAppearance = appearance;
     mockState = { ...mockState, status: 'ready' };
@@ -263,14 +265,17 @@ it.each(['dark', 'light'] as const)(
       sheet = create(<NfcSheetHost walletReady />);
     });
     const icon = sheet.root.findByType('Icon' as any);
+    expect(icon.props.weight).toBe('fill');
     expect(icon.props.color).toBe(appColors[appearance].icon);
-    expect(icon.parent!.props.backgroundColor).toBe(appColors[appearance].raised);
-    expect(icon.props.color).not.toBe(icon.parent!.props.backgroundColor);
+    let surface = icon.parent;
+    while (surface && surface.props.backgroundColor === undefined) surface = surface.parent;
+    expect(surface?.props.backgroundColor).toBe(appColors[appearance].raised);
+    expect(icon.props.color).not.toBe(surface?.props.backgroundColor);
     await act(async () => sheet.unmount());
   },
 );
 
-it('offers delivery retry, settlement refresh and History when delivery is unconfirmed', async () => {
+it('keeps recovery actions small and Done primary when delivery is unconfirmed', async () => {
   let sheet!: ReactTestRenderer;
   await act(async () => {
     sheet = create(<NfcSheetHost walletReady />);
@@ -280,7 +285,11 @@ it('offers delivery retry, settlement refresh and History when delivery is uncon
   const refresh = buttons.find((button) => button.props.accessibilityLabel === 'Refresh status');
   expect(retry).toBeDefined();
   expect(refresh).toBeDefined();
-  expect(buttons.some((button) => button.props.accessibilityLabel === 'View History')).toBe(true);
+  expect(buttons.some((button) => button.props.accessibilityLabel === 'View History')).toBe(false);
+  expect(
+    retry!.props.minHeight + retry!.props.hitSlop.top + retry!.props.hitSlop.bottom,
+  ).toBeGreaterThanOrEqual(48);
+  expect(buttons.at(-1)!.props.accessibilityLabel).toBe('Done');
   await act(async () => {
     retry!.props.onPress();
     refresh!.props.onPress();
@@ -321,7 +330,7 @@ it('offers settlement refresh without delivery retry after acknowledged publicat
   expect(buttons.map((button) => button.props.accessibilityLabel)).toEqual([
     'Refresh status',
     'Start new payment',
-    'View History',
+    'Done',
   ]);
   await act(async () => sheet.unmount());
 });
@@ -342,7 +351,7 @@ it('keeps NFC retry and refresh blocked while the session is locked', async () =
   await act(async () => sheet.unmount());
 });
 
-it.each(['reading', 'sending', 'receiving', 'paying', 'pending'] as const)(
+it.each(['reading', 'sending', 'receiving', 'paying'] as const)(
   'shows progress during %s',
   async (status) => {
     mockState = { ...mockState, status, canRetryDelivery: false };
@@ -351,6 +360,8 @@ it.each(['reading', 'sending', 'receiving', 'paying', 'pending'] as const)(
       sheet = create(<NfcSheetHost walletReady />);
     });
     expect(sheet.root.findAllByType('Spinner' as any).length).toBeGreaterThan(0);
+    expect(sheet.root.findAllByType('Spinner' as any)).toHaveLength(1);
+    expect(sheet.root.findByType('Sheet' as any).props.title).not.toBe('NFC');
     await act(async () => sheet.unmount());
   },
 );
@@ -361,9 +372,10 @@ it('shows errors in the sheet and offers a new payment with the pending-payment 
   await act(async () => {
     sheet = create(<NfcSheetHost walletReady />);
   });
-  expect(sheet.root.findByProps({ accessibilityRole: 'alert' }).props.children).toBe(
-    mockState.error,
-  );
+  expect(sheet.root.findByProps({ label: 'Details' }).props.value.props).toMatchObject({
+    accessibilityRole: 'alert',
+    children: mockState.error,
+  });
   const newPayment = sheet.root
     .findAllByType('Button' as any)
     .find((button) => button.props.accessibilityLabel === 'Start new payment')!;
@@ -374,6 +386,33 @@ it('shows errors in the sheet and offers a new payment with the pending-payment 
       .findAllByType('Text' as any)
       .some((text) => String(text.props.children).includes('previous payment may still complete')),
   ).toBe(true);
+  await act(async () => sheet.unmount());
+});
+
+it('keeps a pending receipt static and shows only one main closing action', async () => {
+  mockState = { ...mockState, status: 'pending', canRetryDelivery: false };
+  let sheet!: ReactTestRenderer;
+  await act(async () => {
+    sheet = create(<NfcSheetHost walletReady />);
+  });
+  expect(sheet.root.findAllByType('Spinner' as any)).toHaveLength(0);
+  expect(
+    sheet.root
+      .findAllByType('Button' as any)
+      .filter((button) => button.props.accessibilityLabel === 'Done'),
+  ).toHaveLength(1);
+  expect(sheet.root.findByType('Sheet' as any).props.title).toBe('NFC');
+  await act(async () => sheet.unmount());
+});
+
+it('labels an NFC Lightning reserve as a maximum and never reports it as a paid fee', async () => {
+  mockState = { ...mockState, status: 'confirmed', mintUrl: 'https://mint.example', fees: 4 };
+  let sheet!: ReactTestRenderer;
+  await act(async () => {
+    sheet = create(<NfcSheetHost walletReady />);
+  });
+  expect(sheet.root.findByProps({ label: 'Maximum fee' }).props.value).toBe('4 sat');
+  expect(sheet.root.findByProps({ label: 'Fee paid' }).props.value).toBe('Unavailable');
   await act(async () => sheet.unmount());
 });
 

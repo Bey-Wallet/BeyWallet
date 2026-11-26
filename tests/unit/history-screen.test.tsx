@@ -12,7 +12,7 @@ const mockPresent = jest.fn();
 const mockReceivePresent = jest.fn();
 let mockHistoryEmpty = false;
 const mockLoadRequests = jest.fn(async () => {});
-const mockMints: unknown[] = [];
+let mockMints: unknown[] = [];
 const mockRequests: unknown[] = [];
 const mockPosOrigins: { kind: 'request' | 'quote'; mintUrl: string; reference: string }[] = [];
 const mockPayments: { operationId: string; published: boolean }[] = [];
@@ -60,13 +60,13 @@ jest.mock('tamagui', () => ({
   ...Object.fromEntries(['YStack', 'XStack', 'Text'].map((name) => [name, name])),
   useTheme: () => ({ color: { val: '#ffffff' }, orange10: { val: '#F5A73B' } }),
 }));
-jest.mock('@tamagui/lucide-icons', () =>
+jest.mock('~/shared/icons', () =>
   Object.fromEntries(
     [
       'ArrowDownLeft',
       'ArrowUpRight',
-      'ArrowDownToLine',
-      'ArrowUpFromLine',
+      'ArrowDownLeftCircle',
+      'ArrowUpRightCircle',
       'ArrowRightLeft',
       'ReceiptText',
       'RefreshCw',
@@ -76,9 +76,11 @@ jest.mock('@tamagui/lucide-icons', () =>
       'Store',
       'Inbox',
       'RotateCcw',
+      'Undo2',
       'Check',
       'Search',
       'X',
+      'ChevronDown',
     ].map((name) => [name, name]),
   ),
 );
@@ -208,6 +210,13 @@ it('keeps POS receipts out of wallet history and searches only the selected scop
   mockHistory.push(pos);
   mockPosOrigins.push({ kind: 'request', mintUrl: pos.mintUrl, reference: 'pos-request' });
   try {
+    await act(async () => screen.update(<HistoryScreen />));
+    expect(transactionButtons()).toHaveLength(3);
+    expect(
+      transactionButtons().some((node) =>
+        node.props.accessibilityLabel.includes('POS received (Ecash)'),
+      ),
+    ).toBe(true);
     await act(async () => screen.update(<HistoryScreen scope="wallet" />));
     expect(transactionButtons()).toHaveLength(2);
     await act(async () => screen.update(<HistoryScreen scope="pos" showSearch />));
@@ -223,6 +232,42 @@ it('keeps POS receipts out of wallet history and searches only the selected scop
     });
   } finally {
     mockHistory.pop();
+  }
+});
+
+it('defaults to all mints and counts pending activity for the selected mint', async () => {
+  const destination = {
+    ...mockHistory[0],
+    id: 'transfer-to-removed-mint',
+    type: 'swap',
+    metadata: { targetMintUrl: 'https://other.example/' },
+  };
+  mockHistory.push(destination);
+  mockMints = [{ mintUrl: 'https://mint.example/', nickname: 'My mint' }];
+  const mintRow = (label: string) =>
+    screen.root.find((node) => node.type === ('ListTableRow' as any) && node.props.label === label);
+  try {
+    await act(async () => screen.update(<HistoryScreen />));
+    expect(pressable('All mints').props.accessibilityState.selected).toBe(false);
+    expect(pressable('Pending').props.accessibilityHint).toBe('2 matching items');
+    expect(transactionButtons()).toHaveLength(3);
+
+    act(() => pressable('All mints').props.onPress());
+    expect(mockPresent).toHaveBeenCalled();
+    expect(mintRow('All mints').props.selected).toBe(true);
+    expect(mintRow('My mint')).toBeDefined();
+    act(() => mintRow('other.example').props.onPress());
+    expect(pressable('other.example').props.accessibilityState.selected).toBe(true);
+    expect(pressable('other.example').findByType('XStack' as any).props.bg).toBe('$accentColor');
+    expect(pressable('Pending').props.accessibilityHint).toBe('1 matching item');
+    expect(transactionButtons()).toHaveLength(1);
+
+    act(() => mintRow('All mints').props.onPress());
+    expect(transactionButtons()).toHaveLength(3);
+    expect(pressable('Pending').props.accessibilityHint).toBe('2 matching items');
+  } finally {
+    mockHistory.pop();
+    mockMints = [];
   }
 });
 
@@ -249,6 +294,17 @@ it('filters POS beside Pending and preserves search and pending selection across
   );
   try {
     await act(async () => screen.update(<HistoryScreen showSearch />));
+    expect(transactionButtons()).toHaveLength(4);
+    expect(
+      transactionButtons().some((node) =>
+        node.props.accessibilityLabel.includes('POS pending (Lightning)'),
+      ),
+    ).toBe(true);
+    expect(
+      transactionButtons().some((node) =>
+        node.props.accessibilityLabel.includes('POS received (Lightning)'),
+      ),
+    ).toBe(true);
     await act(async () => pressable('POS').props.onPress());
     expect(transactionButtons()).toHaveLength(2);
     expect(pressable('POS').props.accessibilityState.selected).toBe(true);
@@ -259,7 +315,7 @@ it('filters POS beside Pending and preserves search and pending selection across
     );
     expect(transactionButtons()).toHaveLength(1);
     await act(async () => pressable('POS').props.onPress());
-    expect(transactionButtons()).toHaveLength(0);
+    expect(transactionButtons()).toHaveLength(1);
     expect(screen.root.findByType('Input' as any).props.value).toBe('counter pending');
     expect(pressable('Pending').props.accessibilityState.selected).toBe(true);
     await act(async () => pressable('POS').props.onPress());
@@ -396,6 +452,32 @@ it.each([
     await act(async () => item.unmount());
   },
 );
+
+it.each([
+  ['send', undefined, 'ArrowUpRightCircle', undefined],
+  ['receive', undefined, 'ArrowDownLeftCircle', undefined],
+  ['mint', undefined, 'Zap', 'ArrowDownLeft'],
+  ['melt', undefined, 'Zap', 'ArrowUpRight'],
+  ['mint', 'onchain', 'Bitcoin', 'ArrowDownLeft'],
+  ['melt', 'onchain', 'Bitcoin', 'ArrowUpRight'],
+  ['swap', undefined, 'ArrowRightLeft', undefined],
+  ['receive-request', undefined, 'ReceiptText', undefined],
+] as const)('shows the matching History icon for %s (%s)', async (type, via, icon, direction) => {
+  let item!: ReactTestRenderer;
+  await act(async () => {
+    item = create(
+      <HistoryItem
+        entry={{ ...mockHistory[0], type, metadata: { via } }}
+        displayAmount={10}
+        position="only"
+        onPress={jest.fn()}
+      />,
+    );
+  });
+  expect(item.root.findByType(icon as any).props.weight).toBe('fill');
+  if (direction) expect(item.root.findByType(direction as any).props.weight).toBe('bold');
+  await act(async () => item.unmount());
+});
 
 it('opens advanced filters when requested by the route header', async () => {
   await act(async () => {

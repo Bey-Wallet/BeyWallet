@@ -3,7 +3,7 @@ import { useConnectedMintSheet } from './hooks/useConnectedMintSheet';
 import React, { useEffect, useRef, useState } from 'react';
 import { RefreshControl } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Check, ChevronRight, ListChecks, Plus, Trash2 } from '@tamagui/lucide-icons';
+import { Check, ChevronRight, ListChecks, Plus, Trash2 } from '~/shared/icons';
 import { ScrollView, Separator, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';

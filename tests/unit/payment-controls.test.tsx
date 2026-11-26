@@ -18,7 +18,7 @@ jest.mock('~/state/walletStore', () => ({
 jest.mock('~/shared/ui/HomeMintSelector', () => ({ MintSelectorSheet: 'MintSelectorSheet' }));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTableRow: 'ListTableRow' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'AppButton' }));
-jest.mock('@tamagui/lucide-icons', () => ({ ChevronDown: 'ChevronDown' }));
+jest.mock('~/shared/icons', () => ({ ChevronDown: 'ChevronDown' }));
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack', Input: 'Input' }));
 
 it('changes the confirmation mint and available balance without altering the home mint', async () => {

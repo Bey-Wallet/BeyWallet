@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
+import { EcashPaymentStatus } from './EcashPaymentStatus';
 import { PendingTokenLayout } from '~/shared/ui/PendingTokenLayout';
 import {
   ReceiptImageShare,
@@ -14,6 +14,8 @@ interface ResultStageProps {
   token?: string | null;
   mintUrl?: string;
   fee?: number;
+  method?: string;
+  recipient?: string;
   operationId?: string;
   error?: string | null;
   onClose: () => void;
@@ -45,6 +47,7 @@ export function ResultStage(props: ResultStageProps) {
     return (
       <>
         <PendingTokenLayout
+          onClose={props.onClose}
           navigationAction="close"
           token={props.token}
           operationId={props.operationId}
@@ -94,14 +97,18 @@ export function ResultStage(props: ResultStageProps) {
       </>
     );
   return (
-    <PaymentReceipt
+    <EcashPaymentStatus
       status={props.status === 'success' ? 'success' : 'error'}
-      title={props.status === 'error' ? 'Send failed' : props.title || 'Share ecash'}
+      title={
+        props.status === 'error' ? 'Payment not completed' : props.title || 'Payment completed'
+      }
       amount={Number(props.amount)}
       mintUrl={props.mintUrl}
       time={time}
       fee={props.fee}
-      completed={props.status === 'success'}
+      operationId={props.operationId}
+      method={props.method}
+      recipient={props.recipient}
       error={props.error}
       onClose={props.onClose}
     />

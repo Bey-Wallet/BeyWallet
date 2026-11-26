@@ -1,7 +1,7 @@
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { useEffect, useCallback, useRef } from 'react';
 import { YStack } from 'tamagui';
-import { Fingerprint } from '@tamagui/lucide-icons';
+import { Fingerprint } from '~/shared/icons';
 import { biometricService } from '~/services/platform/biometricService';
 import { AppState, AppStateStatus, StyleSheet } from 'react-native';
 import BeyIcon from '~/shared/icons/BeyIcon';

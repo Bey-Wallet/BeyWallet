@@ -4,8 +4,8 @@
 > that baseline; see the [current screen inventory](typography-10-percent.md). Numeric sizes below
 > describe the original snapshot.
 
-> Font update: Allo Text/Display with tuned tracking supersedes this snapshot's
-> Inter font setup as of 17 November 2026. See [fonts.md](fonts.md) for current policy.
+> The current TikTok Sans optical size, features and tracking are defined in [fonts.md](fonts.md).
+> The measurements below remain a historical snapshot, not the current font configuration.
 
 Date: **2 November 2026**. Scope: the current Bey working tree. No commit or push.
 
@@ -15,11 +15,11 @@ Source review covered **71 screen-route entries**, **6 route infrastructure entr
 
 **No screen route or feature UI module is left without a source typography review.** This is a code audit, not a claim that every route was opened on an Android device. The remaining work is device validation, listed below.
 
-The earlier 87.5% scaling experiment is removed. The audited typography baseline uses: Home/prominent balance **44**, amount **32**, secondary amount **28**, headings **32/24/20**, body/labels **16/14/12**, caption **10**. Inter families, prepared font features, weights and explicit Inter line heights remain Bey-specific. Shared list rows use 16-point primary text; Settings/mint-list descriptions use 14. Shared buttons remain 16-point medium/large and 14-point small labels.
+The earlier 87.5% scaling experiment is removed. The audited typography baseline uses: Home/prominent balance **44**, amount **32**, secondary amount **28**, headings **32/24/20**, body/labels **16/14/12**, caption **10**. TikTok Sans families, prepared font features, weights and explicit TikTok Sans line heights remain Bey-specific. Shared list rows use 16-point primary text; Settings/mint-list descriptions use 14. Shared buttons remain 16-point medium/large and 14-point small labels.
 
 Responsive payment amount entry uses the same known size steps **44/32/28/24/20**, including POS. Text reduction for long amounts is intentional. Suffix units remain proportional to their amount, with a 12-point floor. Exported receipt-image text retains its canvas-specific metrics. Icons, spacing, control heights, touch targets, protocol identifiers and wallet operations were not rescaled.
 
-Nominal font sizes alone do not establish identical rendering across font families. Inter metrics and Android device rendering still require visual validation.
+Nominal font sizes alone do not establish identical rendering across font families. TikTok Sans metrics and Android device rendering still require visual validation.
 
 ## How to read the inventory
 

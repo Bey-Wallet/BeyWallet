@@ -1,7 +1,7 @@
 import { Spinner } from '~/shared/ui/Spinner';
 import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
-import { Clock, Check, XCircle } from '@tamagui/lucide-icons';
+import { Clock, Check, XCircle } from '~/shared/icons';
 import { useTheme } from 'tamagui';
 
 export type BadgeStatus =

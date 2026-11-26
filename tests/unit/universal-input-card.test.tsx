@@ -21,7 +21,7 @@ jest.mock('~/state/walletStore', () => ({
 jest.mock('~/shared/ui/OperationFeedback', () => ({ usePendingOperationToast: jest.fn() }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   X: 'X',
   Clipboard: 'Clipboard',
   ArrowRight: 'ArrowRight',
@@ -91,6 +91,21 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => tree?.unmount());
+});
+
+it('lets the parent finish preparation without also routing to invoice entry', async () => {
+  ref = React.createRef<UniversalInputCardRef>();
+  const handle = jest.fn(async () => true);
+  await act(async () => {
+    tree = create(<UniversalInputCard ref={ref} onHandleResolved={handle} />);
+  });
+  resolver.mockResolvedValue({ type: 'lightning_invoice', raw: 'lnbc1test', cleaned: 'lnbc1test' });
+  await act(async () => {
+    await ref.current!.process('lnbc1test');
+  });
+  expect(handle).toHaveBeenCalledTimes(1);
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(mockScanner).not.toHaveBeenCalled();
 });
 
 it('shows two full-width input lines above Paste, Clear, and Continue actions', async () => {

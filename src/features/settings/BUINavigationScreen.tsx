@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView } from 'react-native';
-import { Bell, Compass, History, MoreHorizontal, Settings, Wallet } from '@tamagui/lucide-icons';
+import { Bell, Compass, History, MoreHorizontal, Settings, Wallet } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import {
   BUIPage,

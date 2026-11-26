@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from '@tamagui/lucide-icons';
+import { X } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { BUIText } from './BUIText';

@@ -1,7 +1,7 @@
 import { AppButton } from '~/shared/ui/AppButton';
 import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { YStack, Circle, Text } from 'tamagui';
-import { Info, CheckCircle2, AlertTriangle, XCircle } from '@tamagui/lucide-icons';
+import { Info, CheckCircle2, AlertTriangle, XCircle } from '~/shared/icons';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 
 export type InfoSheetType = 'success' | 'warning' | 'info' | 'error';

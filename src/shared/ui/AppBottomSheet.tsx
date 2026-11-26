@@ -22,7 +22,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import { Theme, YStack, useTheme, type ThemeName } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { appBorders, appMotion, appRadii, appSpacing } from '~/shared/theme/appearance';
+import { appMotion, appRadii, appSpacing } from '~/shared/theme/appearance';
 import { BUIHeader } from './BUI/BUIHeader';
 
 // Gorhom portals mount outside local screen contexts. Opt in only when a flow
@@ -45,6 +45,7 @@ interface AppBottomSheetProps {
   maxDynamicContentSize?: number;
   /** Standard BUI sheet chrome; the host measures header, body and insets together. */
   title?: string;
+  titleSize?: number;
   headerActions?: React.ReactNode;
   navigation?: 'back' | 'close';
   navigationLabel?: string;
@@ -74,6 +75,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
       scrollable = false,
       maxDynamicContentSize,
       title,
+      titleSize,
       headerActions,
       navigation = 'close',
       navigationLabel,
@@ -168,11 +170,13 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
     }, [isOpen, dismissSheet]);
 
     const enableDynamicSizing = !snapPoints;
+    const sheetColor =
+      !backgroundColor || backgroundColor === '$background' ? '$sheetBackground' : backgroundColor;
     const renderFooter = useCallback(
       (props: BottomSheetFooterProps) => (
         <BottomSheetFooter {...props}>
           <YStack
-            bg={backgroundColor ?? '$background'}
+            bg={sheetColor}
             pl={insets.left + appSpacing.page}
             pr={insets.right + appSpacing.page}
             pt={appSpacing.gap}
@@ -182,7 +186,7 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
           </YStack>
         </BottomSheetFooter>
       ),
-      [footer, backgroundColor, insets.left, insets.right, insets.bottom],
+      [footer, sheetColor, insets.left, insets.right, insets.bottom],
     );
 
     return (
@@ -207,12 +211,9 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
           height: 4,
         }}
         backgroundStyle={{
-          backgroundColor: backgroundColor
-            ? theme[backgroundColor.replace('$', '') as keyof typeof theme]?.val || backgroundColor
-            : theme.background.val,
+          backgroundColor:
+            theme[sheetColor.replace('$', '') as keyof typeof theme]?.val || sheetColor,
           borderRadius: appRadii.sheet,
-          borderTopWidth: appBorders.outline,
-          borderTopColor: theme.borderColor.val,
         }}
         onChange={handleSheetChanges}
         animationConfigs={{
@@ -232,14 +233,16 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, AppBottomSheetProps>(
           >
             <YStack pl={insets.left} pr={insets.right}>
               <BUIHeader
+                compact
                 title={title}
+                titleSize={titleSize}
                 titleLiveRegion={titleLiveRegion}
                 navigation={navigation}
                 navigationLabel={navigationLabel}
                 navigationDisabled={!canDismiss}
                 onNavigate={canDismiss ? (onNavigate ?? dismissSheet) : undefined}
                 actions={headerActions}
-                divider
+                transparent
               />
             </YStack>
             <YStack

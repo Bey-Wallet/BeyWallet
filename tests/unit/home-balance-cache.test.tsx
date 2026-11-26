@@ -94,10 +94,37 @@ it('toggles balance privacy by holding or tapping the main amount', async () => 
   );
   expect(displayed().every((amount) => amount.value === '****')).toBe(true);
   await act(async () =>
-    tree.root.findByProps({ accessibilityLabel: 'Show balance' }).props.onPress({ stopPropagation }),
+    tree.root
+      .findByProps({ accessibilityLabel: 'Show balance' })
+      .props.onPress({ stopPropagation }),
   );
   expect(useSettingsStore.getState().hideBalance).toBe(false);
   expect(stopPropagation).toHaveBeenCalledTimes(1);
+});
+
+it('uses 44-point Medium with the formatted currency and existing tracking', async () => {
+  await act(async () => {
+    tree = create(<Balance />);
+  });
+  expect(displayed()[0]).toMatchObject({
+    fontSize: 44,
+    fontWeight: 500,
+    letterSpacing: -2.8,
+    children: '$10.00',
+  });
+  await act(async () => useSettingsStore.setState({ secondaryCurrency: 'EUR' }));
+  expect(displayed()[0].children).toBe('10,00\u00a0€');
+  await act(async () =>
+    useSettingsStore.setState({ primaryCurrency: 'SATS', showBitcoinSymbol: true }),
+  );
+  expect(displayed()[0]).toMatchObject({
+    fontSize: 44,
+    fontWeight: 500,
+    prefix: '₿',
+    letterSpacing: -2.8,
+  });
+  await act(async () => useSettingsStore.setState({ hideBalance: true }));
+  expect(displayed()[0].value).toBe('****');
 });
 
 it('briefly confirms successful refreshes without claiming success after errors', async () => {

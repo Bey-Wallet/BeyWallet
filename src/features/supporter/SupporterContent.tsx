@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { useWindowDimensions } from 'react-native';
-import { ClipboardCheck, Code2, Copy, HeartHandshake } from '@tamagui/lucide-icons';
+import { ClipboardCheck, Code2, Copy, HeartHandshake } from '~/shared/icons';
 import { ScrollView, Text, View, XStack, YStack } from 'tamagui';
 import { appSpacing, appTypography } from '~/shared/theme/appearance';
 import { AppButton } from '~/shared/ui/AppButton';

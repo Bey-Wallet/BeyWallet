@@ -7,7 +7,7 @@ import {
   BookOpen,
   Mail,
   AlertCircle,
-} from '@tamagui/lucide-icons';
+} from '~/shared/icons';
 import { H4, H5, Text, YStack, Paragraph, XStack } from 'tamagui';
 
 export interface SupportItem {

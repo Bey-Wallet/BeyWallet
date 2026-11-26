@@ -4,7 +4,7 @@ import { ConsentStep } from '~/features/onboarding/ConsentStep';
 
 const mockOpen = jest.fn();
 jest.mock('tamagui', () => ({ ScrollView: 'ScrollView', XStack: 'XStack', YStack: 'YStack' }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, name) => String(name) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, name) => String(name) }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, bottom: 24 }),
 }));

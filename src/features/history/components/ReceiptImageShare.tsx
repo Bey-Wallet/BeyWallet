@@ -6,13 +6,13 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { paymentAmounts } from '~/shared/ui/PaymentAmount';
 import { Text, YStack, useTheme, useThemeName } from 'tamagui';
-import { Share2, X, Check, Clock, Minus, ArrowDownLeft } from '@tamagui/lucide-icons';
+import { Share2, X, Check, Clock, Minus, ArrowDownLeft } from '~/shared/icons';
 import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { AppButton } from '~/shared/ui/AppButton';
 import { HeaderIconButton } from '~/shared/ui/HeaderIconButton';
 import { shareReceiptImage } from '~/services/platform/receiptImageService';
 import type { ShareableReceipt } from '../shareableReceipt';
-import { appColors } from '~/shared/theme/appearance';
+import { appColors, getAmountLetterSpacing } from '~/shared/theme/appearance';
 import BeyIcon from '~/shared/icons/BeyIcon';
 import { canRenderStaticTokenQr } from '~/shared/utils/tokenQr';
 
@@ -76,6 +76,8 @@ export function ReceiptImageShare({
     if (preview) sheet.current?.present();
   }, [preview]);
   const pending = preview?.status === 'Pending';
+  const primaryAmountSize =
+    (preview?.amount.length ?? 0) > 16 ? 48 : (preview?.amount.length ?? 0) > 11 ? 64 : 80;
   const ecashImage = !!preview?.ecashQr;
   const qrValue = preview?.ecashQr || preview?.qr;
   const detailsOffset = ecashImage ? 340 : preview?.qr ? 400 : 0;
@@ -155,7 +157,8 @@ export function ReceiptImageShare({
               width="100%"
               height={qrValue ? 480 : 300}
               viewBox={`0 0 640 ${imageHeight}`}
-              fontFamily="AlloTextRegular"
+              fontFamily="TikTokSansRegular"
+              fontFeatureSettings="'tnum'"
               accessibilityLabel={
                 ecashImage ? 'Ecash sharing image preview' : 'Public receipt image preview'
               }
@@ -164,7 +167,7 @@ export function ReceiptImageShare({
               <G transform="translate(48 46)">
                 <BeyIcon size={32} color={colors.icon} />
               </G>
-              <SvgText x={92} y={72} fontSize={24} fontFamily="AlloTextMedium" fill={colors.text}>
+              <SvgText x={92} y={72} fontSize={24} fontFamily="TikTokSansMedium" fill={colors.text}>
                 Bey
               </SvgText>
               <G
@@ -179,7 +182,7 @@ export function ReceiptImageShare({
                 y={72}
                 textAnchor="end"
                 fontSize={20}
-                fontFamily="AlloTextMedium"
+                fontFamily="TikTokSansMedium"
                 fill={colors.text}
               >
                 {preview.status}
@@ -200,8 +203,9 @@ export function ReceiptImageShare({
                 testID="receipt-primary-amount"
                 x={48}
                 y={244 + detailsOffset}
-                fontSize={preview.amount.length > 16 ? 48 : preview.amount.length > 11 ? 64 : 80}
-                fontFamily="AlloDisplaySemiBold"
+                fontSize={primaryAmountSize}
+                fontFamily="TikTokSansMedium"
+                letterSpacing={getAmountLetterSpacing(primaryAmountSize)}
                 fill={colors.icon}
               >
                 {preview.amount}

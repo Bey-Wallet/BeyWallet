@@ -24,7 +24,7 @@ jest.mock('~/shared/ui/ListTable', () => ({
 }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'Refresh' }));
-jest.mock('@tamagui/lucide-icons', () => ({ RefreshCw: 'RefreshIcon' }));
+jest.mock('~/shared/icons', () => ({ RefreshCw: 'RefreshIcon' }));
 jest.mock('~/shared/ui/PaymentStatusIcon', () => ({
   paymentStatusColors: { pending: '$orange10' },
 }));

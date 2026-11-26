@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { useTheme, useThemeName } from 'tamagui';
-import { Check } from '@tamagui/lucide-icons';
+import { Check } from '~/shared/icons';
 import Animated, {
   Easing,
   interpolateColor,

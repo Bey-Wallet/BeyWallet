@@ -2,7 +2,7 @@ import { MintDetailRow } from './MintUI';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import React from 'react';
 import { Linking } from 'react-native';
-import { ExternalLink } from '@tamagui/lucide-icons';
+import { ExternalLink } from '~/shared/icons';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 
 export function MintTermsRow({ url }: { url: unknown }) {

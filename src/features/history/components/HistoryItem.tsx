@@ -3,14 +3,19 @@ import { formatRelativeTime } from '~/shared/utils/time';
 import React, { useRef, useState } from 'react';
 import { Text, XStack, YStack } from 'tamagui';
 import {
-  ArrowUpFromLine,
-  ArrowDownToLine,
+  ArrowDownLeft,
+  ArrowDownLeftCircle,
   ArrowRightLeft,
+  ArrowUpRight,
+  ArrowUpRightCircle,
+  Bitcoin,
   ReceiptText,
   RefreshCw,
   Coins,
   RotateCcw,
-} from '@tamagui/lucide-icons';
+  Undo2,
+  Zap,
+} from '~/shared/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { useSettingsStore } from '~/state/settingsStore';
@@ -93,15 +98,8 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
       ),
   );
   const state = entry.state?.toLowerCase() || '';
-  const failed = [
-    'failed',
-    'error',
-    'expired',
-    'cancelled',
-    'canceled',
-    'rolled_back',
-    'rolledback',
-  ].includes(state);
+  const paymentFailed = ['failed', 'error', 'rolled_back', 'rolledback'].includes(state);
+  const failed = paymentFailed || ['expired', 'cancelled', 'canceled'].includes(state);
   const balanceEffect = historyBalanceEffect(entry);
   const amountDimmed = maintenance
     ? false
@@ -111,15 +109,21 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
   const signedValue = `${maintenance || transfer ? '' : balanceEffect === 'credit' ? '+ ' : balanceEffect === 'debit' ? '− ' : ''}${value}`;
   const statusLabel =
     pending || failed || state === 'refunded' ? historyStatusLabel(entry, delivered) : '';
-  const label = activity
-    ? walletActivityTitle(activity)
-    : transfer
-      ? 'Transfer'
-      : request
-        ? 'Payment request'
-        : entry.type === 'send' && pending
-          ? `${statusLabel === 'Delivered' ? 'Delivered' : 'Created'} ecash`
-          : `${outgoing ? 'Sent' : 'Received'} ${rail === 'onchain' ? 'bitcoin' : rail === 'lightning' ? 'Lightning' : 'ecash'}`;
+  const posTitle =
+    historyMetadata(entry).pos === true
+      ? `POS ${failed ? 'not completed' : pending ? 'pending' : request ? 'request' : 'received'} (${entry.type === 'mint' ? 'Lightning' : 'Ecash'})`
+      : undefined;
+  const label =
+    posTitle ||
+    (activity
+      ? walletActivityTitle(activity)
+      : transfer
+        ? 'Transfer'
+        : request
+          ? 'Payment request'
+          : entry.type === 'send' && pending
+            ? `${statusLabel === 'Delivered' ? 'Delivered' : 'Created'} ecash`
+            : `${outgoing ? 'Sent' : 'Received'} ${rail === 'onchain' ? 'bitcoin' : rail === 'lightning' ? 'Lightning' : 'ecash'}`);
   const Icon = activity
     ? activity.kind === 'recovery'
       ? RotateCcw
@@ -130,24 +134,38 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
       ? ArrowRightLeft
       : request
         ? ReceiptText
-        : outgoing
-          ? ArrowUpFromLine
-          : ArrowDownToLine;
-  const title = activity
-    ? walletActivityTitle(activity)
-    : state === 'refunded'
-      ? 'Funds reclaimed'
-      : transfer
-        ? 'Transfer'
-        : request
-          ? 'Payment request'
-          : entry.type === 'send' && pending
-            ? statusLabel === 'Delivered'
-              ? 'Ecash delivered'
-              : 'Ecash created'
-            : outgoing
-              ? 'Sent'
-              : 'Received';
+        : state === 'refunded'
+          ? Undo2
+          : rail === 'onchain'
+            ? Bitcoin
+            : rail === 'lightning'
+              ? Zap
+              : outgoing
+                ? ArrowUpRightCircle
+                : ArrowDownLeftCircle;
+  const DirectionIcon =
+    state !== 'refunded' && (rail === 'onchain' || rail === 'lightning')
+      ? outgoing
+        ? ArrowUpRight
+        : ArrowDownLeft
+      : null;
+  const title =
+    posTitle ||
+    (activity
+      ? walletActivityTitle(activity)
+      : state === 'refunded'
+        ? 'Funds reclaimed'
+        : transfer
+          ? 'Transfer'
+          : request
+            ? 'Payment request'
+            : entry.type === 'send' && pending
+              ? statusLabel === 'Delivered'
+                ? 'Ecash delivered'
+                : 'Ecash created'
+              : outgoing
+                ? 'Sent'
+                : 'Received');
   const paymentType = transfer
     ? 'Between mints'
     : rail === 'onchain'
@@ -155,16 +173,21 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
       : rail === 'lightning'
         ? 'Lightning'
         : 'Ecash';
-  const subtitle = activity
-    ? [
-        walletActivityStatus(activity.state),
-        activity.kind === 'optimize' && activity.fee == null
-          ? 'Fee unavailable'
-          : 'Wallet maintenance',
-      ].join(' · ')
-    : entry.type === 'send' && pending && !transfer
+  const awaitingClaim = entry.type === 'send' && pending && !transfer;
+  const subtitleStatus = activity
+    ? walletActivityStatus(activity.state)
+    : awaitingClaim
       ? 'Awaiting claim'
-      : [paymentType, statusLabel].filter(Boolean).join(' · ');
+      : statusLabel;
+  const subtitleContext = activity
+    ? activity.kind === 'optimize' && activity.fee == null
+      ? 'Fee unavailable'
+      : 'Wallet maintenance'
+    : awaitingClaim
+      ? ''
+      : paymentType;
+  const statusColor = failed ? '$red10' : pending ? '$orange10' : '$gray10';
+  const primaryColor = paymentFailed ? '$red10' : '$color';
   const when = formatRelativeTime(historyTimestamp(entry.createdAt));
 
   const handleCheck = async () => {
@@ -224,12 +247,40 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
             onPress(entry.id, entry.type);
           }}
         >
-          <XStack width={44} height={44} rounded={100} bg="$gray3" items="center" justify="center">
-            <Icon size={24} strokeWidth={2.5} color="$gray10" />
+          <XStack
+            width={44}
+            height={44}
+            rounded={100}
+            bg="$gray3"
+            items="center"
+            justify="center"
+            position="relative"
+            aria-hidden
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Icon size={22} weight="fill" color="$gray10" />
+            {DirectionIcon && (
+              <XStack
+                position="absolute"
+                bottom={0}
+                right={0}
+                width={16}
+                height={16}
+                rounded={8}
+                bg="$gray3"
+                borderWidth={1}
+                borderColor="$background"
+                items="center"
+                justify="center"
+              >
+                <DirectionIcon size={10} weight="bold" color="$gray10" />
+              </XStack>
+            )}
           </XStack>
           <YStack flex={1} minWidth={0} gap={2}>
             <XStack items="center" gap={4}>
-              <Text {...appTypography.label1} color="$color" numberOfLines={1} flexShrink={1}>
+              <Text {...appTypography.label1} color={primaryColor} numberOfLines={1} flexShrink={1}>
                 {title}
               </Text>
               {pending && !maintenance && (
@@ -259,19 +310,23 @@ export const HistoryItem = React.memo<HistoryItemProps>(function HistoryItem({
                 </AppPressable>
               )}
             </XStack>
-            <Text
-              {...appTypography.body2}
-              color={failed ? '$red10' : pending ? '$orange10' : '$gray10'}
-              numberOfLines={1}
-            >
-              {subtitle}
+            <Text {...appTypography.body2} color="$gray10" numberOfLines={1}>
+              {subtitleStatus ? (
+                <>
+                  {!activity && subtitleContext ? `${subtitleContext} · ` : null}
+                  <Text color={statusColor}>{subtitleStatus}</Text>
+                  {activity ? ` · ${subtitleContext}` : null}
+                </>
+              ) : (
+                subtitleContext
+              )}
             </Text>
           </YStack>
           <YStack items="flex-end" flexShrink={1} maxWidth="45%" gap={2}>
             <Text
               {...appTypography.label1}
               fontWeight="600"
-              color="$color"
+              color={primaryColor}
               opacity={amountDimmed ? 0.5 : 1}
               numberOfLines={1}
               style={{ fontVariant: ['tabular-nums'] }}

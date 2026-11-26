@@ -1,6 +1,6 @@
 import { useBUITheme } from '~/shared/ui/BUI/useBUITheme';
 import React, { useState } from 'react';
-import { ChevronRight, Wallet } from '@tamagui/lucide-icons';
+import { ChevronRight, Wallet } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import {
   BUIChoices,

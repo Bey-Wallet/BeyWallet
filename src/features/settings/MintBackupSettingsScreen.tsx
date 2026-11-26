@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { hapticService } from '~/services/platform/hapticService';
 import { Text, XStack, YStack } from 'tamagui';
-import { CloudUpload } from '@tamagui/lucide-icons';
+import { CloudUpload } from '~/shared/icons';
 import { useMintBackupStore } from '~/state/mintBackupStore';
 import { publishMintBackup, type MintBackupResult } from '~/services/wallet/mintBackupService';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';

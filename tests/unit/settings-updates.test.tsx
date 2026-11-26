@@ -21,7 +21,7 @@ jest.mock('expo-application', () => ({
   nativeBuildVersion: '1',
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   DownloadCloud: 'Download',
   RefreshCw: 'Refresh',
   ArrowUpCircle: 'Restart',

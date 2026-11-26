@@ -16,7 +16,7 @@ jest.mock('~/services/api/bitcoinService', () => ({ bitcoinService: {} }));
 jest.mock('tamagui', () =>
   Object.fromEntries(['Text', 'XStack', 'YStack', 'View', 'Separator'].map((name) => [name, name])),
 );
-jest.mock('@tamagui/lucide-icons', () =>
+jest.mock('~/shared/icons', () =>
   Object.fromEntries(
     ['ChevronDown', 'Pencil', 'ArrowUpDown', 'ChevronLeft'].map((name) => [name, name]),
   ),

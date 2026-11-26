@@ -2,7 +2,7 @@ import { hapticService } from '~/services/platform/hapticService';
 import React from 'react';
 import { Linking } from 'react-native';
 import { ScrollView, Text, XStack, YStack } from 'tamagui';
-import { Check, ChevronRight, ExternalLink } from '@tamagui/lucide-icons';
+import { Check, ChevronRight, ExternalLink } from '~/shared/icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import type { AppButtonIcon } from '~/shared/ui/AppButton';

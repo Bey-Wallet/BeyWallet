@@ -1,18 +1,18 @@
-// BUI study measurements. Allo uses the app's six registered static faces.
+// BUI study measurements. TikTok Sans uses the app's three registered static faces.
 // Heading requests at 700 map to the available 600 face.
-import { appTypography } from '~/shared/theme/appearance';
+import { appTypography, getAmountLetterSpacing } from '~/shared/theme/appearance';
 export const buiTypography = {
   num1: {
     fontFamily: '$display',
-    fontSize: 32,
+    fontSize: 44,
     fontWeight: '500',
-    letterSpacing: appTypography.amount.letterSpacing,
+    letterSpacing: getAmountLetterSpacing(44),
   },
   num2: {
     fontFamily: '$display',
     fontSize: 28,
     fontWeight: '500',
-    letterSpacing: appTypography.amountSmall.letterSpacing,
+    letterSpacing: getAmountLetterSpacing(28),
   },
   h1: {
     fontFamily: '$display',

@@ -16,7 +16,7 @@ const tones = {
   error: '$red10',
 } as const;
 
-/** Named app typography; Tamagui resolves the existing Allo faces and text scaling. */
+/** Named app typography; Tamagui resolves the existing TikTok Sans faces and text scaling. */
 export const AppText = forwardRef<React.ComponentRef<typeof Text>, AppTextProps>(function AppText(
   { variant = 'body2', tone = 'primary', ...props },
   ref,

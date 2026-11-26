@@ -69,6 +69,7 @@ export class ExpoSqliteRepositories implements Repositories {
   async init(): Promise<void> {
     // Ensure schema is up to date
     await ensureSchema(this.db);
+    await new ExpoMeltOperationRepository(this.db).reconcileHistory();
   }
 
   async seedMockData(): Promise<void> {

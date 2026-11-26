@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Text, YStack } from 'tamagui';
-import { Copy, EyeOff } from '@tamagui/lucide-icons';
+import { Copy, EyeOff } from '~/shared/icons';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useNostrReceiveSettingsStore } from '~/state/nostrReceiveSettingsStore';
 import { AppButton } from '~/shared/ui/AppButton';

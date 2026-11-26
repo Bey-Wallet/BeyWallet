@@ -4,11 +4,18 @@ jest.mock('~/shared/ui/PaymentFlowHeader', () => ({
 }));
 jest.mock('~/shared/ui/PaymentActionsMenu', () => ({ PaymentActionsMenu: 'PaymentMenu' }));
 import React from 'react';
+jest.mock('~/shared/ui/BUI/BUISheet', () => ({
+  BUISheet: require('react').forwardRef((props: any, ref: any) => {
+    require('react').useImperativeHandle(ref, () => ({ present: jest.fn(), dismiss: jest.fn() }));
+    return require('react').createElement('Sheet', { ...props, children: undefined });
+  }),
+}));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import * as Clipboard from 'expo-clipboard';
 import { PaymentStage } from '~/features/payments/mint/PaymentStage';
 import { ResultStage } from '~/features/payments/mint/ResultStage';
 import { formatPaymentDateTime } from '~/shared/utils/time';
+import { posColors } from '~/shared/theme/pos';
 
 let mockPrimaryCurrency = 'SATS';
 const mockToastShow = jest.fn();
@@ -31,7 +38,7 @@ jest.mock('tamagui', () => ({
   Text: 'Text',
   ScrollView: 'ScrollView',
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Check: 'Check',
   X: 'X',
   Clock: 'Clock',
@@ -122,16 +129,10 @@ it.each(['SATS', 'FIAT'])(
         onClose={jest.fn()}
       />,
     );
-    expect(
-      amountText(
-        payment.root.findByProps({ testID: 'mint-payment-primary-amount' }).props.children,
-      ),
-    ).toBe(primary);
-    expect(
-      amountText(
-        payment.root.findByProps({ testID: 'mint-payment-secondary-amount' }).props.children,
-      ),
-    ).toBe(secondary);
+    const row = payment.root.findByProps({ label: 'Amount' });
+    expect(amountText(row.props.value)).toBe(
+      `${primary} (${currency === 'SATS' ? '$10.00' : '10,000 sat'})`,
+    );
     expect(
       amountText(result.root.findByProps({ testID: 'mint-result-primary-amount' }).props.children),
     ).toBe(primary);
@@ -149,11 +150,8 @@ it.each(['SATS', 'FIAT'])(
       ['Time', formatPaymentDateTime(Date.now()), undefined],
       ['Method', 'Lightning', undefined],
     ]);
-    expect(button(result, 'Show details').props).toMatchObject({
-      emphasis: 'secondary',
-      size: 'small',
-      fullWidth: false,
-    });
+    expect(result.root.findAllByProps({ children: 'Technical details' })).toHaveLength(0);
+    expect(result.root.findByType('PaymentMenu' as any).props.technicalDetails).toBeTruthy();
     await act(async () => {
       payment.unmount();
       result.unmount();
@@ -181,6 +179,25 @@ it('copies the complete invoice and sizes the QR to the available space', async 
   await act(async () => button(tree, 'Copy').props.onPress());
   expect(Clipboard.setStringAsync).toHaveBeenCalledWith(paymentProps.invoice);
   expect(paymentProps.onPaid).not.toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});
+
+it('uses black-on-green POS QRs and keeps the note in details without repeating the invoice', async () => {
+  const tree = await render(<PaymentStage {...paymentProps} appearance="pos" note="Coffee" />);
+  await act(async () =>
+    tree.root
+      .findAllByProps({ accessibilityLabel: 'Lightning invoice QR code' })
+      .find((node) => typeof node.props.onLayout === 'function')!
+      .props.onLayout({ nativeEvent: { layout: { width: 320 } } }),
+  );
+  expect(tree.root.findByType('QRCode' as any).props).toMatchObject({
+    backgroundColor: posColors.canvas,
+    color: 'black',
+    value: paymentProps.invoice,
+  });
+  expect(tree.root.findByProps({ label: 'Note' }).props.value).toBe('Coffee');
+  expect(tree.root.findAllByProps({ label: 'Invoice' })).toHaveLength(0);
+  expect(tree.root.findByProps({ testID: 'payment-qr-surface' }).props.bg).toBe('$background');
   await act(async () => tree.unmount());
 });
 

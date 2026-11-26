@@ -5,7 +5,7 @@ import { Text, YStack, useTheme, XStack } from 'tamagui';
 import * as Updates from 'expo-updates';
 import { useRouter } from 'expo-router';
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
-import { Download } from '@tamagui/lucide-icons';
+import { Download } from '~/shared/icons';
 import { useNfcPresentation } from '~/features/nfc/NfcSheetHost';
 
 export function OtaUpdateChecker() {

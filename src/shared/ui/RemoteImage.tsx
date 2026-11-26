@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { View, type ImageProps } from 'tamagui';
-import { Landmark } from '@tamagui/lucide-icons';
+import { Landmark } from '~/shared/icons';
 import { deriveFavicon } from '~/shared/utils/mintIcon';
 
 type Props = Omit<ImageProps, 'source' | 'src' | 'onError'> & {

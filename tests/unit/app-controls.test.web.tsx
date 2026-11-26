@@ -63,7 +63,7 @@ it.each(['light', 'dark'])(
   },
 );
 
-it('applies tabular numerals to body text, headings and inputs on web', async () => {
+it('applies proportional numerals to body text, headings and inputs on web', async () => {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);

@@ -194,7 +194,10 @@ export class LightningPayment {
     const manager = await this.manager();
     const current = await manager.quotes.getMeltOperation(this.operation.id);
     if (current?.state === 'prepared') {
-      await manager.quotes.rollbackMelt(current.id);
+      if (this.preparationFailure && this.preparationFailure !== 'cancelled') {
+        // Receipt classification only; never persist the SDK's raw error or change rollback rules.
+        await manager.quotes.rollbackMelt(current.id, 'Bey: preparation failed');
+      } else await manager.quotes.rollbackMelt(current.id);
       this.cancelled = true;
     } else if (!current || current.state === 'rolled_back') {
       // Coco deletes failed init operations only after releasing their proofs.

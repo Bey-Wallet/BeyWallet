@@ -282,6 +282,14 @@
       .download:hover {
         background: #303036;
       }
+      .download.secondary {
+        margin-top: 8px;
+        color: #18181b;
+        background: #e4e4e7;
+      }
+      .download.secondary:hover {
+        background: #d4d4d8;
+      }
       .export-note {
         font-size: 12px;
         color: #85858e;
@@ -579,6 +587,9 @@
             <path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4" /></svg
           ><span id="download-label">Download PNG</span>
         </button>
+        <button class="download secondary" type="button" id="download-svg">
+          Download logo SVG for Figma
+        </button>
         <p class="export-note">
           <span id="export-size">512 × 512</span> ·
           <span id="export-background">Full square background</span><br /><span id="export-hint"
@@ -659,6 +670,18 @@
           : `<rect width="${SIZE}" height="${SIZE}" fill="${state.background}"/>`;
         return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">${background}<g transform="translate(${x} ${y}) scale(${scale})"><defs><mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><rect width="512" height="512" fill="white" rx="32"/><rect x="135" y="135.5" width="230" height="196" rx="12" fill="black"/><line x1="0" y1="0" x2="500" y2="467" stroke="black" stroke-width="45" stroke-linecap="square"/></mask></defs><rect width="500" height="467" rx="32" fill="${state.icon}" mask="url(#cut)"/></g></svg>`;
       }
+      function buildLogoSVG() {
+        // The same mark with its 45-unit diagonal cut resolved into two contours.
+        // Arc intersections retain the original 32/12-unit corner radii. No masks,
+        // background, padding or raster image: Figma receives a single vector path.
+        const path =
+          'M32.963237 0H468A32 32 0 0 1 500 32V435A32 32 0 0 1 499.977806 436.191607' +
+          'L365 310.122336V147.5A12 12 0 0 0 353 135.5H178.038184Z' +
+          'M0.022194 30.808393L135 156.877664V319.5A12 12 0 0 0 147 331.5' +
+          'H321.961816L467.036763 467H32A32 32 0 0 1 0 435V32' +
+          'A32 32 0 0 1 0.022194 30.808393Z';
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="467" viewBox="0 0 500 467"><path fill="${state.icon}" d="${path}"/></svg>`;
+      }
       function message(text = '', error = false) {
         el('status').textContent = text;
         el('status').classList.toggle('error', error);
@@ -667,7 +690,7 @@
         const SIZE = exportSize();
         const splash = state.mode === 'splash';
         el('export-mode').value = state.mode;
-        el('export-badge').textContent = `${SIZE} × ${SIZE} PNG`;
+        el('export-badge').textContent = `${SIZE} × ${SIZE} · PNG / SVG`;
         el('export-size').textContent = `${SIZE} × ${SIZE}`;
         el('preview-size').textContent = splash ? 'imageWidth: 200' : '512 × 512';
         el('preview-label').textContent = splash ? 'Approximate splash preview' : 'Live preview';
@@ -727,6 +750,7 @@
         for (const id of ['icon-hex', 'background-hex', 'ratio-number'])
           el(id).removeAttribute('aria-invalid');
         if (!el('download').hasAttribute('aria-busy')) el('download').disabled = false;
+        el('download-svg').disabled = false;
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         } catch {
@@ -738,6 +762,7 @@
         if (!validHex(colour)) {
           input.setAttribute('aria-invalid', 'true');
           el('download').disabled = true;
+          el('download-svg').disabled = true;
           message('Enter a six-digit hex colour, such as #FFFFFF.', true);
           return;
         }
@@ -761,6 +786,7 @@
         if (!input.value || !Number.isFinite(ratio) || ratio < 10 || ratio > 90) {
           input.setAttribute('aria-invalid', 'true');
           el('download').disabled = true;
+          el('download-svg').disabled = true;
           message('Choose a logo width between 10% and 90%.', true);
           return;
         }
@@ -819,25 +845,42 @@
           ),
         );
       }
-      el('download').addEventListener('click', async () => {
-        const button = el('download');
-        const filename =
-          state.mode === 'splash'
-            ? `bey-splash-${state.icon.slice(1).toLowerCase()}-${state.ratio.toFixed(1)}pct-1024.png`
-            : `bey-icon-${state.icon.slice(1).toLowerCase()}-on-${state.transparent ? 'transparent' : state.background.slice(1).toLowerCase()}-${state.ratio.toFixed(1)}pct-512.png`;
-        button.disabled = true;
-        button.setAttribute('aria-busy', 'true');
-        el('download-label').textContent = 'Preparing PNG…';
+      function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
         try {
-          const blob = await createPNG();
-          const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
           link.download = filename;
           document.body.append(link);
           link.click();
           link.remove();
+        } finally {
           setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }
+      }
+      function exportFilename(extension) {
+        return state.mode === 'splash'
+          ? `bey-splash-${state.icon.slice(1).toLowerCase()}-${state.ratio.toFixed(1)}pct-1024.${extension}`
+          : `bey-icon-${state.icon.slice(1).toLowerCase()}-on-${state.transparent ? 'transparent' : state.background.slice(1).toLowerCase()}-${state.ratio.toFixed(1)}pct-512.${extension}`;
+      }
+      el('download-svg').addEventListener('click', () => {
+        try {
+          const blob = new Blob([buildLogoSVG()], { type: 'image/svg+xml;charset=utf-8' });
+          downloadBlob(blob, `bey-logo-${state.icon.slice(1).toLowerCase()}.svg`);
+          message('Logo SVG ready. Shape only, with no background or padding. Drag it into Figma.');
+        } catch {
+          message('Could not export the SVG. Try opening this file in Chrome or Edge.', true);
+        }
+      });
+      el('download').addEventListener('click', async () => {
+        const button = el('download');
+        const filename = exportFilename('png');
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        el('download-label').textContent = 'Preparing PNG…';
+        try {
+          const blob = await createPNG();
+          downloadBlob(blob, filename);
           message('PNG ready. Your browser will save the download.');
         } catch {
           message('Could not export the PNG. Try opening this file in Chrome or Edge.', true);

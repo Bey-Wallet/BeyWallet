@@ -12,6 +12,7 @@ export const appAccent = {
 export const appColors = {
   dark: {
     canvas: '#000000',
+    sheet: '#0D0D0F',
     surface: '#17171A',
     raised: '#222224',
     pressed: '#2F2F33',
@@ -48,6 +49,7 @@ export const appColors = {
   },
   light: {
     canvas: '#FFFFFF',
+    sheet: '#FFFFFF',
     surface: defaultConfig.themes.light.gray2,
     raised: defaultConfig.themes.light.gray3,
     pressed: defaultConfig.themes.light.gray4,
@@ -146,45 +148,48 @@ export const appMotion = {
   },
 } as const;
 
+/** Match Home's -2.8 tracking at 44 points, proportionally across large amounts. */
+export const getAmountLetterSpacing = (fontSize: number) => -2.8 * (fontSize / 44);
+
 /** Committed typography reduced by 10%, rounded to whole points; control/icon geometry is unchanged. */
 export const appTypography = {
   display: {
     fontFamily: '$display',
-    fontSize: 40,
-    lineHeight: 50,
-    fontWeight: '600',
-    letterSpacing: -0.35,
+    fontSize: 44,
+    lineHeight: 56,
+    fontWeight: '500',
+    letterSpacing: getAmountLetterSpacing(44),
   },
   amount: {
     fontFamily: '$display',
-    fontSize: 29,
-    lineHeight: 36,
-    fontWeight: '600',
-    letterSpacing: -0.15,
+    fontSize: 44,
+    lineHeight: 56,
+    fontWeight: '500',
+    letterSpacing: getAmountLetterSpacing(44),
   },
   amountSmall: {
     fontFamily: '$display',
     fontSize: 25,
     lineHeight: 32,
-    fontWeight: '600',
-    letterSpacing: -0.1,
+    fontWeight: '500',
+    letterSpacing: getAmountLetterSpacing(25),
   },
   title1: {
     fontFamily: '$display',
     fontSize: 29,
     lineHeight: 36,
     fontWeight: '600',
-    letterSpacing: -0.2,
+    letterSpacing: -0.45,
   },
-  title2: { fontSize: 22, lineHeight: 29, fontWeight: '600', letterSpacing: -0.15 },
-  title3: { fontSize: 18, lineHeight: 25, fontWeight: '600', letterSpacing: -0.1 },
-  label1: { fontSize: 14, lineHeight: 22, fontWeight: '500', letterSpacing: -0.05 },
-  label2: { fontSize: 13, lineHeight: 18, fontWeight: '500', letterSpacing: -0.03 },
-  label3: { fontSize: 11, lineHeight: 14, fontWeight: '500', letterSpacing: 0.02 },
-  body1: { fontSize: 14, lineHeight: 22, fontWeight: '400', letterSpacing: -0.03 },
-  body2: { fontSize: 13, lineHeight: 18, fontWeight: '400', letterSpacing: 0 },
-  body3: { fontSize: 11, lineHeight: 14, fontWeight: '400', letterSpacing: 0.04 },
-  caption: { fontSize: 9, lineHeight: 13, fontWeight: '500', letterSpacing: 0.06 },
+  title2: { fontSize: 22, lineHeight: 29, fontWeight: '600', letterSpacing: -0.3 },
+  title3: { fontSize: 18, lineHeight: 25, fontWeight: '600', letterSpacing: -0.2 },
+  label1: { fontSize: 14, lineHeight: 22, fontWeight: '500', letterSpacing: -0.1 },
+  label2: { fontSize: 13, lineHeight: 18, fontWeight: '500', letterSpacing: -0.05 },
+  label3: { fontSize: 11, lineHeight: 14, fontWeight: '500', letterSpacing: 0 },
+  body1: { fontSize: 14, lineHeight: 22, fontWeight: '400', letterSpacing: -0.1 },
+  body2: { fontSize: 13, lineHeight: 18, fontWeight: '400', letterSpacing: -0.05 },
+  body3: { fontSize: 11, lineHeight: 14, fontWeight: '400', letterSpacing: 0 },
+  caption: { fontSize: 9, lineHeight: 13, fontWeight: '500', letterSpacing: 0 },
   mono: { fontSize: 14, lineHeight: 22, fontWeight: '400', letterSpacing: 0.5 },
 } as const;
 
@@ -237,7 +242,7 @@ export function createAppColorTheme(appearance: keyof typeof appColors) {
     iconTertiary: c.tertiaryText,
     backgroundAlternate: c.alternateCanvas,
     surfaceAlternate: c.alternateSurface,
-    sheetBackground: appearance === 'light' ? c.canvas : c.surface,
+    sheetBackground: c.sheet,
     backgroundTransparent: c.transparentCanvas,
     backgroundHighlighted: c.highlighted,
     overlayStrong: c.overlayStrong,

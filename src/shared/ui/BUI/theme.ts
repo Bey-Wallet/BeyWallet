@@ -1,6 +1,7 @@
 import type { BUIAppearance } from '~/state/buiStore';
 import { defaultConfig } from '@tamagui/config/v5';
 import { buiBaseColors, buiButtonPalettes } from './palettes';
+import { appColors } from '~/shared/theme/appearance';
 
 const lightGray = defaultConfig.themes.light;
 
@@ -131,7 +132,7 @@ export function createBUITamaguiTheme(appearance: BUIAppearance) {
     fieldErrorBackground: c.fieldError,
     backgroundAlternate: c.alternateCanvas,
     surfaceAlternate: c.alternateSurface,
-    sheetBackground: c.surface,
+    sheetBackground: appColors[appearance].sheet,
     backgroundTransparent: c.transparentCanvas,
     backgroundHighlighted: c.highlighted,
     overlayStrong: c.overlayStrong,

@@ -37,7 +37,7 @@ jest.mock('~/shared/hooks/useAppToast', () => ({
 jest.mock('~/shared/ui/StatusScreen', () => 'StatusScreen');
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
 jest.mock('~/shared/icons/BeyIcon', () => 'BeyIcon');
-jest.mock('@tamagui/lucide-icons', () => ({ ChevronRight: 'ChevronRight', Zap: 'Zap' }));
+jest.mock('~/shared/icons', () => ({ ChevronRight: 'ChevronRight', Zap: 'Zap' }));
 jest.mock('tamagui', () => ({
   ...Object.fromEntries(
     ['YStack', 'XStack', 'View', 'ScrollView', 'Text'].map((name) => [name, name]),

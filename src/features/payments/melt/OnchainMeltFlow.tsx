@@ -2,13 +2,13 @@ import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
-import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentInfoHeader } from '~/shared/ui/PaymentInfoHeader';
 import { useFlowMint } from '~/shared/hooks/useFlowMint';
 import { PaymentMintRow } from '~/shared/ui/PaymentMintRow';
 import { supportsPaymentMethod } from '~/services/wallet/paymentMintPolicy';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
-import { PaymentReceipt } from '~/shared/ui/PaymentReceipt';
+import { OnchainPaymentStatus } from '../OnchainPaymentStatus';
+import { PaymentTechnicalDetails } from '../PaymentTechnicalDetails';
 import { PendingOnchainLayout } from '~/features/history/components/PendingOnchainLayout';
 import { OnchainTransactionRows } from '~/features/history/components/OnchainTransactionRows';
 import { onchainMeltOutcome } from '~/features/history/transactionPresentation';
@@ -17,14 +17,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { YStack, XStack, Text, Separator, View } from 'tamagui';
-import {
-  AlertCircle,
-  Landmark,
-  ArrowUpDown,
-  ShieldCheck,
-  Bitcoin,
-  Check,
-} from '@tamagui/lucide-icons';
+import { AlertCircle, ArrowUpDown, Bitcoin, Check } from '~/shared/icons';
 import * as Clipboard from 'expo-clipboard';
 import { networkService } from '~/services/platform/networkService';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
@@ -476,41 +469,63 @@ export function OnchainMeltFlow() {
 
   usePendingPaymentPolling(refreshOnchainPayment, step === 'pending');
 
+  const selectedFeeOption =
+    meltQuote?.fee_options?.find((option: any) => option.fee_index === selectedFeeIndex) ||
+    meltQuote?.fee_options?.[0];
+  const maximumFee = selectedFeeOption?.fee_reserve ?? meltQuote?.fee_reserve;
+  const technicalDetails = meltQuote && (
+    <PaymentTechnicalDetails
+      entry={{
+        id: '',
+        type: 'melt',
+        amount: amountSats,
+        unit: 'sat',
+        mintUrl: activeMintUrl || '',
+        createdAt: eventTime || 0,
+        quoteId: meltQuote.quote,
+        paymentRequest: address,
+        state: step === 'success' ? 'PAID' : step === 'pending' ? 'PENDING' : 'unknown',
+        metadata: { via: 'onchain', address, feeReserve: maximumFee },
+      }}
+      snapshot={{
+        request: address,
+        state: meltQuote.state,
+        amount: meltQuote.amount,
+        fee_reserve: maximumFee,
+        expiry: meltQuote.expiry,
+        outpoint: meltQuote.outpoint,
+      }}
+    />
+  );
+
   // Render loading/processing state
   if (step === 'paying') {
     return (
-      <YStack flex={1} justify="center" items="center" gap="$4" bg="$background" p="$6">
-        <PaymentFlowHeader title="Sending payment" disabled />
-        <Landmark size={48} color="$accent10" />
-        <Text color="$gray10" fontSize="$4" fontWeight="600">
-          On-chain payment
-        </Text>
-        <Text fontSize="$7" fontWeight="700">
-          {Number(amount).toLocaleString()}
-          <Text fontSize="$4">{' sat'}</Text>
-        </Text>
-        <Text color="$gray10" textAlign="center">
-          {address}
-        </Text>
-      </YStack>
+      <OnchainPaymentStatus
+        status="processing"
+        direction="withdrawal"
+        amount={amountSats}
+        mint={mintDisplayName}
+        address={address}
+        feeReserve={maximumFee}
+        title={paymentLock.current ? 'Sending payment' : 'Preparing payment'}
+        onClose={() => router.back()}
+      />
     );
   }
 
   // Render error state
   if (step === 'error')
     return (
-      <PaymentReceipt
+      <OnchainPaymentStatus
         status="error"
-        inset={false}
-        title="Payment not completed"
+        direction="withdrawal"
         amount={amountSats}
-        mintUrl={activeMintUrl || undefined}
-        completed={false}
+        mint={mintDisplayName}
+        address={address}
         error={errorMsg}
-        navigationAction="back"
-        actionLabel="Try again"
-        actionEmphasis="primary"
-        onClose={() => setStep('input')}
+        technicalDetails={technicalDetails}
+        onClose={() => router.back()}
       />
     );
 
@@ -534,30 +549,31 @@ export function OnchainMeltFlow() {
         onRefresh={refreshOnchainPayment}
         onClose={() => router.back()}
         inset={false}
+        technicalDetails={technicalDetails}
       />
     );
 
   // Render success state
   if (step === 'success')
     return (
-      <PaymentReceipt
-        inset={false}
-        title="Payment sent"
+      <OnchainPaymentStatus
+        status="success"
+        direction="withdrawal"
         amount={amountSats}
-        mintUrl={activeMintUrl || undefined}
+        mint={mintDisplayName}
+        address={address}
         time={eventTime}
-        completed
+        technicalDetails={technicalDetails}
         onClose={() => router.back()}
-      >
-        <ListTableRow label="Method" value="Bitcoin on-chain" />
-        <ListTableRow label="Destination" value={address} isCopyable copyValue={address} />
-        <OnchainTransactionRows
-          direction="withdrawal"
-          address={address}
-          mintUrl={activeMintUrl || undefined}
-          quoteId={meltQuote?.quote}
-        />
-      </PaymentReceipt>
+        transactionDetails={
+          <OnchainTransactionRows
+            direction="withdrawal"
+            address={address}
+            mintUrl={activeMintUrl || undefined}
+            quoteId={meltQuote?.quote}
+          />
+        }
+      />
     );
 
   // Render confirmation state
@@ -569,16 +585,7 @@ export function OnchainMeltFlow() {
       ? selectedOption.fee_reserve
       : (meltQuote.fee_reserve ?? 0);
     const total = meltQuote.amount + selectedFeeReserve;
-    const shortAddress = `${address.substring(0, 10)}...${address.substring(address.length - 8)}`;
-
-    const fiatAmount =
-      fiatEnabled && btcData?.price
-        ? currencyService.convertSatsToCurrency(meltQuote.amount, btcData.price)
-        : 0;
-    const formattedFiat =
-      fiatEnabled && btcData?.price
-        ? currencyService.formatValue(fiatAmount, secondaryCurrency as CurrencyCode)
-        : '—';
+    const knownFeeReserve = Number.isSafeInteger(maximumFee) && maximumFee >= 0;
 
     const totalFiat =
       fiatEnabled && btcData?.price
@@ -589,8 +596,6 @@ export function OnchainMeltFlow() {
         ? currencyService.formatValue(totalFiat, secondaryCurrency as CurrencyCode)
         : '—';
 
-    const dynamicFontSize = meltQuote.amount.toString().length > 6 ? 29 : 36;
-
     return (
       <>
         <PaymentInfoHeader
@@ -600,7 +605,7 @@ export function OnchainMeltFlow() {
         />
         <PaymentStageLayout
           inset={false}
-          hero={<PaymentAmount amount={meltQuote.amount} size="prominent" label="You're paying" />}
+          hero={<PaymentAmount amount={meltQuote.amount} size="prominent" compact />}
           footer={
             <AppButton
               haptic
@@ -656,22 +661,24 @@ export function OnchainMeltFlow() {
                 setMeltQuote(null);
               }}
             />
-            <DetailItem
+            <ListTableRow
               label="Destination"
-              value={shortAddress}
-              icon={<Landmark size={16} color="$yellow10" />}
+              value={address}
+              multiline
+              isCopyable
+              copyValue={address}
             />
-            <DetailItem
+            <ListTableRow
               label="Maximum network fee"
-              value={`${selectedFeeReserve} sat`}
-              valueColor="$orange10"
-              icon={<ShieldCheck size={16} color="$orange10" />}
+              value={knownFeeReserve ? currencyService.formatSats(maximumFee) : 'Unavailable'}
             />
-            <DetailItem
+            <ListTableRow
               label="Maximum total"
-              value={`${total.toLocaleString()} sat (≈ ${formattedTotalFiat})`}
-              valueColor="$accent10"
-              icon={<ShieldCheck size={16} color="$accent10" />}
+              value={
+                knownFeeReserve
+                  ? `${currencyService.formatSats(total)}${fiatEnabled && btcData?.price ? ` (${formattedTotalFiat})` : ''}`
+                  : 'Unavailable'
+              }
             />
           </ListTable>
           {errorMsg && (
@@ -819,18 +826,4 @@ export function OnchainMeltFlow() {
       />
     </YStack>
   );
-}
-
-function DetailItem({
-  label,
-  value,
-  icon,
-  valueColor,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-  valueColor?: string;
-}) {
-  return <ListTableRow label={label} value={value} valueColor={valueColor} />;
 }

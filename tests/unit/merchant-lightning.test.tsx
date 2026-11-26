@@ -29,6 +29,17 @@ jest.mock('~/shared/hooks/useFeedbackOwner', () => ({ useFeedbackOwner: jest.fn(
 jest.mock('tamagui', () => ({ Text: 'Text', YStack: 'YStack' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
+jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
+jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'Table', ListTableRow: 'Row' }));
+jest.mock('~/shared/ui/PaymentStageLayout', () => ({
+  PaymentStageLayout: ({ hero, footer, children }: any) => (
+    <>
+      {hero}
+      {children}
+      {footer}
+    </>
+  ),
+}));
 jest.mock('~/features/payments/mint/PaymentStage', () => ({ PaymentStage: 'Payment' }));
 const props = {
   amount: 64,
@@ -74,6 +85,25 @@ it('creates one invoice across renders and accepts only redemption for that mint
   expect(props.onReceived).not.toHaveBeenCalled();
   await act(async () => mockListener({ mintUrl: 'mint-a', quoteId: 'sale-quote' }));
   expect(props.onReceived).toHaveBeenCalledTimes(1);
+});
+
+it('prepares the invoice with only the footer loader and keeps the sale amount visible', async () => {
+  let finish!: (value: unknown) => void;
+  mockCreate.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await open();
+  expect(tree.root.findByType('Button' as any).props).toMatchObject({
+    loading: true,
+    disabled: true,
+  });
+  expect(tree.root.findByType('Amount' as any).props.amount).toBe(64);
+  expect(tree.root.findAllByType('Spinner' as any)).toHaveLength(0);
+  await act(async () => finish({ quote: 'sale-quote', request: 'lnbc-invoice' }));
+  expect(tree.root.findByType('Payment' as any).props.quoteId).toBe('sale-quote');
+  expect(props.onReceived).not.toHaveBeenCalled();
 });
 it('passes the sale note to invoice creation', async () => {
   await act(async () => {

@@ -6,13 +6,13 @@ Scope: production routes and development-client-only BUI previews, including ali
 
 ## Main and detail routes
 
-| Review  | Route file                    | Owner                                            | Scope / exception                                       |
-| ------- | ----------------------------- | ------------------------------------------------ | ------------------------------------------------------- |
-| Pending | `src/app/(tabs)/history.tsx`  | `~/features/history/HistoryTabScreen`            | Review neutral groups, typography and shared actions.   |
-| Pending | `src/app/(tabs)/index.tsx`    | `~/features/home`                                | Home; full-width circular actions and inset mint panel. |
-| Pending | `src/app/(tabs)/people.tsx`   | `~/features/people`                              | Review neutral groups, typography and shared actions.   |
-| Pending | `src/app/txn-details.tsx`     | `~/features/history/TransactionDetailsScreen`    | Review neutral groups, typography and shared actions.   |
-| Pending | `src/app/wallet-activity.tsx` | `~/features/history/WalletActivityDetailsScreen` | Review neutral groups, typography and shared actions.   |
+| Review  | Route file                    | Owner                                            | Scope / exception                                            |
+| ------- | ----------------------------- | ------------------------------------------------ | ------------------------------------------------------------ |
+| Pending | `src/app/(tabs)/history.tsx`  | `~/features/history/HistoryTabScreen`            | Review neutral groups, typography and shared actions.        |
+| Pending | `src/app/(tabs)/index.tsx`    | `~/features/home`                                | Home with compact, unfilled actions and an inset mint panel. |
+| Pending | `src/app/(tabs)/people.tsx`   | `~/features/people`                              | Review neutral groups, typography and shared actions.        |
+| Pending | `src/app/txn-details.tsx`     | `~/features/history/TransactionDetailsScreen`    | Review neutral groups, typography and shared actions.        |
+| Pending | `src/app/wallet-activity.tsx` | `~/features/history/WalletActivityDetailsScreen` | Review neutral groups, typography and shared actions.        |
 
 ## Every Settings destination and category
 
@@ -25,7 +25,7 @@ Scope: production routes and development-client-only BUI previews, including ali
 | Preview | `src/app/(tabs)/settings/new-ui-buttons.tsx`             | `~/features/settings/BUIButtonsScreen`               | BUI buttons: blue primary, sizes, variants, states and width toggle.          |
 | Preview | `src/app/(tabs)/settings/bui-layout.tsx`                 | `~/features/settings/BUILayoutScreen`                | BUI layout tokens, corners, row alignment and inset frame.                    |
 | Preview | `src/app/(tabs)/settings/bui-typography.tsx`             | `~/features/settings/BUITypographyScreen`            | BUIText roles, reading, wrapping, numerals and scale samples.                 |
-| Preview | `src/app/(tabs)/settings/bui-icons-avatars.tsx`          | `~/features/settings/BUIIconsAvatarsScreen`          | Lucide icons, avatar states, badges and overlapping images.                   |
+| Preview | `src/app/(tabs)/settings/bui-icons-avatars.tsx`          | `~/features/settings/BUIIconsAvatarsScreen`          | Phosphor icons, avatar states, badges and overlapping images.                 |
 | Preview | `src/app/(tabs)/settings/bui-badges.tsx`                 | `~/features/settings/BUIBadgesScreen`                | Labels, counters, verification, badge buttons and placement/cutouts.          |
 | Preview | `src/app/(tabs)/settings/bui-forms.tsx`                  | `~/features/settings/BUIFormsScreen`                 | Floating fields, multiline/search/password compositions and local validation. |
 | Preview | `src/app/(tabs)/settings/bui-selections.tsx`             | `~/features/settings/BUISelectionsScreen`            | Switches, checkboxes, radio groups and accessible whole-row selections.       |
@@ -85,8 +85,8 @@ advertised features with a numeric badge. Connected details ends with a secondar
 Remove mint button using the existing confirmation. Device review remains pending.
 Preview, mint-list quick add and Home suggestions share `MintTrustSheet`. Quick-add
 buttons open the trust review directly and stay on the current screen after adding.
-The review keeps the original mint image/name header, shared risk list, and a small
-centered Do not show again checkbox; remembered consent and connection locks apply.
+The compact review shows the mint identity, a preview button, and short risk rows with icons.
+Adding a mint requires confirmation each time.
 
 | Review  | Route file                               | Owner                                               | Scope / exception                                                  |
 | ------- | ---------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------ |

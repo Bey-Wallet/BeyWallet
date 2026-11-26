@@ -50,7 +50,7 @@ export function BUITypographyScreen() {
   return (
     <BUIPage
       title="BUI / Typography"
-      status={`Preview scale ${scale}, in addition to system text scaling. Allo Text/Display retain the registered fonts and numeric features. Heading weight700 maps to600; the mono role uses tabular Allo rather than a new font.`}
+      status={`Preview scale ${scale}, in addition to system text scaling. TikTok Sans uses the same family for UI, headings and amounts. Heading weight700 maps to600; the mono role uses proportional TikTok Sans rather than a new font.`}
       controls={
         <YStack gap={12}>
           <BUIChoices
@@ -118,7 +118,7 @@ export function BUITypographyScreen() {
         <>
           <BUISection
             name="Number styles"
-            measurement="num1 32 Medium; num2 28 Medium; default tracking. All font roles keep tabular digits and the unslashed zero."
+            measurement="num1 44 Medium, matching Home; num2 28 Medium. Numeric tracking scales from −2.8 at 44 points. All font roles use tabular digits and the unslashed zero."
           >
             <YStack px={16} gap={12}>
               {['0.00', '1,111.11', '8,888.88', '12,345,678.90'].map((value) => (

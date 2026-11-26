@@ -18,7 +18,7 @@ jest.mock('expo-router', () => ({
     ),
   },
 }));
-jest.mock('@tamagui/lucide-icons', () => ({ ArrowLeft: 'ArrowLeft', X: 'X' }));
+jest.mock('~/shared/icons', () => ({ ArrowLeft: 'ArrowLeft', X: 'X' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
 jest.mock('~/shared/ui/useScreenHeaderOptions', () => ({ useScreenHeaderOptions: () => ({}) }));
 jest.mock('tamagui', () => ({

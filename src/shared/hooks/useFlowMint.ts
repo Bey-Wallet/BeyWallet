@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useWalletStore } from '~/state/walletStore';
 
 /** A payment owns its mint; selecting it must not alter the home wallet. */
-export function useFlowMint() {
+export function useFlowMint(initialMintUrl?: string) {
   const globalMint = useWalletStore((s) => s.activeMintUrl);
-  const [selected, setSelected] = useState<string | null>(globalMint);
+  const [selected, setSelected] = useState<string | null>(initialMintUrl ?? globalMint);
   useEffect(() => {
     if (globalMint) setSelected((current) => current ?? globalMint);
   }, [globalMint]);

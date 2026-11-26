@@ -507,6 +507,14 @@ const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: '024_pos_sale_links',
+    sql: 'ALTER TABLE bey_pos_origins ADD COLUMN saleId TEXT;',
+  },
+  {
+    id: '025_remove_mint_disclaimer_preference',
+    sql: "DELETE FROM coco_cashu_settings WHERE key = 'hideMintConnectionDisclaimer';",
+  },
 ];
 
 export async function seedMockData(db: ExpoSqliteDb): Promise<void> {

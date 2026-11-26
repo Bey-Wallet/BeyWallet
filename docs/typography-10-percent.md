@@ -1,5 +1,11 @@
 # Rounded 10% typography reduction
 
+Current amount override: main balances, confirmations, results and standard amount
+entry now use 44-point Medium with -2.8 tracking. Larger POS entry and receipt-image
+amounts keep their sizes, with scaled tracking. The historical size inventory below
+describes the original reduction; [fonts.md](fonts.md) and `appearance.ts` define the
+current numeric styles. Do not reapply the reduction to these amounts.
+
 Current source audit: **3 November 2026**. Baseline: committed typography at `0f2b5af` (also present at navigation commit `fadc647`). No commit or push.
 
 Every font size and explicit line height is reduced once using **Math.round(original × 0.9)**. This replaces the cancelled Material, compact-list and Uniswap experiments. No runtime percentage is applied on top of the new values.
@@ -18,7 +24,7 @@ Every font size and explicit line height is reduced once using **Math.round(orig
 
 The same rule covers Tamagui numeric font tokens, explicit screen styles, numeric keypad labels, POS, responsive amount entry and receipt-image text. Responsive amounts use **40/29/25/22/18**, retaining the original character-count thresholds. Sats unit labels retain their proportional sizing with an 11-point minimum. Derived rolling-number and custom button line heights are rounded too.
 
-The size reduction remains in effect after the approved Allo Text/Display adoption on 17 November 2026. Font features and per-role tracking now follow [fonts.md](fonts.md); do not reapply the size reduction or restore earlier Inter tracking. Original Lucide/custom icons, spinner, control heights, minimum 48-point touch targets, layout spacing, radii, QR geometry, receipt coordinates, text scaling and wallet behavior remain unchanged.
+The size reduction remains in effect with the current TikTok Sans setup. Font features and per-role tracking now follow [fonts.md](fonts.md); do not reapply the size reduction or replace the current role-specific tracking. Original Phosphor/custom icons, spinner, control heights, minimum 48-point touch targets, layout spacing, radii, QR geometry, receipt coordinates, text scaling and wallet behavior remain unchanged.
 
 The source audit read all **471 TypeScript files**, including **71 screen-route entries**, 126 feature UI modules and 74 shared UI/layout/icon modules. Every screen route is listed below. This is source coverage, not a claim of a physical Android walkthrough.
 

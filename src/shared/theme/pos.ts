@@ -1,10 +1,10 @@
 /** The merchant flow has its own palette; the wallet's light/dark themes stay unchanged. */
 export const posColors = {
-  canvas: '#D4FF5A',
+  canvas: '#00D632',
   ink: '#000000',
-  surface: '#C4EE49',
-  raised: '#B5DD3B',
-  pressed: '#A5CD2E',
+  surface: '#00C52E',
+  raised: '#00B52A',
+  pressed: '#00A526',
 } as const;
 
 export const posThemeOverrides = {
@@ -25,7 +25,7 @@ export const posThemeOverrides = {
   color11: posColors.ink,
   color12: posColors.ink,
   gray1: posColors.canvas,
-  gray2: posColors.canvas,
+  gray2: posColors.surface,
   gray3: posColors.surface,
   gray4: posColors.raised,
   gray5: posColors.pressed,
@@ -42,7 +42,7 @@ export const posThemeOverrides = {
   fieldBackground: posColors.surface,
   backgroundAlternate: posColors.canvas,
   surfaceAlternate: posColors.surface,
-  backgroundTransparent: '#D4FF5AF5',
+  backgroundTransparent: `${posColors.canvas}F5`,
   backgroundHighlighted: '#0000000A',
   separatorAlternate: '#00000026',
   green10: posColors.ink,

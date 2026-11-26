@@ -16,7 +16,7 @@ jest.mock('~/shared/ui/AppText', () => ({ AppText: 'Text' }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, bottom: 20 }),
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   AlertCircle: 'AlertCircle',
   CheckCircle2: 'CheckCircle2',
   FileCheck2: 'FileCheck2',

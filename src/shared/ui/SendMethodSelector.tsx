@@ -2,7 +2,7 @@ import { hapticService } from '~/services/platform/hapticService';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useRef, useState } from 'react';
 import { Text, YStack, XStack, View, Square } from 'tamagui';
-import { ChevronDown, Send, Lock, Zap, ScanLine, Check } from '@tamagui/lucide-icons';
+import { ChevronDown, Send, Lock, Zap, ScanLine, Check } from '~/shared/icons';
 
 import AppBottomSheet, { AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { Spinner } from '~/shared/ui/Spinner';

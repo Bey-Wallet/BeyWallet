@@ -70,6 +70,10 @@ export function useCocoEvents() {
           'proofs:saved',
           'proofs:state-changed',
           'history:updated',
+          'melt-op:prepared',
+          'melt-op:pending',
+          'melt-op:finalized',
+          'melt-op:rolled-back',
         ] as const
       ).map((name) => eventService.on(name, refresh)),
     ];

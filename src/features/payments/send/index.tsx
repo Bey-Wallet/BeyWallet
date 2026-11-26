@@ -856,6 +856,14 @@ export function SendModalScreen() {
 
       {step === 'result' && (
         <ResultStage
+          method={sendMode === 'nostr' ? 'Nostr' : sendMode === 'p2pk' ? 'P2PK' : 'Ecash'}
+          recipient={
+            sendMode === 'nostr'
+              ? nostrRecipientUsername || nostrRecipientNpub
+              : sendMode === 'p2pk'
+                ? receiverPubkey
+                : undefined
+          }
           status={status}
           amount={amount}
           token={encodedToken}
@@ -870,6 +878,15 @@ export function SendModalScreen() {
 
       {step === 'success' && (
         <SuccessStage
+          operationId={operationId || undefined}
+          method={sendMode === 'nostr' ? 'Nostr' : sendMode === 'p2pk' ? 'P2PK' : 'Ecash'}
+          recipient={
+            sendMode === 'nostr'
+              ? nostrRecipientUsername || nostrRecipientNpub
+              : sendMode === 'p2pk'
+                ? receiverPubkey
+                : undefined
+          }
           amount={amount}
           mintUrl={activeMintUrl || ''}
           fee={paidCreationFee}

@@ -4,7 +4,8 @@ import { AppIconButton } from '~/shared/ui/AppIconButton';
 import { AppButton, type AppButtonIcon } from '~/shared/ui/AppButton';
 import React, { useCallback, useMemo } from 'react';
 import { YStack, XStack, Text, View } from 'tamagui';
-import { Delete } from '@tamagui/lucide-icons';
+import { Delete } from '~/shared/icons';
+import { appTypography } from '~/shared/theme/appearance';
 
 interface NumericKeypadProps {
   appearance?: 'default' | 'pos';
@@ -146,7 +147,13 @@ export function NumericKeypad({
       {showAmountDisplay && (
         <YStack items="center" py="$6" gap="$1">
           <XStack items="baseline" gap="$2">
-            <Text fontFamily="$display" fontSize={40} fontWeight="600" color={amountColor}>
+            <Text
+              {...appTypography.display}
+              color={amountColor}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              flexShrink={1}
+            >
               {value}
             </Text>
             <Text fontSize={14} fontWeight="500" color="$gray10" mb="$2">
@@ -162,11 +169,11 @@ export function NumericKeypad({
       )}
 
       {/* Keypad and Action Button */}
-      <YStack pb="$4">
+      <YStack pb={appearance === 'pos' ? '$2' : '$4'}>
         {/* Keypad Layout */}
-        <YStack width="100%" gap="$0" pb="$4">
+        <YStack width="100%" gap="$0" pb={appearance === 'pos' ? '$2' : '$4'}>
           {KEYPAD_ROWS.map((row, i) => (
-            <XStack key={i} gap="$10">
+            <XStack key={i} gap={appearance === 'pos' ? '$2' : '$10'}>
               {row.map((digit) => (
                 <YStack
                   key={digit}
@@ -187,14 +194,7 @@ export function NumericKeypad({
             </XStack>
           ))}
         </YStack>
-        {showConfirmButton &&
-          (appearance === 'pos' ? (
-            <YStack rounded={999} overflow="hidden">
-              {confirmButton}
-            </YStack>
-          ) : (
-            confirmButton
-          ))}
+        {showConfirmButton && confirmButton}
       </YStack>
     </YStack>
   );

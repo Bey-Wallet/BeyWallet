@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Text, XStack, YStack, Separator } from 'tamagui';
-import { ChevronDown, Pencil, ArrowUpDown } from '@tamagui/lucide-icons';
+import { ChevronDown, Pencil, ArrowUpDown } from '~/shared/icons';
 import { useQuery } from '@tanstack/react-query';
 
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
@@ -15,6 +15,7 @@ import { useSettingsStore } from '~/state/settingsStore';
 import { bitcoinService } from '~/services/api/bitcoinService';
 import { currencyService, SUPPORTED_CURRENCIES } from '~/services/wallet/currencyService';
 import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
+import { appTypography } from '~/shared/theme/appearance';
 
 const editableFiatAmount = (sats: number, price: number) =>
   String(Number(currencyService.convertSatsToCurrency(sats, price).toFixed(2)));
@@ -94,9 +95,7 @@ export function RequestAmountEditor({
         <YStack gap="$3">
           <Text
             textAlign="center"
-            fontFamily="$display"
-            fontSize={40}
-            fontWeight="500"
+            {...appTypography.display}
             color="$color"
             numberOfLines={1}
             adjustsFontSizeToFit

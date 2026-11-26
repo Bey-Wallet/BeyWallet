@@ -1,7 +1,7 @@
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { PaymentQRFrame } from '~/shared/ui/PaymentQRFrame';
-import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { PaymentAmountRow } from '~/shared/ui/PaymentAmountRow';
 import React, { useState, useEffect, useRef } from 'react';
 import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
 import { useOfflineStatus } from '~/shared/hooks/useOfflineStatus';
@@ -24,6 +24,7 @@ import {
 } from '~/features/history/components/ReceiptImageShare';
 import { buildShareableReceipt } from '~/features/history/shareableReceipt';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
+import { posColors } from '~/shared/theme/pos';
 
 interface PaymentStageProps {
   appearance?: 'default' | 'pos';
@@ -112,7 +113,7 @@ export function PaymentStage({
   const checkPayment = async (silent = false) => {
     if (checkLock.current || isExpired || offline || !listening) return;
     checkLock.current = true;
-    if (!silent) if (!silent) setIsChecking(true);
+    if (!silent) setIsChecking(true);
     let detected = paymentObserved;
     try {
       const quote = await quotesService.checkMintQuote(mintUrl, quoteId);
@@ -197,6 +198,8 @@ export function PaymentStage({
       fullWidth
       variant="default"
       emphasis="secondary"
+      loading={pos && paymentObserved && isChecking}
+      loadingText="Receiving payment"
       disabled={!!requestDelivery?.sending || isExpired || !invoice}
       onPress={handleCopy}
     >
@@ -222,31 +225,23 @@ export function PaymentStage({
         inset={false}
         hero={
           <>
-            {pos && (
-              <YStack items="center" gap="$2" width="100%">
-                <PaymentAmount amount={sats} compact size="prominent" testID="mint-payment" />
-                {!!note && (
-                  <Text fontSize={13} color="$color" textAlign="center">
-                    {note}
-                  </Text>
-                )}
-                {!isExpired && (
-                  <Text fontSize={13} color="$color">
-                    Scan to pay with Lightning
-                  </Text>
-                )}
-              </YStack>
-            )}
-            {!pos && <PaymentAmount amount={sats} compact testID="mint-payment" />}
             {isExpired && (
               <Text fontSize={13} fontWeight="500" color="$gray10">
                 Invoice expired
               </Text>
             )}
             {!isExpired && (
-              <PaymentQRFrame accessibilityLabel="Lightning invoice QR code">
+              <PaymentQRFrame
+                appearance={appearance}
+                accessibilityLabel="Lightning invoice QR code"
+              >
                 {(size) => (
-                  <QRCode value={invoice} size={size} backgroundColor="white" color="black" />
+                  <QRCode
+                    value={invoice}
+                    size={size}
+                    backgroundColor={pos ? posColors.canvas : 'white'}
+                    color="black"
+                  />
                 )}
               </PaymentQRFrame>
             )}
@@ -254,9 +249,7 @@ export function PaymentStage({
         }
         footer={
           pos ? (
-            <YStack rounded={999} overflow="hidden">
-              {paymentAction}
-            </YStack>
+            paymentAction
           ) : requestDelivery ? (
             <YStack gap="$2">
               <AppButton
@@ -287,17 +280,21 @@ export function PaymentStage({
           </Text>
         )}
         <ListTable compact variant="filled">
+          <PaymentAmountRow amount={sats} />
+          {pos && !!note && <ListTableRow label="Note" value={note} multiline />}
           <PaymentStatusRow
             status={isExpired ? 'cancelled' : 'pending'}
             value={isExpired ? 'Expired' : paymentObserved ? 'Issuing ecash…' : 'Awaiting payment'}
-            checking={isChecking}
+            checking={isChecking && !(pos && paymentObserved)}
             disabled={isExpired || offline}
           />
           <ListTableRow label="Mint" value={mintDisplayName} />
-          <ListTableRow
-            label="Invoice"
-            value={invoice.length > 24 ? `${invoice.slice(0, 12)}…${invoice.slice(-8)}` : invoice}
-          />
+          {!pos && (
+            <ListTableRow
+              label="Invoice"
+              value={invoice.length > 24 ? `${invoice.slice(0, 12)}…${invoice.slice(-8)}` : invoice}
+            />
+          )}
           <ListTableRow
             label="Expires in"
             value={

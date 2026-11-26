@@ -1,5 +1,5 @@
 import React from 'react';
-import { Banknote, HandCoins, Zap } from '@tamagui/lucide-icons';
+import { Banknote, HandCoins, Zap } from '~/shared/icons';
 import { Text, XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { UnreadBadge } from '~/shared/ui/UnreadBadge';

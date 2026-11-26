@@ -59,8 +59,9 @@ export function TransferHistoryReceipt({
         targetMintUrl={targetMintUrl}
         record={record}
         error={record?.state === 'failed' ? 'The source mint did not complete the payment.' : null}
-        onCheckStatus={() => result.refetch().then(() => {})}
+        onCheckStatus={() => result.refetch({ throwOnError: true }).then(() => {})}
         checking={result.isFetching}
+        statusCheckFailed={result.isError}
         onClose={onClose}
       />
     </SafeAreaView>

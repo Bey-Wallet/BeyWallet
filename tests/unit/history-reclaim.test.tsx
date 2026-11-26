@@ -108,7 +108,7 @@ jest.mock('tamagui', () => ({
   Separator: 'Separator',
   YGroup: 'YGroup',
 }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, key) => String(key) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, key) => String(key) }));
 jest.mock('@gandlaf21/bc-ur', () => ({}));
 jest.mock('react-native-qrcode-svg', () => 'QR');
 jest.mock('~/shared/ui/PendingTokenLayout', () => ({ PendingTokenLayout: 'PendingToken' }));

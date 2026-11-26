@@ -73,6 +73,9 @@ jest.mock('~/services/wallet/currencyService', () => ({
 jest.mock('~/shared/ui/AppButton', () => ({
   AppButton: (props: unknown) => require('react').createElement('AppButton', props),
 }));
+jest.mock('~/features/history/components/ReceiptExtraDetails', () => ({
+  ReceiptExtraDetails: 'TechnicalDetails',
+}));
 jest.mock('~/shared/ui/Blockies', () => 'Blockies');
 jest.mock('~/shared/ui/AppSwitch', () => ({ AppSwitch: 'Switch' }));
 jest.mock('~/shared/ui/HomeMintSelector', () => ({ MintSelectorSheet: 'MintSelectorSheet' }));
@@ -86,7 +89,7 @@ jest.mock('@tamagui/toast', () => ({
     Description: 'ToastDescription',
   }),
 }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, key) => String(key) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, key) => String(key) }));
 jest.mock('tamagui', () => ({
   YStack: 'YStack',
   XStack: 'XStack',
@@ -171,7 +174,9 @@ it('uses an automatic toast with no Pay button, then clears it while awaiting co
 it('keeps manual progress on Pay and reuses the existing payment for a failed delivery retry', async () => {
   mockDeliver.mockRejectedValueOnce(new Error('Relay unavailable'));
   await render(false);
-  const pay = tree.root.findAllByType('AppButton' as any).find((n) => n.props.children === 'Pay')!;
+  const pay = tree.root
+    .findAllByType('AppButton' as any)
+    .find((n) => n.props.children === 'Pay 10 sat')!;
   await act(async () => pay.props.onPress());
   expect(mockToast.show).not.toHaveBeenCalled();
   expect(
@@ -182,22 +187,52 @@ it('keeps manual progress on Pay and reuses the existing payment for a failed de
   await act(async () => pay.props.onPress());
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(0);
   expect(
-    tree.root.findAllByType('AppButton' as any).find((n) => n.props.loading)?.props.loadingText,
-  ).toBe('Sending payment…');
+    tree.root.findAllByType('AppButton' as any).find((n) => n.props.children === 'Processing')
+      ?.props.accessibilityState.busy,
+  ).toBe(true);
   expect(mockConstruct).toHaveBeenCalledTimes(1);
   expect(mockDeliver).toHaveBeenCalledTimes(2);
   await act(async () => mockResolveDelivery());
+});
+
+it('closes a pending request with Done without submitting or declaring success again', async () => {
+  const success = await render(false);
+  const pay = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Pay 10 sat')!;
+  await act(async () => pay.props.onPress());
+  await act(async () => {
+    mockPayment.operationId = 'existing-operation';
+    mockResolveDelivery();
+  });
+  const done = tree.root
+    .findAllByType('AppButton' as any)
+    .find((node) => node.props.children === 'Done')!;
+  expect(done.props.disabled).toBe(false);
+  expect(
+    tree.root
+      .findAllByType('AppButton' as any)
+      .some((node) => node.props.children === 'Check status'),
+  ).toBe(true);
+  await act(async () => done.props.onPress());
+  expect(mockDeliver).toHaveBeenCalledTimes(1);
+  expect(mockConstruct).toHaveBeenCalledTimes(1);
+  expect(success).not.toHaveBeenCalled();
 });
 
 it('exposes a manual retry after automatic delivery fails before an operation exists', async () => {
   mockDeliver.mockRejectedValueOnce(new Error('Offline'));
   await render(true);
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(0);
-  const pay = tree.root.findAllByType('AppButton' as any).find((n) => n.props.children === 'Pay')!;
+  const pay = tree.root
+    .findAllByType('AppButton' as any)
+    .find((n) => n.props.children === 'Pay 10 sat')!;
   expect(pay).toBeDefined();
   await act(async () => pay.props.onPress());
   expect(tree.root.findAllByType('Toast' as any)).toHaveLength(0);
-  expect(tree.root.findAllByType('AppButton' as any).find((n) => n.props.loading)).toBeDefined();
+  expect(
+    tree.root.findAllByType('AppButton' as any).find((n) => n.props.children === 'Processing'),
+  ).toBeDefined();
   await act(async () => mockResolveDelivery());
 });
 
@@ -218,7 +253,7 @@ it('requires opt-in for the legacy quote, shows the net amount, and locks the mo
       .some((node) => JSON.stringify(node.props.children).includes('recipient pays')),
   ).toBe(true);
   const pay = () =>
-    tree.root.findAllByType('AppButton' as any).find((n) => n.props.children === 'Pay')!;
+    tree.root.findAllByType('AppButton' as any).find((n) => n.props.children === 'Pay 10 sat')!;
   await act(async () => pay().props.onPress());
   expect(mockConstruct).toHaveBeenCalledWith(
     nostrRequest,

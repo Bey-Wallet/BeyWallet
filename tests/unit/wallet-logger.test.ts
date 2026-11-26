@@ -82,14 +82,14 @@ it('ignores arbitrary codes and never evaluates code getters', () => {
   ).toBeUndefined();
 });
 
-it('reports only fixed melt checkpoints and ignores SDK metadata and arbitrary messages', () => {
+it('silences routine melt checkpoints and arbitrary SDK metadata', () => {
   const log = jest.spyOn(console, 'log').mockImplementation(() => {});
   const metadata = { secret: 'synthetic-private-proof' };
   walletLogger.debug('Melt quote created', metadata);
   walletLogger.info('Direct melt prepared', metadata);
   walletLogger.debug('synthetic-private-proof', metadata);
   walletLogger.debug('constructor', metadata);
-  expect(log.mock.calls).toEqual([['[CocoMelt] quote_created'], ['[CocoMelt] direct_prepared']]);
+  expect(log).not.toHaveBeenCalled();
 });
 
 it('classifies storage and HTTP errors without exposing messages, stacks or arbitrary names', () => {

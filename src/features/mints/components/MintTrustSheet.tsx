@@ -1,10 +1,9 @@
-import { hapticService } from '~/services/platform/hapticService';
 import React, { forwardRef } from 'react';
 import { XStack, YStack, View } from 'tamagui';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { MintImage } from '~/shared/ui/RemoteImage';
-import { AppPressable } from '~/shared/ui/AppPressable';
-import { BUICheckboxVisual } from '~/shared/ui/BUI/BUISelectionControl';
+import { AppIconButton } from '~/shared/ui/AppIconButton';
+import { ExternalLink } from '~/shared/icons';
 import { BUIAppearanceProvider, useBUIOverlayAppearance } from '~/shared/ui/BUI/useBUITheme';
 import { useMintInfo } from '~/shared/hooks/useMintInfo';
 import { MintTrustContent } from './MintTrustContent';
@@ -20,11 +19,11 @@ export const MintTrustSheet = forwardRef<
     mint: MintConnectionTarget | null;
     busy: boolean;
     error?: string | null;
-    remember: boolean;
-    onRememberChange: (checked: boolean) => void;
+    onPreview: () => void;
+    onClose?: () => void;
     onConfirm: () => void | Promise<void>;
   }
->(function MintTrustSheet({ mint, busy, error, remember, onRememberChange, onConfirm }, ref) {
+>(function MintTrustSheet({ mint, busy, error, onPreview, onClose, onConfirm }, ref) {
   const appearance = useBUIOverlayAppearance();
   const { data: info } = useMintInfo(mint?.url || '', {
     priority: 'interactive',
@@ -43,7 +42,7 @@ export const MintTrustSheet = forwardRef<
     metadataText(info?.picture) ||
     metadataText(info?.icon);
   return (
-    <AppBottomSheet title="Trust this mint?" ref={ref} canDismiss={!busy}>
+    <AppBottomSheet title="Trust this mint?" ref={ref} canDismiss={!busy} onClose={onClose}>
       <BUIAppearanceProvider value={appearance}>
         {mint && (
           <MintTrustContent
@@ -52,7 +51,7 @@ export const MintTrustSheet = forwardRef<
             error={error}
             onConfirm={onConfirm}
             identity={
-              <XStack items="center" gap="$3">
+              <XStack items="center" gap="$2">
                 <View
                   width={48}
                   height={48}
@@ -63,41 +62,23 @@ export const MintTrustSheet = forwardRef<
                 >
                   <MintImage mintUrl={mint.url} source={{ uri: icon, width: 48, height: 48 }} />
                 </View>
-                <YStack flex={1} minWidth={0} gap="$1">
+                <YStack flex={1} minWidth={0}>
                   <Text kind="label2">{name}</Text>
                   <Text color="$gray10" kind="body3" selectable>
                     {mint.url}
                   </Text>
                 </YStack>
+                <AppIconButton
+                  accessibilityLabel="View mint preview"
+                  emphasis="ghost"
+                  size="small"
+                  icon={<ExternalLink size={20} />}
+                  disabled={busy}
+                  onPress={onPreview}
+                />
               </XStack>
             }
-          >
-            <AppPressable
-              self="center"
-              minHeight={48}
-              px="$3"
-              flexDirection="row"
-              items="center"
-              gap="$1"
-              accessibilityRole="checkbox"
-              accessibilityLabel="Do not show again"
-              accessibilityState={{ checked: remember, disabled: busy }}
-              disabled={busy}
-              onPress={() => {
-                if (!busy) {
-                  hapticService.selection();
-                  onRememberChange(!remember);
-                }
-              }}
-            >
-              <View scale={0.75} opacity={0.8}>
-                <BUICheckboxVisual checked={remember} disabled={busy} />
-              </View>
-              <Text kind="body3" color="$gray10">
-                Do not show again
-              </Text>
-            </AppPressable>
-          </MintTrustContent>
+          />
         )}
       </BUIAppearanceProvider>
     </AppBottomSheet>

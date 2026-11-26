@@ -43,7 +43,7 @@ jest.mock('tamagui', () => ({
     ]),
   ),
 }));
-jest.mock('@tamagui/lucide-icons', () =>
+jest.mock('~/shared/icons', () =>
   Object.fromEntries(
     [
       'ChevronLeft',

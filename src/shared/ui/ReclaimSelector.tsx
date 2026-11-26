@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { hapticService } from '~/services/platform/hapticService';
 import { Text, XStack, YStack } from 'tamagui';
-import { ChevronDown } from '@tamagui/lucide-icons';
+import { ChevronDown } from '~/shared/icons';
 import { ListTableRow } from '~/shared/ui/ListTable';
 import { AppButton } from '~/shared/ui/AppButton';
 import { RECLAIM_PRESETS } from '~/services/wallet/reclaimPolicy';

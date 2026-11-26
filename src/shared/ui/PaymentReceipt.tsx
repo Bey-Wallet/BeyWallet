@@ -1,3 +1,4 @@
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
@@ -33,6 +34,7 @@ export function PaymentReceipt({
   onClose,
   navigationAction = 'close',
   extraDetails,
+  technicalDetails,
   headerRight,
 }: {
   title: string;
@@ -54,6 +56,7 @@ export function PaymentReceipt({
   onClose: () => void;
   navigationAction?: 'back' | 'close';
   extraDetails?: React.ReactNode;
+  technicalDetails?: React.ReactNode;
   headerRight?: () => React.ReactNode;
 }) {
   const mints = useWalletStore((s) => s.mints);
@@ -61,9 +64,11 @@ export function PaymentReceipt({
   const [details, setDetails] = useState(false);
   const sheet = useReceiptSheet();
   const receiptStatus = status ?? (completed ? 'success' : error ? 'error' : 'pending');
+  const menu =
+    headerRight || (() => <PaymentActionsMenu actions={[]} technicalDetails={technicalDetails} />);
   return (
     <>
-      {sheet && <PaymentFlowHeader title={title} headerRight={headerRight} />}
+      {sheet && <PaymentFlowHeader title={title} headerRight={menu} />}
       <PaymentStageLayout
         variant="receipt"
         inset={inset}
@@ -119,7 +124,12 @@ export function PaymentReceipt({
         }
       >
         {!sheet && (
-          <PaymentFlowHeader title={title} navigationAction={navigationAction} onBack={onClose} />
+          <PaymentFlowHeader
+            title={title}
+            navigationAction={navigationAction}
+            onBack={onClose}
+            headerRight={menu}
+          />
         )}
         <ListTable compact variant="filled">
           {receiptStatus === 'pending' && onCheckStatus && (

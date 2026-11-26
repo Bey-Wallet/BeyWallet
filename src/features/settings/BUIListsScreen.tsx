@@ -1,13 +1,5 @@
 import React, { useState } from 'react';
-import {
-  ArrowRightLeft,
-  Bell,
-  CircleCheck,
-  Info,
-  Shield,
-  Trash2,
-  Wallet,
-} from '@tamagui/lucide-icons';
+import { ArrowRightLeft, Bell, CircleCheck, Info, Shield, Trash2, Wallet } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import {
   BUIPage,
@@ -493,7 +485,7 @@ export function BUIListsScreen() {
             </BUIListGroup>
           </BUISection>
           <BUIDescriptionRow>
-            These are BUI preview dimensions. Allo, Lucide and native text layout differ from the
+            These are BUI preview dimensions. TikTok Sans, Phosphor and native text layout differ from the
             source; native ripple, island press-scale and animated shimmer are not reproduced.
           </BUIDescriptionRow>
         </>

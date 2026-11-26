@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
-import { EyeOff, Shield, Ticket, X } from '@tamagui/lucide-icons';
+import { EyeOff, Shield, Ticket, X } from '~/shared/icons';
 import { ScrollView, XStack, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';

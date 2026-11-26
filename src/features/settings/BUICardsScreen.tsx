@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { Bell, Check, Fingerprint, KeyRound, Wallet } from '@tamagui/lucide-icons';
+import { Bell, Check, Fingerprint, KeyRound, Wallet } from '~/shared/icons';
 import { XStack, YStack } from 'tamagui';
 import {
   BUIPage,
@@ -423,7 +423,7 @@ export function BUICardsScreen() {
             )}
           </BUISection>
           <BUIWarningCard>
-            Illustrations are Lucide placeholders. Allo, native text layout and press feedback
+            Illustrations are Phosphor placeholders. TikTok Sans, native text layout and press feedback
             differ from the source and need Android visual review.
           </BUIWarningCard>
         </>

@@ -1,3 +1,4 @@
+import { PaymentActionsMenu } from '~/shared/ui/PaymentActionsMenu';
 import { interactionCopy } from '~/services/feedback/interactionCopy';
 import { hapticService } from '~/services/platform/hapticService';
 import { usePendingPaymentPolling } from '~/shared/hooks/usePendingPaymentPolling';
@@ -8,15 +9,17 @@ import { PaymentFlowHeader } from '~/shared/ui/PaymentFlowHeader';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
 import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
-import { ChevronDown } from '@tamagui/lucide-icons';
+import { ChevronDown } from '~/shared/icons';
 import { usePendingOperationToast } from '~/shared/ui/OperationFeedback';
 import { useAppToast } from '~/shared/hooks/useAppToast';
 import { AppButton } from '~/shared/ui/AppButton';
+import { appTypography } from '~/shared/theme/appearance';
+import { PaymentTechnicalDetails } from '../PaymentTechnicalDetails';
 import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { AppSwitch } from '~/shared/ui/AppSwitch';
 import { YStack, XStack, Text, Separator, Avatar } from 'tamagui';
-import { AlertCircle, Zap, ShieldCheck, Sprout } from '@tamagui/lucide-icons';
+import { AlertCircle, Zap, ShieldCheck, Sprout } from '~/shared/icons';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -273,20 +276,46 @@ export function PaymentRequestStage({
     <>
       <PaymentFlowHeader
         navigationAction="close"
-        title={hasOperation ? 'Pending payment' : 'Confirm payment'}
+        title={
+          isSending ? 'Processing payment' : hasOperation ? 'Pending payment' : 'Confirm payment'
+        }
         onBack={onCancel}
         disabled={isSending}
-        headerRight={() => null}
+        headerRight={() => (
+          <PaymentActionsMenu
+            actions={[]}
+            busy={isSending}
+            technicalDetails={
+              !isSending &&
+              (receipt || hasOperation) && (
+                <PaymentTechnicalDetails
+                  entry={{
+                    id: '',
+                    type: 'send',
+                    amount: amountSats,
+                    unit: 'sat',
+                    mintUrl: matchedMint || '',
+                    operationId: paymentRef.current?.operationId,
+                    createdAt: 0,
+                    state: 'pending',
+                  }}
+                  snapshot={{ cashuRequest: request.raw }}
+                />
+              )
+            }
+          />
+        )}
       />
       <PaymentStageLayout
         variant={hasOperation ? 'receipt' : 'confirm'}
         hero={
           <>
-            {hasOperation && <PaymentStatusIcon status="pending" />}
+            {hasOperation && !isSending && <PaymentStatusIcon status="pending" />}
             <PaymentAmount
               amount={request.amount}
-              size={hasOperation ? 'standard' : 'prominent'}
-              label={hasOperation ? 'Payment pending' : "You're paying"}
+              size="prominent"
+              compact
+              label={isSending ? undefined : hasOperation ? 'Payment pending' : "You're paying"}
             />
           </>
         }
@@ -297,12 +326,21 @@ export function PaymentRequestStage({
               variant="default"
               emphasis="primary"
               size="large"
+              fullWidth
               loading={isSending}
-              loadingText="Sending payment…"
-              disabled={!!receipt || (!hasOperation && (!isCompatible || !isEnough)) || isSending}
-              onPress={() => void handlePay()}
+              loadingText="Processing"
+              accessibilityState={{
+                busy: isSending,
+                disabled: isSending || (!(receipt || hasOperation) && (!isCompatible || !isEnough)),
+              }}
+              disabled={isSending || (!(receipt || hasOperation) && (!isCompatible || !isEnough))}
+              onPress={receipt || hasOperation ? onCancel : () => void handlePay()}
             >
-              {isSending ? 'Sending…' : hasOperation ? 'Retry delivery' : 'Pay'}
+              {isSending
+                ? 'Processing'
+                : receipt || hasOperation
+                  ? 'Done'
+                  : `Pay ${currencyService.formatSats(amountSats)}`}
             </AppButton>
           )
         }
@@ -349,17 +387,41 @@ export function PaymentRequestStage({
             the receiving fee, which reduces the amount they receive.
           </Text>
         )}
-        {(receipt || hasOperation) && (
-          <Text color="$gray10">Payment pending. Do not pay this request again.</Text>
+        {(receipt || hasOperation) && !isSending && (
+          <>
+            <Text {...appTypography.body2} color="$gray10">
+              Payment pending. Check its status before paying again.
+            </Text>
+            <AppButton
+              size="small"
+              fullWidth={false}
+              self="center"
+              emphasis="secondary"
+              disabled={isRefreshingReceipt}
+              loading={isRefreshingReceipt}
+              loadingText="Checking…"
+              onPress={() => refreshReceipt(true)}
+            >
+              Check status
+            </AppButton>
+            {!receipt && (
+              <AppButton
+                size="small"
+                fullWidth={false}
+                self="center"
+                emphasis="secondary"
+                onPress={() => void handlePay()}
+              >
+                Retry delivery
+              </AppButton>
+            )}
+          </>
         )}
-        <ListTable mb="$3">
-          {(receipt || hasOperation) && (
+        <ListTable compact>
+          {(receipt || hasOperation) && !isSending && (
             <PaymentStatusRow
               status="pending"
               value={receipt === 'awaiting' ? 'Awaiting recipient' : 'Unconfirmed'}
-              checking={isRefreshingReceipt}
-              disabled={isSending}
-              onRefresh={() => refreshReceipt(true)}
             />
           )}
           {request.delivery === 'nip17' && !autoPay && (

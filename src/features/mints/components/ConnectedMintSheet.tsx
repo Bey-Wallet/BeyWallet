@@ -4,7 +4,7 @@ import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Landmark } from '@tamagui/lucide-icons';
+import { Landmark } from '~/shared/icons';
 import { XStack, YStack, useTheme } from 'tamagui';
 import { BUISheet, type BUISheetRef } from '~/shared/ui/BUI/BUISheet';
 import { useBUIOverlayAppearance } from '~/shared/ui/BUI/useBUITheme';
@@ -428,7 +428,7 @@ function ConnectedMintSheetContent({ mintUrl, onClose }: { mintUrl: string; onCl
                           autoCapitalize="sentences"
                           onSubmitEditing={() => void saveName()}
                           style={{
-                            fontFamily: 'AlloTextSemiBold',
+                            fontFamily: 'TikTokSansSemiBold',
                             fontSize: 18,
                             lineHeight: 25,
                             letterSpacing: 0,

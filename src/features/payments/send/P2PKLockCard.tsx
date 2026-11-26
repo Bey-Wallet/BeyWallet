@@ -4,7 +4,7 @@ import { Keyboard } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Text, XStack, YStack, useTheme } from 'tamagui';
-import { ClipboardPaste, ScanLine } from '@tamagui/lucide-icons';
+import { ClipboardPaste, ScanLine } from '~/shared/icons';
 import * as Clipboard from 'expo-clipboard';
 import AppBottomSheet, { type AppBottomSheetRef } from '~/shared/ui/AppBottomSheet';
 import { AppButton } from '~/shared/ui/AppButton';
@@ -131,7 +131,7 @@ export function P2PKLockCard({
               borderRadius: 12,
               padding: 16,
               fontSize: 13,
-              fontFamily: 'AlloTextRegular',
+              fontFamily: 'TikTokSansRegular',
               minHeight: 88,
               maxHeight: 160,
             }}

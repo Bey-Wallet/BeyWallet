@@ -26,7 +26,7 @@ import {
   Hexagon,
   ChevronDown,
   Repeat,
-} from '@tamagui/lucide-icons';
+} from '~/shared/icons';
 import { hapticService } from '~/services/platform/hapticService';
 import QRCode from 'react-native-qrcode-svg';
 

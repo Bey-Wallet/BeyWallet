@@ -1,7 +1,8 @@
 import { AppButton } from '~/shared/ui/AppButton';
+import { appTypography } from '~/shared/theme/appearance';
 import React, { useEffect } from 'react';
 import { YStack, Text, XStack, Paragraph } from 'tamagui';
-import { Check, X, Clock, ArrowRight } from '@tamagui/lucide-icons';
+import { Check, X, Clock, ArrowRight } from '~/shared/icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -166,7 +167,13 @@ export default function StatusScreen({
           </Text>
           {amount && (
             <XStack items="center" gap="$2">
-              <Text fontSize="$10" fontWeight="700" color={getIconColor()}>
+              <Text
+                {...appTypography.display}
+                color={getIconColor()}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                flexShrink={1}
+              >
                 {amount}
               </Text>
               <Text fontSize="$4" fontWeight="600" color={getIconColor()} opacity={0.8}>

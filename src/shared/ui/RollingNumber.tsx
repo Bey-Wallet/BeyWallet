@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { TextStyle, View, ViewStyle } from 'react-native';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { View, ViewStyle } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,7 +8,7 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import { Text, type TextProps } from 'tamagui';
-import { appTypography } from '~/shared/theme/appearance';
+import { getAmountLetterSpacing } from '~/shared/theme/appearance';
 
 interface RollingDigitProps {
   digit: string | number;
@@ -22,9 +22,65 @@ interface RollingDigitProps {
   letterSpacing?: number;
   duration?: number;
   opacity?: number;
+  animateChanges?: boolean;
 }
 
 const NUMBERS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+function DigitSlide({
+  previous,
+  height,
+  children,
+}: {
+  previous: React.ReactNode;
+  height: number;
+  children: React.ReactNode;
+}) {
+  const offset = useSharedValue(height);
+  useLayoutEffect(() => {
+    offset.value = withTiming(0, { duration: 240, easing: Easing.out(Easing.cubic) });
+  }, [offset]);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
+  return (
+    <Animated.View style={style}>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        aria-hidden
+        style={{ position: 'absolute', top: -height, left: 0, right: 0 }}
+      >
+        {previous}
+      </View>
+      {children}
+    </Animated.View>
+  );
+}
+
+function ChangedDigit({
+  digit,
+  height,
+  enabled,
+  renderDigit,
+}: {
+  digit: number;
+  height: number;
+  enabled: boolean;
+  renderDigit: (digit: number) => React.ReactNode;
+}) {
+  const [change, setChange] = useState<{ current: number; previous?: number }>({ current: digit });
+  if (change.current !== digit)
+    setChange({ current: digit, previous: enabled ? change.current : undefined });
+  if (change.previous === undefined) return renderDigit(digit);
+  return (
+    <DigitSlide
+      key={`${change.previous}:${digit}`}
+      previous={renderDigit(change.previous)}
+      height={height}
+    >
+      {renderDigit(digit)}
+    </DigitSlide>
+  );
+}
 
 const RollingDigit = ({
   digit,
@@ -37,9 +93,16 @@ const RollingDigit = ({
   letterSpacing = 0,
   duration = 800,
   opacity = 1,
+  animateChanges,
 }: RollingDigitProps) => {
   const parsedDigit = parseInt(digit as string, 10);
-  const measurementKey = JSON.stringify([parsedDigit, fontFamily, fontWeight, fontSize, height]);
+  const measurementKey = JSON.stringify([
+    animateChanges === undefined ? parsedDigit : 'tabular',
+    fontFamily,
+    fontWeight,
+    fontSize,
+    height,
+  ]);
   const currentMeasurementKey = useRef(measurementKey);
   currentMeasurementKey.current = measurementKey;
   const [measurement, setMeasurement] = useState<{ key: string; width: number }>();
@@ -47,6 +110,7 @@ const RollingDigit = ({
   const translateY = useSharedValue(0);
 
   useEffect(() => {
+    if (animateChanges !== undefined) return;
     if (!isNaN(parsedDigit)) {
       translateY.value = withDelay(
         index * 50,
@@ -58,13 +122,30 @@ const RollingDigit = ({
     } else {
       translateY.value = 0;
     }
-  }, [parsedDigit, height, index, duration]);
+  }, [parsedDigit, height, index, duration, animateChanges]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateY: translateY.value }],
     };
   });
+
+  const renderDigit = (num: number) => (
+    <View key={num} style={{ height, justifyContent: 'center', alignItems: 'center' }}>
+      <Text
+        color={color}
+        fontWeight={fontWeight}
+        fontFamily={fontFamily}
+        fontSize={fontSize}
+        lineHeight={height}
+        text="center"
+        fontVariant={['tabular-nums']}
+        letterSpacing={0}
+      >
+        {num}
+      </Text>
+    </View>
+  );
 
   return (
     <View
@@ -98,31 +179,17 @@ const RollingDigit = ({
       >
         {parsedDigit}
       </Text>
-      <Animated.View style={animatedStyle}>
-        {NUMBERS.map((num) => (
-          <View
-            key={num}
-            style={{
-              height,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <Text
-              color={color}
-              fontWeight={fontWeight}
-              fontFamily={fontFamily}
-              fontSize={fontSize}
-              lineHeight={height}
-              text="center"
-              fontVariant={['tabular-nums']}
-              letterSpacing={0}
-            >
-              {num}
-            </Text>
-          </View>
-        ))}
-      </Animated.View>
+      {animateChanges === undefined ? (
+        <Animated.View style={animatedStyle}>{NUMBERS.map(renderDigit)}</Animated.View>
+      ) : (
+        <ChangedDigit
+          key={`${animateChanges}:${height}`}
+          digit={parsedDigit}
+          height={height}
+          enabled={animateChanges}
+          renderDigit={renderDigit}
+        />
+      )}
     </View>
   );
 };
@@ -140,6 +207,8 @@ export interface RollingNumberProps {
   trigger?: any;
   prefix?: string;
   suffix?: string;
+  /** When provided, roll only changed digits or display them immediately if false. */
+  animateChanges?: boolean;
   decimalOpacity?: number;
   precision?: number;
   showDecimals?: boolean;
@@ -150,14 +219,15 @@ export const RollingNumber = ({
   children,
   fontSize = 40,
   color = 'black',
-  fontWeight = '400',
+  fontWeight = '500',
   fontFamily,
   style,
-  letterSpacing = 0,
+  letterSpacing,
   lineHeight,
   trigger,
   prefix = '',
   suffix = '',
+  animateChanges,
   decimalOpacity = 1,
   precision = 2,
   showDecimals = true,
@@ -184,9 +254,15 @@ export const RollingNumber = ({
   const resolvedFamily = fontFamily ?? (fontSize >= 25 ? '$display' : '$body');
   // Glyphs occupy separate cells. Allow the measured compact balance tracking,
   // scaled to this size, but prevent older aggressive margins from merging cells.
-  const minimumSpacing =
-    appTypography.display.letterSpacing * (fontSize / appTypography.display.fontSize);
-  const characterSpacing = Math.max(minimumSpacing, letterSpacing);
+  const displaySpacing = getAmountLetterSpacing(fontSize);
+  // Preserve the compact Home override while measuring cells with the current font.
+  const minimumSpacing = displaySpacing;
+  const defaultSpacing =
+    fontSize >= 25
+      ? displaySpacing
+      : // Preserve small inline balances, including Home's connected-mint rows.
+        -0.55 * (fontSize / 25);
+  const characterSpacing = Math.max(minimumSpacing, letterSpacing ?? defaultSpacing);
 
   // Track if we've passed the decimal point
   let isDecimal = false;
@@ -206,8 +282,9 @@ export const RollingNumber = ({
         if (/[0-9]/.test(char)) {
           return (
             <RollingDigit
-              key={`digit-${index}`}
+              key={`digit-${animateChanges === undefined ? index : valueStr.length - index}`}
               digit={char}
+              animateChanges={animateChanges}
               height={itemHeight}
               index={index}
               color={color}

@@ -50,7 +50,7 @@ BUI uses its approved white/black pages, relative card surfaces, blue primary an
 softer light secondary button fills. Raw neutral tertiary fills remain independent
 of transparent tertiary buttons. Warning text stays primary as in the source.
 
-Fidelity limits: Allo and Lucide replace source fonts/artwork. Collectible imagery
+Fidelity limits: TikTok Sans and Phosphor replace source fonts/artwork. Collectible imagery
 is a neutral placeholder, with a hidden placeholder rather than bitmap blur. Native
 ripple, standalone island press-scale, stacked-banner motion and feature-specific
 formatting are not reproduced. Text-only banners reserve room for the close target;

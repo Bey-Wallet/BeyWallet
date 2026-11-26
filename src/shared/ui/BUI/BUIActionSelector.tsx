@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { hapticService } from '~/services/platform/hapticService';
 import { Animated, AppState, Easing, I18nManager, Modal, useWindowDimensions } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import { Check, ChevronsUpDown } from '@tamagui/lucide-icons';
+import { Check, ChevronsUpDown } from '~/shared/icons';
 import { ScrollView, Theme, YStack } from 'tamagui';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { useReducedMotion } from '~/shared/hooks/useReducedMotion';

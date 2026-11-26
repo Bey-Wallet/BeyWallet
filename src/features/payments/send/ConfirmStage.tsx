@@ -15,6 +15,8 @@ import { currencyService } from '~/services/wallet/currencyService';
 import { P2PKLockCard } from './P2PKLockCard';
 import { PaymentNote } from '~/shared/ui/PaymentNote';
 import { OFFLINE_CHANGE_REQUIRED, type OfflineAmounts } from '~/shared/utils/offlineSendUtils';
+import { EcashPaymentStatus } from './EcashPaymentStatus';
+import { appTypography } from '~/shared/theme/appearance';
 
 interface ConfirmStageProps {
   amount: string;
@@ -54,6 +56,18 @@ export function ConfirmStage(props: ConfirmStageProps) {
       : sendMode === 'p2pk'
         ? props.receiverPubkey
         : undefined;
+  if (isLoading)
+    return (
+      <EcashPaymentStatus
+        status="processing"
+        amount={Number(amount)}
+        mintUrl={mintUrl}
+        fee={estimatedFee}
+        recipient={recipient}
+        method={sendMode === 'nostr' ? 'Nostr' : sendMode === 'p2pk' ? 'P2PK' : 'Ecash'}
+        onClose={onBack}
+      />
+    );
   return (
     <>
       <PaymentInfoHeader
@@ -64,7 +78,9 @@ export function ConfirmStage(props: ConfirmStageProps) {
       />
       <PaymentStageLayout
         disabled={isLoading}
-        hero={<PaymentAmount amount={Number(amount)} size="prominent" label="You're sending" />}
+        hero={
+          <PaymentAmount amount={Number(amount)} size="prominent" compact label="You're sending" />
+        }
         footer={
           <AppButton
             haptic
@@ -75,7 +91,7 @@ export function ConfirmStage(props: ConfirmStageProps) {
             disabled={isLoading || !props.ready}
             onPress={onConfirm}
           >
-            {sendMode === 'nostr' ? 'Send' : 'Create ecash'}
+            {`${sendMode === 'nostr' ? 'Send' : 'Create'} ${currencyService.formatSats(Number(amount))}`}
           </AppButton>
         }
       >
@@ -157,7 +173,18 @@ export function ConfirmStage(props: ConfirmStageProps) {
           />
         )}
         <ListTable compact>
+          {recipient && (
+            <ListTableRow
+              label="To"
+              value={recipient}
+              multiline
+              expandValue
+              isCopyable
+              copyValue={sendMode === 'nostr' ? props.nostrRecipientNpub : recipient}
+            />
+          )}
           <PaymentMintRow
+            label="Pay from"
             method={
               sendMode === 'p2pk' ||
               (sendMode === 'standard' && props.lockEcash) ||
@@ -183,19 +210,23 @@ export function ConfirmStage(props: ConfirmStageProps) {
                 : currencyService.formatSats(estimatedFee)
             }
           />
+          <ListTableRow
+            label="Total"
+            value={
+              <Text {...appTypography.label1} color="$color">
+                {estimatedFee === null
+                  ? props.isOffline && props.offlineAmounts?.exact === false
+                    ? 'Unavailable'
+                    : 'Calculating…'
+                  : currencyService.formatSats(Number(amount) + estimatedFee)}
+              </Text>
+            }
+          />
           {props.onNoteChange && (
             <PaymentNote
               value={props.note || ''}
               onChange={props.onNoteChange}
               disabled={isLoading}
-            />
-          )}
-          {recipient && (
-            <ListTableRow
-              label="Recipient"
-              value={recipient}
-              isCopyable
-              copyValue={sendMode === 'nostr' ? props.nostrRecipientNpub : recipient}
             />
           )}
           {sendMode === 'nostr' && (

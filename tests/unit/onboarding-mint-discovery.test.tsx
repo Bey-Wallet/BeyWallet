@@ -17,6 +17,13 @@ jest.mock('~/shared/ui/BUI/BUISelectionControl', () => ({
   BUICheckboxVisual: 'CheckboxVisual',
 }));
 jest.mock('~/features/explore/components/MintIcon', () => ({ MintIcon: 'MintIcon' }));
+jest.mock('~/shared/icons', () => ({
+  Check: 'Check',
+  Info: 'Info',
+  Landmark: 'Landmark',
+  ShieldCheck: 'ShieldCheck',
+  TriangleAlert: 'TriangleAlert',
+}));
 jest.mock('tamagui', () => ({
   XStack: 'XStack',
   YStack: 'YStack',
@@ -58,6 +65,15 @@ it('requires selection and acknowledgment before confirming all selected mints',
   await act(async () => button().props.onPress());
   expect(tree.root.findByType('Sheet' as any).props.title).toBe('Trust these mints?');
   expect(tree.root.findAllByType('Pressable' as any)).toHaveLength(0);
+  for (const name of ['One', 'Two']) {
+    const pill = tree.root.findByProps({ children: name });
+    expect(pill.props.color).toBe('$onAccent');
+    expect(pill.parent?.props.bg).toBe('$accentColor');
+  }
+  expect(tree.root.findByType('TriangleAlert' as any).props.color).toBe('$orange10');
+  expect(tree.root.findByType('Checkbox' as any).props.label).toBe(
+    'I acknowledge the risks and trust each mint operator.',
+  );
   expect(button().props.disabled).toBe(true);
   await act(async () => button().props.onPress());
   expect(onConfirm).not.toHaveBeenCalled();

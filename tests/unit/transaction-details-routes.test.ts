@@ -12,7 +12,7 @@ jest.mock('expo-router', () => ({
   }),
 }));
 jest.mock('tamagui', () => ({ useTheme: () => ({ background: { val: '#000000' } }) }));
-jest.mock('@tamagui/lucide-icons', () => ({ ArrowLeft: 'BackIcon', X: 'CloseIcon' }));
+jest.mock('~/shared/icons', () => ({ ArrowLeft: 'BackIcon', X: 'CloseIcon' }));
 jest.mock('~/shared/ui/HeaderIconButton', () => ({ HeaderIconButton: 'HeaderIconButton' }));
 jest.mock('~/shared/ui/HomeMintSelector', () => ({ __esModule: true, default: 'MintSelector' }));
 jest.mock('~/shared/ui/useScreenHeaderOptions', () => ({ useScreenHeaderOptions: () => ({}) }));

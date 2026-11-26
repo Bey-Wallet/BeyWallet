@@ -26,8 +26,6 @@ interface SettingsState {
   hideBalance: boolean;
   homeExpanded: boolean;
   setHomeExpanded: (expanded: boolean) => Promise<void>;
-  hideMintConnectionDisclaimer: boolean;
-  setHideMintConnectionDisclaimer: (hide: boolean) => Promise<void>;
   seedBackedUp: boolean;
   setSeedBackedUp: (val: boolean) => Promise<void>;
   backupDismissedAt: number;
@@ -67,7 +65,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   nip05: null,
   hideBalance: false,
   homeExpanded: false,
-  hideMintConnectionDisclaimer: false,
   seedBackedUp: false,
   backupDismissedAt: 0,
   showBitcoinSymbol: true,
@@ -120,7 +117,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         storedBackupDismissedAt,
         storedShowBitcoinSymbol,
         storedBackupDirectoryUri,
-        storedHideMintConnectionDisclaimer,
         storedHaptics,
       ] = await Promise.all([
         repo.settingsRepository.getSetting('theme'),
@@ -137,7 +133,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         repo.settingsRepository.getSetting('backupDismissedAt'),
         repo.settingsRepository.getSetting('showBitcoinSymbol'),
         repo.settingsRepository.getSetting('backupDirectoryUri'),
-        repo.settingsRepository.getSetting('hideMintConnectionDisclaimer'),
         repo.settingsRepository.getSetting('hapticsEnabled'),
       ]);
       if (generation !== walletStorageGeneration()) return;
@@ -145,7 +140,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       if (storedTheme) set({ theme: storedTheme as ThemePreference });
       set({ hapticsEnabled: storedHaptics == null || storedHaptics === 'true' });
       set({ homeExpanded: storedHomeExpanded === 'true' });
-      set({ hideMintConnectionDisclaimer: storedHideMintConnectionDisclaimer === 'true' });
       if (storedCurrency) set({ secondaryCurrency: storedCurrency });
       if (storedPrimary) set({ primaryCurrency: storedPrimary as 'SATS' | 'FIAT' });
       if (storedNotifications !== undefined && storedNotifications !== null) {
@@ -408,22 +402,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     } catch {
       appLogger.warn(
         '[SettingsStore] Could not save expanded Home preference',
-        undefined,
-        'app_runtime',
-      );
-    }
-  },
-  setHideMintConnectionDisclaimer: async (hide: boolean) => {
-    try {
-      if (!(await initService.walletExists())) return;
-      await initService
-        .getRepo()
-        .settingsRepository.setSetting('hideMintConnectionDisclaimer', String(hide));
-      set({ hideMintConnectionDisclaimer: hide });
-    } catch {
-      // Keep showing the disclaimer if the preference could not be saved.
-      appLogger.warn(
-        '[SettingsStore] Could not save mint disclaimer preference',
         undefined,
         'app_runtime',
       );

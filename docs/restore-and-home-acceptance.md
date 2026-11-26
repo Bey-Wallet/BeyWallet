@@ -110,13 +110,13 @@ not remove font resources from an already installed native binary.
 
 ## 5. Fonts and interaction
 
-- Body/UI copy: Allo Text Regular 400; labels/buttons: Medium 500; headings/balances:
-  SemiBold 600. Large values use Allo Display. Only six Allo faces are bundled.
+- Body/UI copy: TikTok Sans Regular 400; labels/buttons: Medium 500; headings/balances:
+  SemiBold 600. Large values use TikTok Sans. Only three TikTok Sans faces are bundled.
 - Inspect `0123469`, `Il1O0`, `$`, `€`, `₹`, `₿` and other selected currency symbols.
-  Check equal-width digits, normal unslashed zero, open digits and disambiguation in both families.
+  Check tabular digits, normal 1, normal unslashed zero, disambiguation and normal punctuation.
 - Review dark/light modes, larger system text, Settings rows, navigation titles, text
   inputs, the Home pill and payment screens. Check for clipping and usable touch targets.
-- Home's main amount uses −0.5 spacing. Currency-symbol spacing has not been changed.
+- Home's numeric tracking follows the current display role in [fonts.md](fonts.md).
 - Test TalkBack/VoiceOver: the pill should announce the target display currency and its
   disabled state while hidden. Repeat on iOS when available.
 

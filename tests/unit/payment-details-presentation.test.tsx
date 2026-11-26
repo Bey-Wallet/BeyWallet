@@ -17,7 +17,7 @@ jest.mock('tamagui', () => ({
   Separator: 'Separator',
   Avatar: 'Avatar',
 }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   Copy: 'Copy',
   ChevronRight: 'ChevronRight',
   RefreshCw: 'RefreshCw',
@@ -32,6 +32,9 @@ jest.mock('expo-haptics', () => ({
 }));
 jest.mock('~/shared/ui/RemoteImage', () => ({ MintImage: 'MintImage' }));
 jest.mock('~/shared/ui/Spinner', () => ({ Spinner: 'Spinner' }));
+jest.mock('~/features/payments/PaymentTechnicalDetails', () => ({
+  PaymentTechnicalDetails: 'TechnicalDetails',
+}));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/AppPressable', () => ({ AppPressable: 'AppPressable' }));
@@ -316,6 +319,91 @@ it('keeps the memo copyable after receiving successfully', async () => {
   const copy = tree.root.findByType('IconButton' as any);
   await act(async () => copy.props.onPress());
   expect(Clipboard.setStringAsync).toHaveBeenCalledWith('Lunch ☕');
+});
+
+it('keeps receive processing locked with one footer spinner and no success or retry', async () => {
+  await render(
+    <ReceiveResultStage
+      status="success"
+      amount="8"
+      isLoading
+      onClose={jest.fn()}
+      onClaimNow={jest.fn()}
+    />,
+  );
+  expect(tree.root.findByType('Header' as any).props).toMatchObject({
+    title: 'Receiving ecash',
+    disabled: true,
+  });
+  expect(tree.root.findAllByType('StatusIcon' as any)).toHaveLength(0);
+  const buttons = tree.root.findAllByType('Button' as any);
+  expect(buttons).toHaveLength(1);
+  expect(buttons[0].props).toMatchObject({ children: 'Receiving', disabled: true });
+  expect(buttons[0].props.loading).toBe(true);
+  expect(buttons[0].props.loadingText).toBe('Receiving ecash');
+});
+
+it('shows an offline saved token as awaiting claim without inventing a fee or timestamp', async () => {
+  await render(
+    <ReceiveResultStage
+      status="success"
+      amount="8"
+      isReceiveLater
+      offline
+      onClose={jest.fn()}
+      onClaimNow={jest.fn()}
+    />,
+  );
+  expect(tree.root.findByType('StatusIcon' as any).props.status).toBe('pending');
+  expect(tree.root.findByType('Button' as any).props.children).toBe('Done');
+  expect(tree.root.findAllByType(ListTableRow).map((row) => row.props.label)).toEqual([
+    'Status',
+    'Method',
+  ]);
+});
+
+it('shows unavailable receive fees unless a saved receipt records them', async () => {
+  await render(<ReceiveResultStage status="success" amount="8" onClose={jest.fn()} />);
+  expect(tree.root.findByProps({ label: 'Fee paid' }).props.value).toBe('Unavailable');
+  expect(tree.root.findAllByProps({ label: 'Time' })).toHaveLength(0);
+  const receipt = {
+    id: 'receive-1',
+    type: 'receive',
+    amount: 8,
+    unit: 'sat',
+    mintUrl: 'https://mint.example',
+    createdAt: 1700000000000,
+    metadata: { fee: 0 },
+  };
+  await act(async () =>
+    tree.update(
+      <ReceiveResultStage status="success" amount="8" receipt={receipt} onClose={jest.fn()} />,
+    ),
+  );
+  expect(tree.root.findByProps({ label: 'Fee paid' }).props.value).toBe('0 sat');
+  expect(tree.root.findByType('TechnicalDetails' as any).props.entry).toEqual(receipt);
+});
+
+it('keeps failed receive details visible and retry explicit', async () => {
+  const retry = jest.fn();
+  await render(
+    <ReceiveResultStage
+      status="error"
+      amount="8"
+      error="Token already spent"
+      onClose={jest.fn()}
+      onClaimNow={retry}
+    />,
+  );
+  expect(tree.root.findByType('StatusIcon' as any).props.status).toBe('error');
+  expect(tree.root.findByProps({ label: 'Details' }).props.value).toBe('Token already spent');
+  expect(tree.root.findAllByProps({ label: 'Fee paid' })).toHaveLength(0);
+  const button = tree.root
+    .findAllByType('Button' as any)
+    .find((b) => b.props.children === 'Retry receive')!;
+  expect(retry).not.toHaveBeenCalled();
+  await act(async () => button.props.onPress());
+  expect(retry).toHaveBeenCalledTimes(1);
 });
 
 it.each(['secondary', 'primary'] as const)(

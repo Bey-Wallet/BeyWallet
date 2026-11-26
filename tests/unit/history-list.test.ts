@@ -13,6 +13,20 @@ import {
 
 const now = new Date(2026, 9, 22, 12);
 
+it('keeps drafts and cancelled Lightning attempts visible without showing money spent', () => {
+  const attempt = {
+    type: 'melt',
+    state: 'prepared',
+    metadata: { paymentAttempt: true, submitted: false },
+  };
+  expect(historyStatusLabel(attempt)).toBe('Ready to pay');
+  expect(historyBalanceEffect(attempt)).toBe('none');
+  expect(historyStatusLabel({ ...attempt, state: 'cancelled' })).toBe('Cancelled');
+  expect(historyBalanceEffect({ ...attempt, state: 'cancelled' })).toBe('none');
+  expect(isPendingHistory({ ...attempt, state: 'unresolved' })).toBe(true);
+  expect(historyStatusLabel({ ...attempt, state: 'unresolved' })).toBe('Unconfirmed');
+});
+
 it.each(['failed', 'expired', 'cancelled', 'rolled_back', 'refunded', 'UNPAID'])(
   'does not show a debit for an unsuccessful or reversed outgoing amount (%s)',
   (state) => expect(historyBalanceEffect({ type: 'melt', state })).toBe('none'),

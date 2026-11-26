@@ -23,10 +23,11 @@ export function PaymentStageLayout({
   const centered = variant !== 'qr';
   const satsOnly = useSettingsStore((state) => state.secondaryCurrency === 'NONE');
   const sheet = useReceiptSheet();
+  const surface = sheet && sheet.presentation !== 'screen' ? '$sheetBackground' : '$background';
   const ContentScrollView =
     sheet && sheet.presentation !== 'screen' ? BottomSheetScrollView : ScrollView;
   return (
-    <YStack testID="payment-stage-layout" flex={1} bg="$background" px={inset ? '$4' : 0}>
+    <YStack testID="payment-stage-layout" flex={1} bg={surface} px={inset ? '$4' : 0}>
       <ContentScrollView
         flex={1}
         showsVerticalScrollIndicator={false}
@@ -53,7 +54,7 @@ export function PaymentStageLayout({
         </YStack>
       </ContentScrollView>
       {footer && (
-        <YStack testID="payment-stage-footer" pt="$3" pb="$4" bg="$background" gap="$2">
+        <YStack testID="payment-stage-footer" pt="$3" pb="$4" bg={surface} gap="$2">
           {footer}
         </YStack>
       )}

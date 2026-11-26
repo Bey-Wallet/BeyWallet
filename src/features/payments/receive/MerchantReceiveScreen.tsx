@@ -8,7 +8,8 @@ import { useWalletStore } from '~/state/walletStore';
 import { useSettingsBusy } from '~/features/settings/hooks/useSettingsBusy';
 import { PosHeader } from './PosHeader';
 import { AppBottomSheetThemeProvider } from '~/shared/ui/AppBottomSheet';
-import { ListTableVariantProvider } from '~/shared/ui/ListTable';
+import { ListTableVariantProvider, ListTable, ListTableRow } from '~/shared/ui/ListTable';
+import { appTypography } from '~/shared/theme/appearance';
 import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
 import { PaymentAmount } from '~/shared/ui/PaymentAmount';
 import { PaymentStatusIcon } from '~/shared/ui/PaymentStatusIcon';
@@ -17,7 +18,7 @@ import { AppPressable } from '~/shared/ui/AppPressable';
 import { RequestEcashStage } from './RequestEcashStage';
 import { MerchantLightningStage } from './MerchantLightningStage';
 
-type Sale = { amount: number; mintUrl: string; note: string };
+type Sale = { saleId: string; amount: number; mintUrl: string; note: string };
 type Method = 'ecash' | 'lightning';
 
 function MerchantCheckout({
@@ -36,20 +37,26 @@ function MerchantCheckout({
   const [ecashBusy, setEcashBusy] = useState(false);
   const [lightningBusy, setLightningBusy] = useState(false);
   const busy = ecashBusy || lightningBusy;
+  const mints = useWalletStore((state) => state.mints);
+  const saleMint = mints.find((mint) => mint.mintUrl === sale.mintUrl);
   const renderHeader = (action: React.ReactNode) => (
     <>
       <PosHeader onBack={onClose} disabled={busy} headerRight={action} />
-      <XStack gap="$1" p="$1" mb="$2" rounded={999} bg="$buttonDefaultSecondary">
+      <XStack gap="$2" mb="$2" items="center" justify="center">
         {(['ecash', 'lightning'] as const).map((value) => (
           <AppPressable
             key={value}
-            flex={1}
-            minHeight={48}
+            minWidth={96}
+            minHeight={40}
+            hitSlop={4}
+            px="$3"
             rounded={999}
             items="center"
             justify="center"
             bg={method === value ? '$buttonDefaultPrimary' : 'transparent'}
-            pressStyle={{ bg: '$buttonDefaultSecondaryPress' }}
+            pressStyle={{
+              bg: method === value ? '$buttonDefaultPrimaryPress' : '$buttonDefaultSecondaryPress',
+            }}
             accessibilityRole="tab"
             disabled={busy}
             accessibilityLabel={value === 'ecash' ? 'Ecash' : 'Lightning'}
@@ -63,7 +70,7 @@ function MerchantCheckout({
             <Text
               fontFamily="$body"
               fontSize={14}
-              fontWeight="600"
+              fontWeight={method === value ? '600' : '500'}
               color={method === value ? '$buttonDefaultPrimaryText' : '$color'}
             >
               {value === 'ecash' ? 'Ecash' : 'Lightning'}
@@ -86,33 +93,34 @@ function MerchantCheckout({
       {completed && <PosHeader onBack={onClose} disabled={busy} />}
       {completed ? (
         <PaymentStageLayout
+          variant="receipt"
           inset={false}
           hero={
             <>
-              <YStack bg="$buttonDefaultPrimary" rounded={999} p="$4" mb="$3">
+              <YStack height={68} items="center" justify="center">
                 <PaymentStatusIcon status="success" />
               </YStack>
-              <Text
-                fontFamily="$display"
-                fontSize={29}
-                lineHeight={34}
-                fontWeight="600"
-                color="$color"
-                textAlign="center"
-              >
+              <Text {...appTypography.title3} color="$color" textAlign="center">
                 Payment received
               </Text>
               <PaymentAmount amount={sale.amount} size="prominent" compact />
             </>
           }
           footer={
-            <YStack rounded={999} overflow="hidden">
-              <AppButton haptic fullWidth size="large" disabled={busy} onPress={onNext}>
-                Next sale
-              </AppButton>
-            </YStack>
+            <AppButton haptic fullWidth size="large" disabled={busy} onPress={onNext}>
+              Next sale
+            </AppButton>
           }
-        />
+        >
+          <ListTable compact>
+            <ListTableRow label="Status" value="Received" />
+            <ListTableRow
+              label="Mint"
+              value={saleMint?.nickname || saleMint?.name || sale.mintUrl}
+            />
+            {!!sale.note && <ListTableRow label="Note" value={sale.note} multiline />}
+          </ListTable>
+        </PaymentStageLayout>
       ) : null}
       {/* Keep both receivers mounted: a payment to the previously displayed method still belongs to this sale. */}
       <YStack flex={1} display={!completed && method === 'ecash' ? 'flex' : 'none'}>
@@ -147,7 +155,7 @@ export function MerchantReceiveScreen() {
   return (
     <Theme name="light_pos">
       <AppBottomSheetThemeProvider value="light_pos">
-        <ListTableVariantProvider value="outlined">
+        <ListTableVariantProvider value="filled">
           <MerchantReceiveContent />
         </ListTableVariantProvider>
       </AppBottomSheetThemeProvider>
@@ -176,7 +184,12 @@ function MerchantReceiveContent() {
       return;
     }
     setError(null);
-    setSale({ amount: value, mintUrl, note: note.trim() });
+    setSale({
+      saleId: `pos_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
+      amount: value,
+      mintUrl,
+      note: note.trim(),
+    });
   };
   return (
     <YStack flex={1} bg="$background" px="$4" pt={insets.top} pb={Math.max(insets.bottom, 16)}>

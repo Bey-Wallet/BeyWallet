@@ -16,7 +16,7 @@ import { AppButton } from '~/shared/ui/AppButton';
 import React, { useMemo, useEffect, useState } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import { YStack, XStack, H6, Text, View, styled } from 'tamagui';
-import { X, ArrowUpRight } from '@tamagui/lucide-icons';
+import { X, ArrowUpRight } from '~/shared/icons';
 import Blockies from '~/shared/ui/Blockies';
 import { useNostrInboxStore, type NostrInboxItem } from '~/state/nostrInboxStore';
 import { useNostrRequestStore, findRequestPayment } from '~/state/nostrRequestStore';

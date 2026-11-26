@@ -1,17 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, YStack } from 'tamagui';
 import { quotesService, eventService } from '~/services/wallet';
 import { historyService } from '~/services/wallet/historyService';
 import { networkService } from '~/services/platform/networkService';
 import { useFeedbackOwner } from '~/shared/hooks/useFeedbackOwner';
 import { PaymentStage } from '~/features/payments/mint/PaymentStage';
-import { Spinner } from '~/shared/ui/Spinner';
+import { PaymentStageLayout } from '~/shared/ui/PaymentStageLayout';
+import { PaymentAmount } from '~/shared/ui/PaymentAmount';
+import { ListTable, ListTableRow } from '~/shared/ui/ListTable';
 import { AppButton } from '~/shared/ui/AppButton';
 
 type Quote = Awaited<ReturnType<typeof quotesService.createMintQuote>>;
 
 /** One saved invoice per sale, retained while the customer changes payment methods. */
 export function MerchantLightningStage({
+  saleId,
   amount,
   mintUrl,
   note,
@@ -21,6 +23,7 @@ export function MerchantLightningStage({
   listening = true,
   renderHeader,
 }: {
+  saleId?: string;
   amount: number;
   mintUrl: string;
   note?: string;
@@ -57,7 +60,12 @@ export function MerchantLightningStage({
           ? quotesService.createMintQuote(mintUrl, amount, note)
           : quotesService.createMintQuote(mintUrl, amount)));
       createdQuote.current = created;
-      await historyService.markPosOrigin({ kind: 'quote', mintUrl, reference: created.quote });
+      await historyService.markPosOrigin({
+        kind: 'quote',
+        mintUrl,
+        reference: created.quote,
+        ...(saleId ? { saleId } : {}),
+      });
       return created;
     })();
     void pendingQuote.current
@@ -99,25 +107,40 @@ export function MerchantLightningStage({
     return (
       <>
         {renderHeader?.(null)}
-        <YStack flex={1} items="center" justify="center" gap="$3">
-          {creating && <Spinner size="large" />}
-          {failed && (
-            <>
-              <Text fontFamily="$body" fontSize={13} color="$gray10" text="center">
-                Could not create the invoice. Check your connection and try again.
-              </Text>
-              <AppButton
-                emphasis="secondary"
-                onPress={() => {
-                  pendingQuote.current = null;
-                  setAttempt((value) => value + 1);
-                }}
-              >
-                Retry
-              </AppButton>
-            </>
-          )}
-        </YStack>
+        <PaymentStageLayout
+          inset={false}
+          hero={<PaymentAmount amount={amount} size="prominent" compact />}
+          footer={
+            <AppButton
+              size="large"
+              fullWidth
+              loading={creating}
+              loadingText="Preparing invoice"
+              disabled={creating}
+              onPress={() => {
+                pendingQuote.current = null;
+                setAttempt((value) => value + 1);
+              }}
+            >
+              Retry
+            </AppButton>
+          }
+        >
+          <ListTable compact>
+            <ListTableRow
+              label="Status"
+              value={creating ? 'Preparing invoice' : 'Invoice unavailable'}
+            />
+            <ListTableRow label="Mint" value={mintUrl.replace(/^https?:\/\//, '')} />
+            {failed && (
+              <ListTableRow
+                label="Details"
+                value="Could not create the invoice. Check your connection and try again."
+                multiline
+              />
+            )}
+          </ListTable>
+        </PaymentStageLayout>
       </>
     );
   return (

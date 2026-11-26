@@ -1,6 +1,6 @@
 import React from 'react';
 import { H1, Text, View } from 'tamagui';
-import { appTypography } from '~/shared/theme/appearance';
+import { appTypography, getAmountLetterSpacing } from '~/shared/theme/appearance';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -77,10 +77,8 @@ export function BouncyAmount({
       fontFamily="$display"
       fontSize={fontSize}
       fontVariant={['tabular-nums']}
-      fontWeight="600"
-      letterSpacing={
-        appTypography.display.letterSpacing * (fontSize / appTypography.display.fontSize)
-      }
+      fontWeight="500"
+      letterSpacing={getAmountLetterSpacing(fontSize)}
       py="$2"
       lineHeight={fontSize + 2}
       color={color}

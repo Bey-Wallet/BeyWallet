@@ -2,7 +2,7 @@ import React from 'react';
 import { Share } from 'react-native';
 import { Stack, useRouter, type Href } from 'expo-router';
 import { Text, YStack } from 'tamagui';
-import { AtSign, ChevronDown, ChevronUp, Download, Zap } from '@tamagui/lucide-icons';
+import { AtSign, ChevronDown, ChevronUp, Download, Zap } from '~/shared/icons';
 import { AppButton } from '~/shared/ui/AppButton';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useLightningAddressStore } from '~/state/lightningAddressStore';

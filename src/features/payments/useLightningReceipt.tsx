@@ -1,8 +1,5 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useSettingsStore } from '~/state/settingsStore';
-import { readLightningReceiptSnapshot } from '~/services/wallet/lightningReceiptContext';
-import { buildReceiptDetails } from '~/features/history/receiptDetails';
+import { usePaymentTechnicalDetails } from './usePaymentTechnicalDetails';
 import { ReceiptExtraDetails } from '~/features/history/components/ReceiptExtraDetails';
 import { ListTableRow } from '~/shared/ui/ListTable';
 
@@ -14,6 +11,8 @@ export function useLightningReceipt({
   incoming,
   state,
   amount,
+  time,
+  feeSats,
 }: {
   mintUrl?: string;
   quoteId?: string;
@@ -22,14 +21,10 @@ export function useLightningReceipt({
   incoming: boolean;
   state: string;
   amount: number;
+  time?: number;
+  feeSats?: number;
 }) {
-  const wallet = useSettingsStore((settings) => settings.npub);
-  const { data } = useQuery({
-    queryKey: ['lightningReceipt', wallet, mintUrl, quoteId, state],
-    enabled: !!mintUrl && !!quoteId,
-    queryFn: () => readLightningReceiptSnapshot(wallet, mintUrl!, quoteId!, incoming),
-  });
-  const detail = buildReceiptDetails(
+  const detail = usePaymentTechnicalDetails(
     {
       id: '',
       type: incoming ? 'mint' : 'melt',
@@ -37,11 +32,12 @@ export function useLightningReceipt({
       amount,
       unit: 'sat',
       mintUrl: mintUrl || '',
-      createdAt: 0,
+      createdAt: time || 0,
       quoteId,
       paymentRequest: invoice,
+      metadata: feeSats != null ? { fee: feeSats } : undefined,
     },
-    { ...data, recipient: recipient || data?.recipient },
+    { recipient: recipient || undefined },
   );
   return {
     rows: (

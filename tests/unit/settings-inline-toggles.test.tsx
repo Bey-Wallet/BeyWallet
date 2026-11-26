@@ -50,7 +50,7 @@ jest.mock('~/features/settings/components/SettingsLayout', () => ({
   SettingsSection: 'Section',
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack', YStack: 'YStack' }));
-jest.mock('@tamagui/lucide-icons', () => new Proxy({}, { get: (_, key) => String(key) }));
+jest.mock('~/shared/icons', () => new Proxy({}, { get: (_, key) => String(key) }));
 jest.mock('~/shared/icons/NostrIcon', () => ({ __esModule: true, default: 'NostrIcon' }));
 jest.mock('~/shared/ui/AppSwitch', () => ({ AppSwitch: 'Switch' }));
 jest.mock('expo-haptics', () => ({ impactAsync: jest.fn(), ImpactFeedbackStyle: { Light: 1 } }));

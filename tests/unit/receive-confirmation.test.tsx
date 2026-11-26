@@ -19,7 +19,7 @@ jest.mock('~/state/settingsStore', () => ({
     selector({ npub: 'npub-me' }),
 }));
 jest.mock('tamagui', () => ({ Text: 'Text', XStack: 'XStack' }));
-jest.mock('@tamagui/lucide-icons', () => ({
+jest.mock('~/shared/icons', () => ({
   RefreshCw: 'RefreshCw',
   AlertTriangle: 'AlertTriangle',
 }));
@@ -35,6 +35,9 @@ jest.mock('~/shared/ui/PaymentStageLayout', () => ({
 }));
 jest.mock('~/shared/ui/PaymentFlowHeader', () => ({ PaymentFlowHeader: 'Header' }));
 jest.mock('~/shared/ui/PaymentAmount', () => ({ PaymentAmount: 'Amount' }));
+jest.mock('~/features/payments/receive/ReceiveResultStage', () => ({
+  ReceiveResultStage: 'ReceiveStatus',
+}));
 jest.mock('~/shared/ui/ListTable', () => ({ ListTable: 'Table', ListTableRow: 'Row' }));
 jest.mock('~/shared/ui/AppButton', () => ({ AppButton: 'Button' }));
 jest.mock('~/shared/ui/AppIconButton', () => ({ AppIconButton: 'IconButton' }));
@@ -71,8 +74,10 @@ it('shows minimal mint and status rows without token or proof details', async ()
   expect(tree.root.findAllByType('Row' as any).map((row) => row.props.label)).toEqual([
     'Mint',
     'Status',
+    'Estimated fee',
   ]);
   expect(status().props.value).toBe('Unspent');
+  expect(tree.root.findByProps({ label: 'Estimated fee' }).props.value).toBe('0 sat');
   expect(receive().props.disabled).toBeFalsy();
   expect(tree.root.findByType('Amount' as any).props.amount).toBe(100);
   expect(tree.root.findByProps({ label: 'Mint' }).props.isCopyable).toBeUndefined();
@@ -193,4 +198,24 @@ it('checks proof state again when connectivity returns', async () => {
   expect(mockCheck).toHaveBeenCalledWith('first-token');
   expect(status().props.value).toBe('Unspent');
   expect(receive().props.children).toBe('Receive');
+});
+
+it('shows unavailable instead of a zero fee when the estimate fails', async () => {
+  mockFee.mockRejectedValueOnce(new Error('Mint unavailable'));
+  await render();
+  expect(tree.root.findByProps({ label: 'Estimated fee' }).props.value).toBe('Unavailable');
+  expect(receive().props.disabled).toBeFalsy();
+});
+
+it('replaces review controls with the locked receive presentation while claiming', async () => {
+  await act(async () => {
+    tree = create(<ConfirmStage {...props} isLoading />);
+  });
+  expect(tree.root.findByType('ReceiveStatus' as any).props).toMatchObject({
+    isLoading: true,
+    saving: false,
+    amount: '100',
+    mintUrl: props.tokenInfo.mint,
+  });
+  expect(tree.root.findAllByType('Button' as any)).toHaveLength(0);
 });

@@ -1,7 +1,7 @@
 # Bey design system
 
 Bey's design system is a mobile foundation built on the existing Tamagui provider. It preserves
-the monochrome brand, Allo Text/Display, compact lists, full-width separators, and native wallet
+the monochrome brand, TikTok Sans, compact lists, full-width separators, and native wallet
 flows. The recorded [surface consistency rules](design-system-proposal.md) and
 [screen adoption inventory](design-system-screens.md) guide future visual work.
 
@@ -49,13 +49,16 @@ import { AppText } from '~/shared/ui/AppText';
 ```
 
 The default is `body2` (13/18, Regular). Font sizes and line heights use the committed baseline
-multiplied by 0.9 and rounded to whole points: Home display 40, amounts 29 and 25,
-headings 29/22/18, body and labels 14/13/11, and captions 9. Tracking and weights remain unchanged. Geometry,
+multiplied by 0.9 and rounded to whole points for headings 29/22/18, body and labels
+14/13/11, and captions 9. Main balances and payment amounts now match Home at
+44-point Medium, with -2.8 tracking. Secondary amount summaries retain 25 points.
+Larger POS inputs and receipt images keep their sizes with proportionally scaled
+numeric tracking. Fiat symbols use the currency formatter's spacing. Geometry,
 icon sizes and system accessibility scaling are unchanged. `variant` accepts every `appTypography` role. `tone`
 accepts primary, secondary, success, warning, or error; default primary. Existing Tamagui text
 props and refs are forwarded, with explicit overrides applied after the role defaults.
 
-Allo Text remains the UI family; Allo Display remains the large-title/amount family. The six
+TikTok Sans remains the UI family; TikTok Sans remains the large-title/amount family. The three
 prepared static faces and existing Tamagui face mappings resolve 400/500/600 without new font
 downloads. Larger/lighter weight requests retain their established mappings. Tabular numerals,
 the prepared font features, and system font scaling remain enabled. Do not cap text scaling as a
@@ -122,6 +125,6 @@ findings. Candidates require review: artwork, QR codes, optical corrections and 
 can have intentional literals. The audit is informational, not a replacement for accessibility
 or visual review. Migrate one screen or complete shared component at a time.
 
-Validation includes Allo rendering, light/dark/POS theme resolution, button state behavior,
+Validation includes TikTok Sans rendering, light/dark/POS theme resolution, button state behavior,
 switches, full-width groups, reduced motion, large system text and device keyboard/safe areas.
 See `docs/design-system-audit.md` for the current baseline and remaining migration targets.

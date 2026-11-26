@@ -32,11 +32,13 @@ export function ResultStage({
     incoming: true,
     state: status === 'success' ? 'issued' : status,
     amount: Number(amount),
+    time,
+    feeSats,
   });
 
   return (
     <PaymentReceipt
-      extraDetails={details.extraDetails}
+      technicalDetails={details.extraDetails}
       status={status}
       title={
         status === 'success'

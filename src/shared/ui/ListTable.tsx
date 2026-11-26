@@ -3,7 +3,7 @@ import { copyWithFeedback } from '~/shared/utils/copyWithFeedback';
 import { AppIconButton } from '~/shared/ui/AppIconButton';
 import React, { createContext, useContext } from 'react';
 import { XStack, YStack, Text } from 'tamagui';
-import { Copy, ChevronRight } from '@tamagui/lucide-icons';
+import { Copy, ChevronRight } from '~/shared/icons';
 
 import { hapticService } from '~/services/platform/hapticService';
 import { useAppToast } from '~/shared/hooks/useAppToast';

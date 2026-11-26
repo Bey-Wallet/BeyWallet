@@ -13,7 +13,7 @@ import Svg, { Path } from 'react-native-svg';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { URDecoder } from '@gandlaf21/bc-ur';
 import { YStack, XStack, Text, ZStack, Theme } from 'tamagui';
-import { X, Zap, ZapOff, Image } from '@tamagui/lucide-icons';
+import { X, Zap, ZapOff, Image } from '~/shared/icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { appColors, appTypography } from '~/shared/theme/appearance';
@@ -278,6 +278,13 @@ export default function ScannerScreen() {
 
       const trimmed = data.trim();
       if (!trimmed) return;
+
+      // Contact scans return only to People; never dispatch them into a payment flow.
+      if (params.peopleScan === '1') {
+        hapticService.acknowledge();
+        router.dismissTo({ pathname: '/(tabs)/people', params: { scannedPerson: trimmed } });
+        return;
+      }
 
       // A public-key scan belongs only to its key editor, not another open payment screen.
       if (typeof params.p2pkScanId === 'string') {

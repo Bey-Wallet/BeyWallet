@@ -3,9 +3,8 @@ import { useCurrencyInput } from '~/shared/hooks/useCurrencyInput';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import React, { useMemo, useRef } from 'react';
 import { YStack, Text } from 'tamagui';
-import { ArrowUpDown } from '@tamagui/lucide-icons';
+import { ArrowUpDown } from '~/shared/icons';
 import { NumericKeypad } from '~/shared/ui/NumericKeypad';
-import { Spinner } from '~/shared/ui/Spinner';
 import { useWalletStore } from '~/state/walletStore';
 import { useSettingsStore } from '~/state/settingsStore';
 import { useQuery } from '@tanstack/react-query';
@@ -279,7 +278,7 @@ export function AmountStage({
         onConfirm={onContinue}
         confirmLabel={isLoading ? 'Processing...' : 'Continue'}
         confirmDisabled={!isValidAmount || isLoading}
-        confirmIcon={isLoading ? <Spinner size="small" /> : undefined}
+        isLoading={isLoading}
       />
 
       <MintSelectorSheet

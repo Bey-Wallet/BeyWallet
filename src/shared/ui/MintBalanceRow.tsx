@@ -2,7 +2,7 @@ import { MintImage } from '~/shared/ui/RemoteImage';
 import { AppButton } from '~/shared/ui/AppButton';
 import React from 'react';
 import { XStack, YStack, Text, Avatar } from 'tamagui';
-import { ChevronDown } from '@tamagui/lucide-icons';
+import { ChevronDown } from '~/shared/icons';
 import { ListTable } from '~/shared/ui/ListTable';
 import { AppPressable } from '~/shared/ui/AppPressable';
 import { appDimensions, appIconSizes, appSpacing, appTypography } from '~/shared/theme/appearance';
