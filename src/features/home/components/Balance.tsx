@@ -25,6 +25,8 @@ export default function Balance() {
   const theme = useTheme();
   const hiddenBalanceBackground = String(theme.gray3.val);
   const balances = useWalletStore((s) => s.balances);
+  const hasBalanceSnapshot = useWalletStore((s) => s.hasBalanceSnapshot);
+  const isInitializing = useWalletStore((s) => s.isInitializing);
   const isRestoring = useWalletStore((s) => s.isRestoring);
   const isRefreshing = useWalletStore((s) => s.isRefreshing);
   const refreshCounter = useWalletStore((s) => s.refreshCounter);
@@ -34,6 +36,7 @@ export default function Balance() {
   const [justUpdated, setJustUpdated] = React.useState(false);
   const lastRefresh = React.useRef(refreshCounter);
   const statusOpacity = React.useRef(new Animated.Value(1)).current;
+  const shimmerOpacity = React.useRef(new Animated.Value(1)).current;
   const { primaryCurrency, secondaryCurrency, hideBalance, showBitcoinSymbol } = useSettingsStore();
 
   React.useEffect(() => {
@@ -74,24 +77,58 @@ export default function Balance() {
     const current = useSettingsStore.getState();
     void current.setHideBalance(!current.hideBalance);
   }, []);
-  const { data: btcData } = useQuery({
+  const { data: btcData, isFetching: isFetchingPrice } = useQuery({
     queryKey: ['bitcoinPrice', secondaryCurrency],
     queryFn: () => bitcoinService.fetchPrice(secondaryCurrency),
     staleTime: 30000,
     enabled: secondaryCurrency !== 'NONE',
   });
 
-  const currentBalance = React.useMemo(() => {
-    return Object.values(balances).reduce((sum, val) => sum + (val || 0), 0);
-  }, [balances]);
+  const [currentBalance, hasBalance] = React.useMemo(() => {
+    const amounts = Object.values(balances);
+    return [
+      amounts.reduce((sum, val) => sum + (val || 0), 0),
+      hasBalanceSnapshot || amounts.length > 0,
+    ] as const;
+  }, [balances, hasBalanceSnapshot]);
 
   const secondaryBalance = React.useMemo(() => {
+    if (!hasBalance) return null;
     if (currentBalance === 0) return 0;
     if (!btcData?.price || !Number.isFinite(btcData.price) || btcData.price <= 0) return null;
     return currencyService.convertSatsToCurrency(currentBalance, btcData.price);
-  }, [currentBalance, btcData?.price]);
+  }, [currentBalance, hasBalance, btcData?.price]);
 
   const isFiatEnabled = secondaryCurrency !== 'NONE';
+  const isUpdatingBalance = isInitializing || isRefreshing;
+  const showBalanceShimmer = !hideBalance && !hasBalance && isUpdatingBalance;
+  const showPriceShimmer =
+    !hideBalance && isFiatEnabled && secondaryBalance === null && !!isFetchingPrice;
+  const showShimmer = showBalanceShimmer || showPriceShimmer;
+
+  React.useEffect(() => {
+    shimmerOpacity.setValue(1);
+    if (!showShimmer || reducedMotion) return;
+    const shimmer = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerOpacity, {
+          toValue: 0.45,
+          duration: 650,
+          useNativeDriver: true,
+          isInteraction: false,
+        }),
+        Animated.timing(shimmerOpacity, {
+          toValue: 1,
+          duration: 650,
+          useNativeDriver: true,
+          isInteraction: false,
+        }),
+      ]),
+    );
+    shimmer.start();
+    return () => shimmer.stop();
+  }, [showShimmer, reducedMotion, shimmerOpacity]);
+
   const displayAsSats = primaryCurrency === 'SATS' || !isFiatEnabled || secondaryBalance === null;
   const fiatText =
     !isFiatEnabled || secondaryBalance === null
@@ -110,7 +147,7 @@ export default function Balance() {
       position="relative"
     >
       {/* Connection and sync status share the same space above the balance. */}
-      {(isOffline || isRestoring || isRefreshing || justUpdated) && (
+      {(isOffline || isRestoring || isUpdatingBalance || justUpdated) && (
         <XStack position="absolute" z={100} top={0} items="center" gap="$2" self="center">
           <Animated.View style={{ opacity: justUpdated && !isRefreshing ? statusOpacity : 1 }}>
             <Text fontSize="$2" color="$gray10" fontWeight="600" accessibilityLiveRegion="polite">
@@ -118,8 +155,10 @@ export default function Balance() {
                 ? 'Offline'
                 : isRestoring
                   ? 'Syncing...'
-                  : isRefreshing
-                    ? 'Refreshing...'
+                  : isUpdatingBalance
+                    ? isRefreshing
+                      ? 'Refreshing...'
+                      : 'Updating balance…'
                     : 'Updated just now'}
             </Text>
           </Animated.View>
@@ -144,40 +183,32 @@ export default function Balance() {
         justify="center"
         z={1000}
       >
-        {displayAsSats ? (
-          <RollingNumber
-            animateChanges={!reducedMotion}
-            value={hideBalance ? '****' : currentBalance}
-            prefix={hideBalance ? '' : showBitcoinSymbol ? '₿' : ''}
-            suffix={hideBalance ? '' : showBitcoinSymbol ? '' : ' sat'}
-            trigger={`${hideBalance ? 'hidden' : 'visible_sats'}_${showBitcoinSymbol}`}
-
-            fontSize={balanceFontSize}
-            fontWeight={500}
-            letterSpacing={balanceLetterSpacing}
-            color="$accent1"
-
-            decimalOpacity={1}
-            showDecimals={false}
-            style={
-              hideBalance
-                ? {
-                    backgroundColor: hiddenBalanceBackground,
-                    borderRadius: 120,
-                    paddingHorizontal: 16,
-                    paddingTop: 10,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    alignSelf: 'center',
-                  }
-                : undefined
-            }
-          />
+        {!hideBalance && !hasBalance ? (
+          showBalanceShimmer ? (
+            <Animated.View
+              testID="home-balance-shimmer"
+              accessibilityLabel="Loading balance"
+              accessible
+              style={{ opacity: shimmerOpacity }}
+            >
+              <YStack width={140} height={32} bg="$gray3" rounded="$6" />
+            </Animated.View>
+          ) : (
+            <Text
+              fontSize={balanceFontSize}
+              color="$gray10"
+              accessibilityLabel="Balance unavailable"
+            >
+              —
+            </Text>
+          )
         ) : (
           <RollingNumber
             animateChanges={!reducedMotion}
-            value={hideBalance ? '****' : (secondaryBalance ?? undefined)}
-            trigger={hideBalance ? 'hidden' : `visible_fiat_${secondaryCurrency}`}
+            value={hideBalance ? '****' : displayAsSats ? currentBalance : undefined}
+            prefix={!hideBalance && displayAsSats && showBitcoinSymbol ? '₿' : ''}
+            suffix={!hideBalance && displayAsSats && !showBitcoinSymbol ? ' sat' : ''}
+            trigger={hideBalance ? 'hidden' : 'visible'}
 
             fontSize={balanceFontSize}
             fontWeight={500}
@@ -185,7 +216,7 @@ export default function Balance() {
             color="$accent1"
 
             decimalOpacity={1}
-            showDecimals={true}
+            showDecimals={!displayAsSats}
             style={
               hideBalance
                 ? {
@@ -200,14 +231,14 @@ export default function Balance() {
                 : undefined
             }
           >
-            {hideBalance ? undefined : fiatText}
+            {!hideBalance && !displayAsSats ? fiatText : undefined}
           </RollingNumber>
         )}
       </AppPressable>
 
       {/* Secondary Balance */}
       {isFiatEnabled &&
-        (secondaryBalance !== null ? (
+        (hideBalance || secondaryBalance !== null ? (
           <AppPressable
             testID="home-balance-currency-toggle"
             mt={appSpacing.compact}
@@ -246,13 +277,7 @@ export default function Balance() {
               }
               prefix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '₿' : ''}
               suffix={hideBalance ? '' : displayAsSats ? '' : showBitcoinSymbol ? '' : ' sat'}
-              trigger={
-                (hideBalance
-                  ? '_hidden'
-                  : displayAsSats
-                    ? `_visible_fiat_sub_${secondaryCurrency}`
-                    : '_visible_sats_sub') + `_${showBitcoinSymbol}`
-              }
+              trigger={hideBalance ? 'hidden' : 'visible'}
               fontSize={appTypography.body1.fontSize}
               fontWeight={500}
               color="$gray10"
@@ -265,7 +290,18 @@ export default function Balance() {
             </RollingNumber>
           </AppPressable>
         ) : (
-          <YStack mt={appSpacing.compact} minHeight={36} />
+          <YStack mt={appSpacing.compact} minHeight={36} justify="center" items="center">
+            {showPriceShimmer && (
+              <Animated.View
+                testID="home-price-shimmer"
+                accessibilityLabel="Loading exchange rate"
+                accessible
+                style={{ opacity: shimmerOpacity }}
+              >
+                <YStack width={72} height={20} bg="$gray3" rounded={appRadii.pill} />
+              </Animated.View>
+            )}
+          </YStack>
         ))}
     </YStack>
   );

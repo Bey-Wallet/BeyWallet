@@ -380,6 +380,9 @@ it('resumes a request after a cancelled reader finishes releasing its session', 
   });
   await flush();
   expect(flow.getSnapshot().requestStatus).toBe('ready');
+  expect(diagnostics.mock.calls.some(([message]) => String(message).startsWith('[NFC] '))).toBe(
+    false,
+  );
   expect(nfcService.startHceSimulation).toHaveBeenCalledWith(requestString('new-request'), {
     preventAutoLock: false,
     requestId: expect.any(String),
@@ -572,16 +575,8 @@ it('keeps the iOS Lightning result visible after closing the NFC radio session',
   expect(close).toHaveBeenCalledTimes(1);
   expect(pay).toHaveBeenCalledTimes(1);
   expect(flow.getSnapshot()).toMatchObject({ status: 'confirmed', visible: true });
-  const events = diagnostics.mock.calls
-    .filter(([prefix]) => typeof prefix === 'string' && prefix.startsWith('[NFC] '))
-    .map(([prefix]) => prefix.slice('[NFC] '.length));
-  expect(events).toEqual(
-    expect.arrayContaining([
-      'read_complete',
-      'lightning_detected',
-      'lightning_preview',
-      'lightning_submit',
-    ]),
+  expect(diagnostics.mock.calls.some(([message]) => String(message).startsWith('[NFC] '))).toBe(
+    false,
   );
   expect(JSON.stringify(diagnostics.mock.calls)).not.toContain('synthetic-invoice');
 });
@@ -835,7 +830,7 @@ it('reconciles an already-submitted interrupted Lightning payment without a fres
   expect(quotes.executeMelt).toHaveBeenCalledTimes(1);
 });
 
-it('reports lifecycle/dismissal reasons without logging a failed invoice or native error', async () => {
+it('logs only a sanitized Lightning preparation failure', async () => {
   jest.mocked(parsePaymentInput).mockReturnValue({
     matched: true,
     ok: true,
@@ -858,9 +853,7 @@ it('reports lifecycle/dismissal reasons without logging a failed invoice or nati
   const events = diagnostics.mock.calls
     .filter(([prefix]) => typeof prefix === 'string' && prefix.startsWith('[NFC] '))
     .map(([prefix]) => prefix.slice('[NFC] '.length));
-  expect(events).toEqual(
-    expect.arrayContaining(['lightning_prepare_failed', 'dismiss_requested', 'host_unmount']),
-  );
+  expect(events).toEqual(['lightning_prepare_failed']);
   expect(JSON.stringify(diagnostics.mock.calls)).not.toContain('synthetic-private');
 });
 it.each([

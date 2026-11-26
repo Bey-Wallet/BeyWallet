@@ -22,7 +22,7 @@ afterEach(async () => {
   jest.mocked(withTiming).mockClear();
 });
 
-it('shows the initial value immediately and only slides changed digits for 240 ms', async () => {
+it('shows the initial value immediately and rolls only the changed digit in either direction', async () => {
   await act(async () => {
     tree = create(<RollingNumber value="12,340" animateChanges trigger="sats" />);
   });
@@ -31,16 +31,42 @@ it('shows the initial value immediately and only slides changed digits for 240 m
     tree.update(<RollingNumber value="12,345" animateChanges trigger="sats" />),
   );
   expect(withTiming).toHaveBeenCalledTimes(1);
-  expect(withTiming).toHaveBeenCalledWith(0, expect.objectContaining({ duration: 240 }));
+  expect(withTiming).toHaveBeenLastCalledWith(-220, expect.objectContaining({ duration: 460 }));
   await act(async () =>
     tree.update(<RollingNumber value="12,345" animateChanges trigger="sats" />),
   );
   expect(withTiming).toHaveBeenCalledTimes(1);
+  await act(async () =>
+    tree.update(<RollingNumber value="12,342" animateChanges trigger="sats" />),
+  );
+  expect(withTiming).toHaveBeenCalledTimes(2);
+  expect(withTiming).toHaveBeenLastCalledWith(-88, expect.objectContaining({ duration: 460 }));
   await act(async () => tree.update(<RollingNumber value="12.35" animateChanges trigger="fiat" />));
   await act(async () =>
     tree.update(<RollingNumber value="12.36" animateChanges={false} trigger="fiat" />),
   );
+  expect(withTiming).toHaveBeenCalledTimes(2);
+});
+
+it('rolls changed digits across currency switches without counting formatter symbols as columns', async () => {
+  await act(async () => {
+    tree = create(<RollingNumber value="12,34 €" animateChanges trigger="visible" />);
+  });
+  expect(withTiming).not.toHaveBeenCalled();
+  await act(async () =>
+    tree.update(<RollingNumber value="1,235" suffix=" sat" animateChanges trigger="visible" />),
+  );
   expect(withTiming).toHaveBeenCalledTimes(1);
+  expect(withTiming).toHaveBeenLastCalledWith(-220, expect.objectContaining({ duration: 460 }));
+  await act(async () =>
+    tree.update(<RollingNumber value="12,34 €" animateChanges trigger="visible" />),
+  );
+  expect(withTiming).toHaveBeenCalledTimes(2);
+  expect(withTiming).toHaveBeenLastCalledWith(-176, expect.objectContaining({ duration: 460 }));
+  await act(async () =>
+    tree.update(<RollingNumber value="****" animateChanges trigger="hidden" />),
+  );
+  expect(withTiming).toHaveBeenCalledTimes(2);
 });
 
 it('uses each displayed numeral width instead of the widest numeral for every column', async () => {

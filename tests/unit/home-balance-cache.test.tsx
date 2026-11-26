@@ -39,6 +39,8 @@ beforeEach(() => {
   mockOffline = false;
   useWalletStore.setState({
     balances: { mint: 10_000 },
+    hasBalanceSnapshot: false,
+    isInitializing: false,
     refreshCounter: 0,
     isRestoring: false,
     isRefreshing: false,
@@ -62,13 +64,18 @@ it('swaps sats and fiat from the secondary pill and blocks switching while hidde
     tree = create(<Balance />);
   });
   const pill = () => tree.root.findByProps({ testID: 'home-balance-currency-toggle' });
+  const visibleWheels = tree.root.findAllByType('RollingNumber' as any);
+  const triggers = visibleWheels.map((wheel) => wheel.props.trigger);
   expect(pill().props.accessibilityLabel).toBe('Display balance in sats');
   await act(async () => pill().props.onPress());
   expect(useSettingsStore.getState().primaryCurrency).toBe('SATS');
   expect(displayed()[0].value).toBe(10_000);
   expect(displayed()[1].children).toBe('$10.00');
+  expect(tree.root.findAllByType('RollingNumber' as any)).toEqual(visibleWheels);
+  expect(displayed().map((props) => props.trigger)).toEqual(triggers);
   await act(async () => pill().props.onPress());
   expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
+  expect(displayed().map((props) => props.trigger)).toEqual(triggers);
   await act(async () => useSettingsStore.setState({ hideBalance: true }));
   expect(pill().props.disabled).toBe(true);
   expect(displayed().map((props) => props.value)).toEqual(['****', '****']);
@@ -173,11 +180,28 @@ it('keeps the existing balance and fiat amount visible while refreshing and upda
 
 it('shows a real zero without requiring an exchange rate', async () => {
   mockQuote = undefined;
-  useWalletStore.setState({ balances: {} });
+  useWalletStore.setState({ balances: {}, hasBalanceSnapshot: true, isInitializing: true });
   await act(async () => {
     tree = create(<Balance />);
   });
   expect(displayed()[0].children).toBe('$0.00');
+});
+
+it('shows a balance shimmer until the first snapshot arrives and respects balance privacy', async () => {
+  useWalletStore.setState({ balances: {}, isInitializing: true });
+  await act(async () => {
+    tree = create(<Balance />);
+  });
+  expect(tree.root.findAllByProps({ testID: 'home-balance-shimmer' }).length).toBeGreaterThan(0);
+  expect(displayed()).toHaveLength(0);
+  await act(async () => useSettingsStore.setState({ hideBalance: true }));
+  expect(tree.root.findAllByProps({ testID: 'home-balance-shimmer' })).toHaveLength(0);
+  expect(displayed().every(({ value }) => value === '****')).toBe(true);
+  await act(async () => {
+    useWalletStore.setState({ balances: { mint: 10_000 }, hasBalanceSnapshot: true });
+    useSettingsStore.setState({ hideBalance: false });
+  });
+  expect(displayed()[0].children).toBe('$10.00');
 });
 
 it('collapses to one sats balance for None and restores the saved fiat presentation', async () => {
@@ -258,17 +282,21 @@ it.each(['SATS', 'FIAT'] as const)(
 
 it('shows sats until a conversion is available without changing the fiat preference', async () => {
   mockQuote = undefined;
+  useWalletStore.setState({ isInitializing: true });
   await act(async () => {
     tree = create(<Balance />);
   });
   expect(displayed()[0].value).toBe(10_000);
   expect(displayed()).toHaveLength(1);
+  expect(tree.root.findAllByProps({ testID: 'home-price-shimmer' }).length).toBeGreaterThan(0);
+  expect(tree.root.findAllByProps({ testID: 'home-balance-shimmer' })).toHaveLength(0);
   expect(tree.root.findAllByProps({ testID: 'home-balance-currency-toggle' })).toHaveLength(0);
   mockFetching = false;
   await act(async () => {
     tree.update(<Balance />);
   });
   expect(displayed()[0].value).toBe(10_000);
+  expect(tree.root.findAllByProps({ testID: 'home-price-shimmer' })).toHaveLength(0);
   expect(useSettingsStore.getState().primaryCurrency).toBe('FIAT');
   mockQuote = { price: 100_000 };
   await act(async () => tree.update(<Balance />));
